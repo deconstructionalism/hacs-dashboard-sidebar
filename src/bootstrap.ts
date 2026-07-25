@@ -66,6 +66,10 @@ function widthCss(config: DashboardSidebarConfig): string {
       width: ${expanded}px;
       box-sizing: border-box;
       overflow: visible;
+      align-self: flex-start;
+      position: sticky;
+      top: 0;
+      height: 100vh;
       transition: width 0.25s ease;
     }
     #${WRAPPER_ID}.collapsed #${HOST_ID} {

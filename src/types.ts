@@ -40,6 +40,8 @@ export interface SidebarCategoryConfig {
   icon?: MaybeTemplate;
   /** Whether the category starts collapsed when the sidebar is expanded. */
   start_collapsed?: boolean;
+  /** Whether to draw the vertical guide line beside the items. Default true. */
+  guide_line?: boolean;
   items: SidebarItemConfig[];
 }
 

@@ -382,7 +382,7 @@ export class DashboardSidebar extends LitElement {
         ${
           collapsed
             ? nothing
-            : html`<div class="category-items">
+            : html`<div class="category-items ${category.guide_line === false ? 'no-line' : ''}">
                 ${category.items.map((item) => this._renderItemRow(item, false))}
               </div>`
         }
@@ -691,6 +691,10 @@ export class DashboardSidebar extends LitElement {
       padding-left: 8px;
       border-left: 1px solid var(--divider-color, rgb(0 0 0 / 12%));
       margin-left: 18px;
+    }
+
+    .category-items.no-line {
+      border-left: none;
     }
 
     .category-anchor {

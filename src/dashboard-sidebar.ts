@@ -14,14 +14,22 @@ import {
 } from './format';
 import { TemplateManager } from './templates';
 import {
+  type Align,
   type DashboardSidebarConfig,
   type SidebarCategoryConfig,
   type SidebarEntry,
   type SidebarFooterButtonConfig,
   type SidebarItemConfig,
   isCategory,
+  isDivider,
   validateConfig,
 } from './types';
+
+const FLEX_ALIGN: Record<Align, string> = {
+  left: 'flex-start',
+  center: 'center',
+  right: 'flex-end',
+};
 
 /** Fired when the collapsed state changes so the bootstrap can resize. */
 export const TOGGLE_EVENT = 'dashboard-sidebar-toggle';
@@ -232,10 +240,20 @@ export class DashboardSidebar extends LitElement {
       return html``;
     }
     const collapsed = this._collapsed;
+    const cfg = this._config;
     const classes = { sidebar: true, collapsed, [`pos-${this._position}`]: true };
+    const sidebarStyle = cfg.background ? { background: cfg.background } : {};
+    const contentAlign = cfg.content_align ?? 'left';
+    const contentStyle = {
+      'align-items': FLEX_ALIGN[contentAlign],
+      'text-align': contentAlign,
+      ...(cfg.content_background
+        ? { background: cfg.content_background, padding: '8px', 'border-radius': '8px' }
+        : {}),
+    };
 
     return html`
-      <div class=${classMap(classes)}>
+      <div class=${classMap(classes)} style=${styleMap(sidebarStyle)}>
         <button
           class="toggle"
           title=${collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -244,9 +262,13 @@ export class DashboardSidebar extends LitElement {
           <ha-icon icon="mdi:chevron-left"></ha-icon>
         </button>
         ${this._renderHeader(collapsed)}
-        ${this._contentCard ? html`<div class="content">${this._contentCard}</div>` : nothing}
+        ${
+          this._contentCard
+            ? html`<div class="content" style=${styleMap(contentStyle)}>${this._contentCard}</div>`
+            : nothing
+        }
         <nav class="menu">
-          ${this._config.items.map((entry, i) => this._renderEntry(entry, i, collapsed))}
+          ${cfg.items.map((entry, i) => this._renderEntry(entry, i, collapsed))}
         </nav>
         ${this._renderFooter(collapsed)}
       </div>
@@ -264,8 +286,9 @@ export class DashboardSidebar extends LitElement {
     if (!title && !showClock && !showDate) {
       return nothing;
     }
+    const headerStyle = { 'text-align': cfg.header_align ?? 'center' };
     return html`
-      <div class="header">
+      <div class="header" style=${styleMap(headerStyle)}>
         ${title ? html`<div class="app-title">${title}</div>` : nothing}
         ${
           showClock
@@ -294,6 +317,9 @@ export class DashboardSidebar extends LitElement {
   }
 
   private _renderEntry(entry: SidebarEntry, index: number, collapsed: boolean): TemplateResult {
+    if (isDivider(entry)) {
+      return html`<div class="entry-divider"></div>`;
+    }
     if (isCategory(entry)) {
       return collapsed
         ? this._renderCollapsedCategory(entry, index)
@@ -399,10 +425,15 @@ export class DashboardSidebar extends LitElement {
       return nothing;
     }
     const anchor = this._popoverAnchor;
+    const footerClasses = {
+      footer: true,
+      'collapsed-footer': collapsed,
+      'no-divider': this._config?.footer_divider === false,
+    };
 
     if (collapsed) {
       return html`
-        <div class="footer collapsed-footer">
+        <div class=${classMap(footerClasses)}>
           ${this._renderDots('row item collapsed-row')}
           ${this._footerOpen && anchor ? this._renderFooterPopover(buttons, anchor) : nothing}
         </div>
@@ -413,12 +444,14 @@ export class DashboardSidebar extends LitElement {
     const width = this._config?.width ?? 240;
     const maxFit = Math.max(1, Math.floor((width - 24 + 4) / 44)); // 40px button + 4px gap
     if (buttons.length <= maxFit) {
-      return html`<div class="footer">${buttons.map((btn) => this._renderFooterButton(btn))}</div>`;
+      return html`<div class=${classMap(footerClasses)}>
+        ${buttons.map((btn) => this._renderFooterButton(btn))}
+      </div>`;
     }
     const inline = buttons.slice(0, maxFit - 1);
     const overflow = buttons.slice(maxFit - 1);
     return html`
-      <div class="footer">
+      <div class=${classMap(footerClasses)}>
         ${inline.map((btn) => this._renderFooterButton(btn))} ${this._renderDots('footer-btn')}
         ${this._footerOpen && anchor ? this._renderFooterPopover(overflow, anchor) : nothing}
       </div>
@@ -665,11 +698,24 @@ export class DashboardSidebar extends LitElement {
     }
 
     .content {
+      display: flex;
+      flex-direction: column;
       margin-bottom: 12px;
     }
 
     .collapsed .content {
       display: none;
+    }
+
+    .entry-divider {
+      height: 1px;
+      margin: 6px 4px;
+      background: var(--divider-color, rgb(0 0 0 / 12%));
+    }
+
+    .collapsed .entry-divider {
+      width: 60%;
+      margin: 6px auto;
     }
 
     .popover-title {
@@ -689,6 +735,11 @@ export class DashboardSidebar extends LitElement {
 
     .collapsed .footer {
       justify-content: center;
+    }
+
+    .footer.no-divider {
+      border-top: none;
+      padding-top: 0;
     }
 
     .footer-btn {

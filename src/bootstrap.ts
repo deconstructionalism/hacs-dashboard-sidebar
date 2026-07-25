@@ -70,6 +70,7 @@ function widthCss(config: DashboardSidebarConfig): string {
       position: sticky;
       top: 0;
       height: 100vh;
+      z-index: 5;
       transition: width 0.25s ease;
     }
     #${WRAPPER_ID}.collapsed #${HOST_ID} {

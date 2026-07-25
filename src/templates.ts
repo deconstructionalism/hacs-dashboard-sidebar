@@ -1,7 +1,7 @@
 import type { HomeAssistant } from 'custom-card-helpers';
 
 import type { DashboardSidebarConfig, SidebarEntry } from './types';
-import { isCategory } from './types';
+import { isCategory, isDivider } from './types';
 
 const TEMPLATE_RE = /\{\{|\{%|\{#/;
 
@@ -52,6 +52,9 @@ export class TemplateManager {
       }
     };
     const addEntry = (entry: SidebarEntry): void => {
+      if (isDivider(entry)) {
+        return;
+      }
       add(entry.title);
       add(entry.icon);
       if (isCategory(entry)) {

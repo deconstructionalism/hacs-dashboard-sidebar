@@ -9,6 +9,7 @@ const DATE_ALIASES = ['iso', 'locale'];
 export type MaybeTemplate = string;
 
 export type SidebarPosition = 'left' | 'right';
+export type Align = 'left' | 'center' | 'right';
 
 /**
  * Clock format: an alias (`iso` = %H:%M:%S, `24h` = %H:%M, `12h` = %-I:%M %p,
@@ -42,7 +43,11 @@ export interface SidebarCategoryConfig {
   items: SidebarItemConfig[];
 }
 
-export type SidebarEntry = SidebarItemConfig | SidebarCategoryConfig;
+export interface SidebarDividerConfig {
+  type: 'divider';
+}
+
+export type SidebarEntry = SidebarItemConfig | SidebarCategoryConfig | SidebarDividerConfig;
 
 export interface SidebarFooterButtonConfig {
   icon: MaybeTemplate;
@@ -57,16 +62,31 @@ export interface DashboardSidebarConfig {
   position?: SidebarPosition;
   width?: number;
   start_collapsed?: boolean;
+  /** Sidebar background: any CSS color; defaults to the theme card background. */
+  background?: string;
   clock?: boolean;
   clock_format?: TimeFormat;
   date?: boolean;
   date_format?: DateFormat;
   title?: MaybeTemplate;
+  /** Alignment of the title, clock, and date. Default center. */
+  header_align?: Align;
   /** Custom content below the clock/date: a markdown string or any card. */
   content?: string | LovelaceCardConfig;
+  /** Alignment of the custom content. Default left. */
+  content_align?: Align;
+  /** Custom content background: any CSS color. */
+  content_background?: string;
   items: SidebarEntry[];
   /** Icon buttons anchored to the bottom of the sidebar. */
   footer_buttons?: SidebarFooterButtonConfig[];
+  /** Whether the footer shows its top divider bar. Default true. */
+  footer_divider?: boolean;
+}
+
+/** A horizontal divider between entries. */
+export function isDivider(entry: SidebarEntry): entry is SidebarDividerConfig {
+  return entry.type === 'divider';
 }
 
 /** A category is any entry that carries a sub-item list. */
@@ -74,7 +94,7 @@ export function isCategory(entry: SidebarEntry): entry is SidebarCategoryConfig 
   if (entry.type === 'category') {
     return true;
   }
-  if (entry.type === 'item') {
+  if (entry.type === 'item' || entry.type === 'divider') {
     return false;
   }
   return Array.isArray((entry as SidebarCategoryConfig).items);
@@ -86,6 +106,9 @@ export function validateConfig(config: DashboardSidebarConfig): void {
     throw new Error('dashboard_sidebar: `items` must be a list');
   }
   config.items.forEach((entry, i) => {
+    if (isDivider(entry)) {
+      return;
+    }
     if (!entry || typeof entry.title !== 'string') {
       throw new Error(`dashboard_sidebar: item ${i} needs a title`);
     }

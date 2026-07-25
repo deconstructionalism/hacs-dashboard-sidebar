@@ -80,6 +80,14 @@ function widthCss(config: DashboardSidebarConfig): string {
       flex: 1 1 0;
       min-width: 0;
     }
+    ${
+      config.hide_on_mobile
+        ? `@media (max-width: 768px) {
+             #${HOST_ID} { display: none; }
+             #${WRAPPER_ID} > #view { flex-basis: 100%; }
+           }`
+        : ''
+    }
   `;
 }
 

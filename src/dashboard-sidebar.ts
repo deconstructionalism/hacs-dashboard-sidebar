@@ -244,9 +244,19 @@ export class DashboardSidebar extends LitElement {
     const classes = { sidebar: true, collapsed, [`pos-${this._position}`]: true };
     const sidebarStyle = cfg.background ? { background: cfg.background } : {};
     const contentAlign = cfg.content_align ?? 'left';
+    const contentIsString = typeof cfg.content === 'string';
     const contentStyle = {
       'align-items': FLEX_ALIGN[contentAlign],
       'text-align': contentAlign,
+      // A markdown string is shown chrome-less so it does not draw its own
+      // card box inside our content area.
+      ...(contentIsString
+        ? {
+            '--ha-card-background': 'transparent',
+            '--ha-card-box-shadow': 'none',
+            '--ha-card-border-width': '0px',
+          }
+        : {}),
       ...(cfg.content_background
         ? { background: cfg.content_background, padding: '8px', 'border-radius': '8px' }
         : {}),
@@ -295,7 +305,7 @@ export class DashboardSidebar extends LitElement {
             ? html`<div class="clock">
                 ${
                   collapsed
-                    ? formatCollapsedClock(this._now)
+                    ? formatCollapsedClock(this._now, cfg.collapsed_clock_format === '12h')
                     : formatClock(this._now, cfg.clock_format ?? 'locale', this._locale)
                 }
               </div>`
@@ -708,7 +718,10 @@ export class DashboardSidebar extends LitElement {
     }
 
     .entry-divider {
+      flex: none;
+      align-self: stretch;
       height: 1px;
+      min-height: 1px;
       margin: 6px 4px;
       background: var(--divider-color, rgb(0 0 0 / 12%));
     }

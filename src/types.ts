@@ -66,6 +66,8 @@ export interface DashboardSidebarConfig {
   background?: string;
   clock?: boolean;
   clock_format?: TimeFormat;
+  /** Collapsed clock style: 24h (default) or 12h with no AM/PM label. */
+  collapsed_clock_format?: '12h' | '24h';
   date?: boolean;
   date_format?: DateFormat;
   title?: MaybeTemplate;

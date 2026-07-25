@@ -119,14 +119,18 @@ export function formatDate(date: Date, format: string, locale: string): string {
   return strftime(date, DATE_ALIASES[format] ?? format, locale);
 }
 
-/** Collapsed clock is fixed at HH:MM to fit the strip. */
-export function formatCollapsedClock(date: Date): string {
+/** Collapsed clock: 24h HH:MM, or 12h h:MM with no AM/PM label. */
+export function formatCollapsedClock(date: Date, twelveHour: boolean): string {
+  if (twelveHour) {
+    const h12 = ((date.getHours() + 11) % 12) + 1;
+    return `${h12}:${pad(date.getMinutes())}`;
+  }
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-/** Collapsed date is fixed at MM-DD to fit the strip. */
+/** Collapsed date is fixed at M-D (no leading zeros) to fit the strip. */
 export function formatCollapsedDate(date: Date): string {
-  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  return `${date.getMonth() + 1}-${date.getDate()}`;
 }
 
 /** 1 to 2 letter initials used when a collapsed entry has no icon. */

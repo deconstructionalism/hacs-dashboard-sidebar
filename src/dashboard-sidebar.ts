@@ -151,6 +151,10 @@ export class DashboardSidebar extends LitElement {
    * card-mod exposes a static `applyToElement(element, type, config)` that
    * renders the given styles into the element's shadow root and keeps them
    * live against hass; it is not a card, so it has no `setConfig`.
+   *
+   * The fifth argument must be left at its `true` default: card-mod uses it
+   * to decide whether to attach inside `element.shadowRoot` (what we want, so
+   * the styles reach the dashboard-sidebar-* classes) or the light DOM.
    */
   private _applyCardMod(): void {
     const cfg = this._config?.card_mod;
@@ -159,20 +163,14 @@ export class DashboardSidebar extends LitElement {
     }
     const CardMod = customElements.get('card-mod') as
       | {
-          applyToElement?: (
-            element: HTMLElement,
-            type: string,
-            config: unknown,
-            options?: object,
-            wait?: boolean,
-          ) => void;
+          applyToElement?: (element: HTMLElement, type: string, config: unknown) => void;
         }
       | undefined;
     if (typeof CardMod?.applyToElement !== 'function') {
       return;
     }
     try {
-      CardMod.applyToElement(this, 'dashboard-sidebar', cfg, {}, false);
+      CardMod.applyToElement(this, 'dashboard-sidebar', cfg);
       this._cardModApplied = true;
     } catch (err) {
       // Never let a card-mod failure break the sidebar (e.g. collapse).

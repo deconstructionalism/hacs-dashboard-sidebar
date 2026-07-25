@@ -1,4 +1,4 @@
-import type { ActionConfig } from 'custom-card-helpers';
+import type { ActionConfig, LovelaceCardConfig } from 'custom-card-helpers';
 
 /** A string that may contain a Jinja template. Resolved at runtime. */
 export type MaybeTemplate = string;
@@ -37,6 +37,8 @@ export interface DashboardSidebarConfig {
   date?: boolean;
   date_format?: DateFormat;
   title?: MaybeTemplate;
+  /** Custom content below the clock/date: a markdown string or any card. */
+  content?: string | LovelaceCardConfig;
   items: SidebarEntry[];
 }
 

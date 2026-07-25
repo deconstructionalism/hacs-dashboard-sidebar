@@ -31,6 +31,21 @@ function getHass(): any {
   return (document.querySelector('home-assistant') as any)?.hass;
 }
 
+/** Height of the dashboard header, so the sidebar can start below it. */
+function getHeaderHeight(shadow: ShadowRoot): number {
+  const header =
+    shadow.querySelector('ch-header') ??
+    shadow.querySelector('app-header') ??
+    shadow.querySelector('.header') ??
+    shadow.querySelector('.toolbar');
+  return header ? (header as HTMLElement).offsetHeight : 0;
+}
+
+/** Pushes the sidebar host below the (possibly floating) header. */
+function applyHeaderOffset(shadow: ShadowRoot, host: HTMLElement): void {
+  host.style.paddingTop = `${getHeaderHeight(shadow)}px`;
+}
+
 function readConfig(huiRoot: { lovelace?: any }): DashboardSidebarConfig | null {
   const config = huiRoot.lovelace?.config?.[CONFIG_KEY];
   return config ?? null;
@@ -49,6 +64,8 @@ function widthCss(config: DashboardSidebarConfig): string {
     #${HOST_ID} {
       flex: 0 0 auto;
       width: ${expanded}px;
+      box-sizing: border-box;
+      overflow: visible;
       transition: width 0.25s ease;
     }
     #${WRAPPER_ID}.collapsed #${HOST_ID} {
@@ -96,6 +113,7 @@ function buildSidebar(): void {
 
   const host = document.createElement('div');
   host.id = HOST_ID;
+  applyHeaderOffset(shadow, host);
   const element = document.createElement('dashboard-sidebar') as DashboardSidebar;
   element.hass = getHass();
   element.setConfig(config);
@@ -126,6 +144,10 @@ function ensureSidebar(): void {
     if (!wrapper) {
       buildSidebar();
       return;
+    }
+    const host = huiRoot.shadowRoot.getElementById(HOST_ID);
+    if (host) {
+      applyHeaderOffset(huiRoot.shadowRoot, host);
     }
     const element = wrapper.querySelector('dashboard-sidebar') as DashboardSidebar | null;
     if (element && !element.hass) {

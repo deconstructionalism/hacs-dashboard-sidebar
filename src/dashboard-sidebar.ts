@@ -37,13 +37,20 @@ export class DashboardSidebar extends LitElement {
 
   @state() private _openCategory: number | null = null;
 
+  @state() private _popoverAnchor: DOMRect | null = null;
+
+  @state() private _collapsedCats = new Set<number>();
+
   private readonly _templates = new TemplateManager(() => this.requestUpdate());
 
   private _tick?: number;
 
+  private _contentCard?: HTMLElement & { hass?: HomeAssistant };
+
   private readonly _onDocumentClick = (ev: MouseEvent): void => {
     if (this._openCategory !== null && !ev.composedPath().includes(this)) {
       this._openCategory = null;
+      this._popoverAnchor = null;
     }
   };
 
@@ -53,6 +60,26 @@ export class DashboardSidebar extends LitElement {
     this._collapsed = this._readStored() ?? Boolean(config.start_collapsed);
     this._templates.collect(config);
     this._restartTick();
+    void this._buildContent();
+  }
+
+  private async _buildContent(): Promise<void> {
+    this._contentCard = undefined;
+    const content = this._config?.content;
+    if (!content) {
+      return;
+    }
+    const helpers = await (
+      window as unknown as { loadCardHelpers?: () => Promise<any> }
+    ).loadCardHelpers?.();
+    if (!helpers) {
+      return;
+    }
+    const cardConfig = typeof content === 'string' ? { type: 'markdown', content } : content;
+    const card = helpers.createCardElement(cardConfig) as HTMLElement & { hass?: HomeAssistant };
+    card.hass = this.hass;
+    this._contentCard = card;
+    this.requestUpdate();
   }
 
   public connectedCallback(): void {
@@ -71,6 +98,9 @@ export class DashboardSidebar extends LitElement {
   protected updated(changed: PropertyValues): void {
     if (changed.has('hass')) {
       this._templates.setHass(this.hass);
+      if (this._contentCard) {
+        this._contentCard.hass = this.hass;
+      }
     }
     if (changed.has('_collapsed')) {
       this.dispatchEvent(
@@ -125,6 +155,7 @@ export class DashboardSidebar extends LitElement {
   private _toggleCollapse(): void {
     this._collapsed = !this._collapsed;
     this._openCategory = null;
+    this._popoverAnchor = null;
     try {
       window.localStorage.setItem(this._storageKey(), this._collapsed ? '1' : '0');
     } catch {
@@ -138,10 +169,27 @@ export class DashboardSidebar extends LitElement {
     }
     handleAction(this, this.hass, { entity: item.entity, tap_action: item.tap_action }, 'tap');
     this._openCategory = null;
+    this._popoverAnchor = null;
   }
 
-  private _toggleCategory(index: number): void {
-    this._openCategory = this._openCategory === index ? null : index;
+  private _toggleCategory(index: number, ev: Event): void {
+    if (this._openCategory === index) {
+      this._openCategory = null;
+      this._popoverAnchor = null;
+      return;
+    }
+    this._openCategory = index;
+    this._popoverAnchor = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+  }
+
+  private _toggleCategoryCollapse(index: number): void {
+    const next = new Set(this._collapsedCats);
+    if (next.has(index)) {
+      next.delete(index);
+    } else {
+      next.add(index);
+    }
+    this._collapsedCats = next;
   }
 
   protected render(): TemplateResult {
@@ -161,6 +209,7 @@ export class DashboardSidebar extends LitElement {
           <ha-icon icon="mdi:chevron-left"></ha-icon>
         </button>
         ${this._renderHeader(collapsed)}
+        ${this._contentCard ? html`<div class="content">${this._contentCard}</div>` : nothing}
         <nav class="menu">
           ${this._config.items.map((entry, i) => this._renderEntry(entry, i, collapsed))}
         </nav>
@@ -212,7 +261,7 @@ export class DashboardSidebar extends LitElement {
     if (isCategory(entry)) {
       return collapsed
         ? this._renderCollapsedCategory(entry, index)
-        : this._renderExpandedCategory(entry);
+        : this._renderExpandedCategory(entry, index);
     }
     return this._renderItemRow(entry, collapsed);
   }
@@ -247,18 +296,24 @@ export class DashboardSidebar extends LitElement {
     `;
   }
 
-  private _renderExpandedCategory(category: SidebarCategoryConfig): TemplateResult {
+  private _renderExpandedCategory(category: SidebarCategoryConfig, index: number): TemplateResult {
     const title = this._templates.resolve(category.title);
     const icon = category.icon ? this._templates.resolve(category.icon) : '';
+    const collapsed = this._collapsedCats.has(index);
     return html`
       <div class="category">
-        <div class="category-header">
+        <button class="row category-header" @click=${() => this._toggleCategoryCollapse(index)}>
           ${icon ? html`<ha-icon icon=${icon}></ha-icon>` : nothing}
           <span class="label">${title}</span>
-        </div>
-        <div class="category-items">
-          ${category.items.map((item) => this._renderItemRow(item, false))}
-        </div>
+          <ha-icon class="chevron ${collapsed ? '' : 'open'}" icon="mdi:chevron-down"></ha-icon>
+        </button>
+        ${
+          collapsed
+            ? nothing
+            : html`<div class="category-items">
+                ${category.items.map((item) => this._renderItemRow(item, false))}
+              </div>`
+        }
       </div>
     `;
   }
@@ -274,7 +329,7 @@ export class DashboardSidebar extends LitElement {
           title=${title}
           @click=${(ev: Event) => {
             ev.stopPropagation();
-            this._toggleCategory(index);
+            this._toggleCategory(index, ev);
           }}
         >
           ${
@@ -283,14 +338,19 @@ export class DashboardSidebar extends LitElement {
               : html`<span class="initials">${initials(title)}</span>`
           }
         </button>
-        ${open ? this._renderPopover(category) : nothing}
+        ${open && this._popoverAnchor ? this._renderPopover(category, this._popoverAnchor) : nothing}
       </div>
     `;
   }
 
-  private _renderPopover(category: SidebarCategoryConfig): TemplateResult {
+  private _renderPopover(category: SidebarCategoryConfig, anchor: DOMRect): TemplateResult {
+    // Fixed to the viewport so it escapes the scrollable menu's clipping.
+    const pos =
+      this._position === 'left'
+        ? { top: `${anchor.top}px`, left: `${anchor.right + 8}px` }
+        : { top: `${anchor.top}px`, right: `${window.innerWidth - anchor.left + 8}px` };
     return html`
-      <div class="popover pop-${this._position}" @click=${(ev: Event) => ev.stopPropagation()}>
+      <div class="popover" style=${styleMap(pos)} @click=${(ev: Event) => ev.stopPropagation()}>
         <div class="popover-title">${this._templates.resolve(category.title)}</div>
         ${category.items.map((item) => this._renderItemRow(item, false))}
       </div>
@@ -314,7 +374,7 @@ export class DashboardSidebar extends LitElement {
       flex-direction: column;
       box-sizing: border-box;
       padding: 16px 12px;
-      overflow: hidden auto;
+      overflow: visible;
     }
 
     .sidebar.collapsed {
@@ -336,7 +396,7 @@ export class DashboardSidebar extends LitElement {
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      z-index: 2;
+      z-index: 6;
       box-shadow: 0 1px 4px rgb(0 0 0 / 25%);
     }
 
@@ -398,9 +458,12 @@ export class DashboardSidebar extends LitElement {
 
     .menu {
       display: flex;
+      flex: 1 1 auto;
       flex-direction: column;
       gap: 2px;
       width: 100%;
+      min-height: 0;
+      overflow-y: auto;
     }
 
     .collapsed .menu {
@@ -454,12 +517,19 @@ export class DashboardSidebar extends LitElement {
     }
 
     .category-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 8px 12px;
       font-weight: 600;
       opacity: 0.85;
+    }
+
+    .chevron {
+      --mdc-icon-size: 20px;
+      flex: 0 0 auto;
+      opacity: 0.7;
+      transition: transform 0.2s ease;
+    }
+
+    .chevron:not(.open) {
+      transform: rotate(-90deg);
     }
 
     .category-items {
@@ -476,22 +546,21 @@ export class DashboardSidebar extends LitElement {
     }
 
     .popover {
-      position: absolute;
-      top: 0;
+      position: fixed;
       min-width: 180px;
       padding: 8px;
       border-radius: 12px;
       background: var(--card-background-color, var(--primary-background-color, #fff));
       box-shadow: 0 4px 16px rgb(0 0 0 / 30%);
-      z-index: 5;
+      z-index: 9;
     }
 
-    .pop-left {
-      left: calc(100% + 8px);
+    .content {
+      margin-bottom: 12px;
     }
 
-    .pop-right {
-      right: calc(100% + 8px);
+    .collapsed .content {
+      display: none;
     }
 
     .popover-title {

@@ -27,6 +27,15 @@ export interface SidebarCategoryConfig {
 
 export type SidebarEntry = SidebarItemConfig | SidebarCategoryConfig;
 
+export interface SidebarFooterButtonConfig {
+  icon: MaybeTemplate;
+  icon_color?: MaybeTemplate;
+  title?: MaybeTemplate;
+  /** Target for toggle / more-info actions. Not templatable. */
+  entity?: string;
+  tap_action: ActionConfig;
+}
+
 export interface DashboardSidebarConfig {
   position?: SidebarPosition;
   width?: number;
@@ -40,6 +49,8 @@ export interface DashboardSidebarConfig {
   /** Custom content below the clock/date: a markdown string or any card. */
   content?: string | LovelaceCardConfig;
   items: SidebarEntry[];
+  /** Icon buttons anchored to the bottom of the sidebar. */
+  footer_buttons?: SidebarFooterButtonConfig[];
 }
 
 /** A category is any entry that carries a sub-item list. */
@@ -80,6 +91,14 @@ export function validateConfig(config: DashboardSidebarConfig): void {
       });
     } else if (!entry.tap_action) {
       throw new Error(`dashboard_sidebar: item "${entry.title}" needs a tap_action`);
+    }
+  });
+  (config.footer_buttons ?? []).forEach((btn, i) => {
+    if (!btn || typeof btn.icon !== 'string') {
+      throw new Error(`dashboard_sidebar: footer button ${i} needs an icon`);
+    }
+    if (!btn.tap_action) {
+      throw new Error(`dashboard_sidebar: footer button ${i} needs a tap_action`);
     }
   });
 }

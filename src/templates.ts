@@ -68,6 +68,11 @@ export class TemplateManager {
     };
     add(config.title);
     config.items.forEach(addEntry);
+    (config.footer_buttons ?? []).forEach((btn) => {
+      add(btn.icon);
+      add(btn.icon_color);
+      add(btn.title);
+    });
     this._flush();
   }
 

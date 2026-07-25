@@ -17,6 +17,7 @@ import {
   type DashboardSidebarConfig,
   type SidebarCategoryConfig,
   type SidebarEntry,
+  type SidebarFooterButtonConfig,
   type SidebarItemConfig,
   isCategory,
   validateConfig,
@@ -39,6 +40,8 @@ export class DashboardSidebar extends LitElement {
 
   @state() private _popoverAnchor: DOMRect | null = null;
 
+  @state() private _footerOpen = false;
+
   @state() private _collapsedCats = new Set<number>();
 
   private readonly _templates = new TemplateManager(() => this.requestUpdate());
@@ -48,11 +51,16 @@ export class DashboardSidebar extends LitElement {
   private _contentCard?: HTMLElement & { hass?: HomeAssistant };
 
   private readonly _onDocumentClick = (ev: MouseEvent): void => {
-    if (this._openCategory !== null && !ev.composedPath().includes(this)) {
-      this._openCategory = null;
-      this._popoverAnchor = null;
+    if ((this._openCategory !== null || this._footerOpen) && !ev.composedPath().includes(this)) {
+      this._closePopovers();
     }
   };
+
+  private _closePopovers(): void {
+    this._openCategory = null;
+    this._footerOpen = false;
+    this._popoverAnchor = null;
+  }
 
   public setConfig(config: DashboardSidebarConfig): void {
     validateConfig(config);
@@ -154,8 +162,7 @@ export class DashboardSidebar extends LitElement {
 
   private _toggleCollapse(): void {
     this._collapsed = !this._collapsed;
-    this._openCategory = null;
-    this._popoverAnchor = null;
+    this._closePopovers();
     try {
       window.localStorage.setItem(this._storageKey(), this._collapsed ? '1' : '0');
     } catch {
@@ -163,13 +170,33 @@ export class DashboardSidebar extends LitElement {
     }
   }
 
-  private _runItem(item: SidebarItemConfig): void {
+  private _runAction(cfg: { entity?: string; tap_action: SidebarItemConfig['tap_action'] }): void {
     if (!this.hass) {
       return;
     }
-    handleAction(this, this.hass, { entity: item.entity, tap_action: item.tap_action }, 'tap');
+    handleAction(this, this.hass, { entity: cfg.entity, tap_action: cfg.tap_action }, 'tap');
+    this._closePopovers();
+  }
+
+  private _toggleFooter(ev: Event): void {
+    if (this._footerOpen) {
+      this._closePopovers();
+      return;
+    }
     this._openCategory = null;
-    this._popoverAnchor = null;
+    this._footerOpen = true;
+    this._popoverAnchor = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+  }
+
+  private _popoverStyle(anchor: DOMRect, growUp: boolean): Record<string, string> {
+    const side =
+      this._position === 'left'
+        ? { left: `${anchor.right + 8}px` }
+        : { right: `${window.innerWidth - anchor.left + 8}px` };
+    const vert = growUp
+      ? { bottom: `${window.innerHeight - anchor.bottom}px` }
+      : { top: `${anchor.top}px` };
+    return { ...side, ...vert };
   }
 
   private _toggleCategory(index: number, ev: Event): void {
@@ -178,6 +205,7 @@ export class DashboardSidebar extends LitElement {
       this._popoverAnchor = null;
       return;
     }
+    this._footerOpen = false;
     this._openCategory = index;
     this._popoverAnchor = (ev.currentTarget as HTMLElement).getBoundingClientRect();
   }
@@ -213,6 +241,7 @@ export class DashboardSidebar extends LitElement {
         <nav class="menu">
           ${this._config.items.map((entry, i) => this._renderEntry(entry, i, collapsed))}
         </nav>
+        ${this._renderFooter(collapsed)}
       </div>
     `;
   }
@@ -274,7 +303,7 @@ export class DashboardSidebar extends LitElement {
 
     if (collapsed) {
       return html`
-        <button class="row item collapsed-row" title=${title} @click=${() => this._runItem(item)}>
+        <button class="row item collapsed-row" title=${title} @click=${() => this._runAction(item)}>
           ${
             icon
               ? html`<ha-icon icon=${icon} style=${styleMap({ color: iconColor })}></ha-icon>`
@@ -285,7 +314,7 @@ export class DashboardSidebar extends LitElement {
     }
 
     return html`
-      <button class="row item" @click=${() => this._runItem(item)}>
+      <button class="row item" @click=${() => this._runAction(item)}>
         ${
           icon
             ? html`<ha-icon icon=${icon} style=${styleMap({ color: iconColor })}></ha-icon>`
@@ -345,15 +374,61 @@ export class DashboardSidebar extends LitElement {
 
   private _renderPopover(category: SidebarCategoryConfig, anchor: DOMRect): TemplateResult {
     // Fixed to the viewport so it escapes the scrollable menu's clipping.
-    const pos =
-      this._position === 'left'
-        ? { top: `${anchor.top}px`, left: `${anchor.right + 8}px` }
-        : { top: `${anchor.top}px`, right: `${window.innerWidth - anchor.left + 8}px` };
     return html`
-      <div class="popover" style=${styleMap(pos)} @click=${(ev: Event) => ev.stopPropagation()}>
+      <div
+        class="popover"
+        style=${styleMap(this._popoverStyle(anchor, false))}
+        @click=${(ev: Event) => ev.stopPropagation()}
+      >
         <div class="popover-title">${this._templates.resolve(category.title)}</div>
         ${category.items.map((item) => this._renderItemRow(item, false))}
       </div>
+    `;
+  }
+
+  private _renderFooter(collapsed: boolean): TemplateResult | typeof nothing {
+    const buttons = this._config?.footer_buttons ?? [];
+    if (buttons.length === 0) {
+      return nothing;
+    }
+    if (collapsed) {
+      return html`
+        <div class="footer collapsed-footer">
+          <button
+            class="row item collapsed-row ${this._footerOpen ? 'active' : ''}"
+            title="More"
+            @click=${(ev: Event) => {
+              ev.stopPropagation();
+              this._toggleFooter(ev);
+            }}
+          >
+            <ha-icon icon="mdi:dots-vertical"></ha-icon>
+          </button>
+          ${
+            this._footerOpen && this._popoverAnchor
+              ? html`<div
+                  class="popover footer-popover"
+                  style=${styleMap(this._popoverStyle(this._popoverAnchor, true))}
+                  @click=${(ev: Event) => ev.stopPropagation()}
+                >
+                  ${buttons.map((btn) => this._renderFooterButton(btn))}
+                </div>`
+              : nothing
+          }
+        </div>
+      `;
+    }
+    return html` <div class="footer">${buttons.map((btn) => this._renderFooterButton(btn))}</div> `;
+  }
+
+  private _renderFooterButton(btn: SidebarFooterButtonConfig): TemplateResult {
+    const icon = this._templates.resolve(btn.icon);
+    const color = btn.icon_color ? this._templates.resolve(btn.icon_color) : '';
+    const title = btn.title ? this._templates.resolve(btn.title) : '';
+    return html`
+      <button class="footer-btn" title=${title} @click=${() => this._runAction(btn)}>
+        <ha-icon icon=${icon} style=${styleMap({ color })}></ha-icon>
+      </button>
     `;
   }
 
@@ -566,6 +641,45 @@ export class DashboardSidebar extends LitElement {
     .popover-title {
       font-weight: 600;
       padding: 4px 12px 8px;
+    }
+
+    .footer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--divider-color, rgb(0 0 0 / 12%));
+    }
+
+    .collapsed .footer {
+      justify-content: center;
+    }
+
+    .footer-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border: none;
+      border-radius: 10px;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .footer-btn:hover {
+      background: var(--divider-color, rgb(0 0 0 / 8%));
+    }
+
+    .footer-popover {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      max-width: 200px;
     }
 
     ha-icon {

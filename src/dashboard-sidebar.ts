@@ -66,6 +66,13 @@ export class DashboardSidebar extends LitElement {
     validateConfig(config);
     this._config = config;
     this._collapsed = this._readStored() ?? Boolean(config.start_collapsed);
+    const cats = new Set<number>();
+    config.items.forEach((entry, i) => {
+      if (isCategory(entry) && (entry.start_collapsed ?? true)) {
+        cats.add(i);
+      }
+    });
+    this._collapsedCats = cats;
     this._templates.collect(config);
     this._restartTick();
     void this._buildContent();

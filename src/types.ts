@@ -1,11 +1,26 @@
 import type { ActionConfig, LovelaceCardConfig } from 'custom-card-helpers';
 
+import { DATE_TOKENS, TIME_TOKENS, invalidToken } from './format';
+
+const CLOCK_ALIASES = ['iso', '24h', '12h', 'locale'];
+const DATE_ALIASES = ['iso', 'locale'];
+
 /** A string that may contain a Jinja template. Resolved at runtime. */
 export type MaybeTemplate = string;
 
 export type SidebarPosition = 'left' | 'right';
-export type TimeFormat = 'iso' | 'locale';
-export type DateFormat = 'iso' | 'locale';
+
+/**
+ * Clock format: an alias (`iso` = %H:%M:%S, `24h` = %H:%M, `12h` = %-I:%M %p,
+ * `locale`) or a strftime pattern using only time tokens, e.g. `%-I:%M:%S %p`.
+ */
+export type TimeFormat = string;
+
+/**
+ * Date format: an alias (`iso` = %Y-%m-%d, `locale`) or a strftime pattern
+ * using only date tokens, e.g. `%A, %B %-d` (names localize).
+ */
+export type DateFormat = string;
 
 export interface SidebarItemConfig {
   type?: 'item';
@@ -22,6 +37,8 @@ export interface SidebarCategoryConfig {
   type?: 'category';
   title: MaybeTemplate;
   icon?: MaybeTemplate;
+  /** Whether the category starts collapsed when the sidebar is expanded. */
+  start_collapsed?: boolean;
   items: SidebarItemConfig[];
 }
 
@@ -101,4 +118,16 @@ export function validateConfig(config: DashboardSidebarConfig): void {
       throw new Error(`dashboard_sidebar: footer button ${i} needs a tap_action`);
     }
   });
+  if (config.clock_format && !CLOCK_ALIASES.includes(config.clock_format)) {
+    const bad = invalidToken(config.clock_format, TIME_TOKENS);
+    if (bad) {
+      throw new Error(`dashboard_sidebar: clock_format only allows time tokens, not ${bad}`);
+    }
+  }
+  if (config.date_format && !DATE_ALIASES.includes(config.date_format)) {
+    const bad = invalidToken(config.date_format, DATE_TOKENS);
+    if (bad) {
+      throw new Error(`dashboard_sidebar: date_format only allows date tokens, not ${bad}`);
+    }
+  }
 }

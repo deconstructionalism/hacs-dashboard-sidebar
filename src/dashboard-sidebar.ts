@@ -129,13 +129,6 @@ export class DashboardSidebar extends LitElement {
   }
 
   protected updated(changed: PropertyValues): void {
-    if (changed.has('hass')) {
-      this._templates.setHass(this.hass);
-      if (this._contentCard) {
-        this._contentCard.hass = this.hass;
-      }
-    }
-    this._applyCardMod();
     if (changed.has('_collapsed')) {
       this.dispatchEvent(
         new CustomEvent(TOGGLE_EVENT, {
@@ -145,6 +138,13 @@ export class DashboardSidebar extends LitElement {
         }),
       );
     }
+    if (changed.has('hass')) {
+      this._templates.setHass(this.hass);
+      if (this._contentCard) {
+        this._contentCard.hass = this.hass;
+      }
+    }
+    this._applyCardMod();
   }
 
   /** Delegates styling to the card-mod integration when it is installed. */
@@ -159,13 +159,18 @@ export class DashboardSidebar extends LitElement {
     if (!CardMod) {
       return;
     }
-    if (!this._cardMod) {
-      const el = new CardMod();
-      el.setConfig(cfg);
-      this._cardMod = el;
-      this.shadowRoot.appendChild(el);
+    try {
+      if (!this._cardMod) {
+        const el = new CardMod();
+        el.setConfig(cfg);
+        this._cardMod = el;
+        this.shadowRoot.appendChild(el);
+      }
+      this._cardMod.hass = this.hass;
+    } catch (err) {
+      // Never let a card-mod failure break the sidebar (e.g. collapse).
+      console.warn('[dashboard-sidebar] card-mod failed:', err);
     }
-    this._cardMod.hass = this.hass;
   }
 
   private get _position(): 'left' | 'right' {

@@ -1,0 +1,48 @@
+{
+  "name": "hacs-dashboard-sidebar",
+  "version": "0.1.0",
+  "description": "A collapsible dashboard sidebar card for Home Assistant Lovelace.",
+  "type": "module",
+  "license": "MIT",
+  "author": "deconstructionalism",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deconstructionalism/hacs-dashboard-sidebar.git"
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c --watch",
+    "lint": "npm run lint:ts && npm run lint:css",
+    "lint:ts": "eslint src",
+    "lint:css": "stylelint \"src/**/*.ts\"",
+    "lint:fix": "eslint src --fix && stylelint \"src/**/*.ts\" --fix",
+    "format": "prettier --check \"src/**/*.ts\"",
+    "format:fix": "prettier --write \"src/**/*.ts\"",
+    "check": "npm run lint && npm run format && npm run build"
+  },
+  "dependencies": {
+    "custom-card-helpers": "^1.9.0",
+    "lit": "^3.2.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@rollup/plugin-commonjs": "^28.0.2",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "eslint": "^9.17.0",
+    "eslint-plugin-lit": "^1.15.0",
+    "eslint-plugin-wc": "^2.2.0",
+    "globals": "^15.14.0",
+    "postcss": "^8.4.49",
+    "postcss-lit": "^1.2.0",
+    "prettier": "^3.4.2",
+    "rollup": "^4.29.1",
+    "stylelint": "^16.12.0",
+    "stylelint-config-standard": "^36.0.1",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.19.0"
+  }
+}

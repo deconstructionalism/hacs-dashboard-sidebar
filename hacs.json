@@ -1,0 +1,6 @@
+{
+  "name": "Dashboard Sidebar",
+  "filename": "dashboard-sidebar-card.js",
+  "render_readme": true,
+  "homeassistant": "2024.1.0"
+}

@@ -1,0 +1,22 @@
+{
+  "extends": "stylelint-config-standard",
+  "customSyntax": "postcss-lit",
+  "rules": {
+    "custom-property-empty-line-before": null,
+    "declaration-empty-line-before": null,
+    "comment-empty-line-before": null,
+    "no-descending-specificity": null,
+    "selector-type-no-unknown": [
+      true,
+      {
+        "ignore": ["custom-elements"]
+      }
+    ],
+    "value-keyword-case": [
+      "lower",
+      {
+        "ignoreProperties": ["--mdc-icon-size"]
+      }
+    ]
+  }
+}

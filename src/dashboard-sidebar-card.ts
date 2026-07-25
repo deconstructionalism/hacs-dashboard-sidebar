@@ -4,9 +4,9 @@
 //  https://github.com/deconstructionalism/hacs-dashboard-sidebar
 // ---------------------------------------------------------------------------
 
-import { startSidebar } from './bootstrap';
-import { CARD_VERSION } from './const';
 import './dashboard-sidebar';
+import { startSidebar } from './lib/bootstrap';
+import { CARD_VERSION } from './lib/const';
 
 console.info(
   `%c DASHBOARD-SIDEBAR %c v${CARD_VERSION} `,

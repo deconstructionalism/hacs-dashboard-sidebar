@@ -1,20 +1,33 @@
-import { CONFIG_KEY, DEFAULT_COLLAPSED_WIDTH, DEFAULT_WIDTH } from './const';
-import { TOGGLE_EVENT, type DashboardSidebar } from './dashboard-sidebar';
+import { CONFIG_KEY, DEFAULT_COLLAPSED_WIDTH, DEFAULT_WIDTH, TOGGLE_EVENT } from './const';
 import type { DashboardSidebarConfig } from './types';
+import type { DashboardSidebar } from '../dashboard-sidebar';
 
+/** DOM id of the flex wrapper that holds the sidebar host and the view. */
 const WRAPPER_ID = 'dashboard-sidebar-wrapper';
+
+/** DOM id of the sticky host element the sidebar renders into. */
 const HOST_ID = 'dashboard-sidebar-host';
+
+/** DOM id of the injected `<style>` element that lays out the wrapper. */
 const STYLE_ID = 'dashboard-sidebar-style';
 
+/** An element that may expose a shadow root, or null. */
 type AnyEl = (Element & { shadowRoot?: ShadowRoot | null }) | null;
 
+/**
+ * Descends one level into an element's shadow root (or the element itself when
+ * it already is a shadow root) and returns the first matching child.
+ */
 function descend(root: AnyEl, selector: string): AnyEl {
   return (
     (root?.shadowRoot ?? (root as unknown as ShadowRoot | null))?.querySelector(selector) ?? null
   );
 }
 
-/** Walks the frontend shadow tree down to the hui-root element. */
+/**
+ * Walks the frontend shadow tree down to the `hui-root` element that owns the
+ * current Lovelace view, or null if the frontend is not ready.
+ */
 function getHuiRoot(): (Element & { shadowRoot: ShadowRoot; lovelace?: any }) | null {
   let el: AnyEl = document.querySelector('home-assistant');
   el = descend(el, 'home-assistant-main');
@@ -27,11 +40,17 @@ function getHuiRoot(): (Element & { shadowRoot: ShadowRoot; lovelace?: any }) | 
   return el && el.shadowRoot ? (el as any) : null;
 }
 
+/**
+ * Returns the global Home Assistant object from the root element.
+ */
 function getHass(): any {
   return (document.querySelector('home-assistant') as any)?.hass;
 }
 
-/** Height of the dashboard header, so the sidebar can start below it. */
+/**
+ * Measures the height of the dashboard header so the sidebar can start below
+ * it rather than under a floating toolbar.
+ */
 function getHeaderHeight(shadow: ShadowRoot): number {
   const header =
     shadow.querySelector('ch-header') ??
@@ -41,16 +60,25 @@ function getHeaderHeight(shadow: ShadowRoot): number {
   return header ? (header as HTMLElement).offsetHeight : 0;
 }
 
-/** Pushes the sidebar host below the (possibly floating) header. */
+/**
+ * Pushes the sidebar host down by the current header height.
+ */
 function applyHeaderOffset(shadow: ShadowRoot, host: HTMLElement): void {
   host.style.paddingTop = `${getHeaderHeight(shadow)}px`;
 }
 
+/**
+ * Reads the sidebar config from the Lovelace config, or null when absent.
+ */
 function readConfig(huiRoot: { lovelace?: any }): DashboardSidebarConfig | null {
   const config = huiRoot.lovelace?.config?.[CONFIG_KEY];
   return config ?? null;
 }
 
+/**
+ * Builds the wrapper/host layout CSS, including the collapsed width and the
+ * optional hide-on-mobile media query.
+ */
 function widthCss(config: DashboardSidebarConfig): string {
   const expanded = config.width ?? DEFAULT_WIDTH;
   const collapsed = DEFAULT_COLLAPSED_WIDTH;
@@ -91,6 +119,11 @@ function widthCss(config: DashboardSidebarConfig): string {
   `;
 }
 
+/**
+ * Creates the wrapper, host, and sidebar element and inserts them around the
+ * current view, once per view. No-ops if the config, view, or a prior wrapper
+ * says there is nothing to do.
+ */
 function buildSidebar(): void {
   const huiRoot = getHuiRoot();
   if (!huiRoot) {
@@ -146,7 +179,11 @@ function buildSidebar(): void {
   });
 }
 
-/** Rebuilds the sidebar after the frontend swaps the view, and keeps hass fresh. */
+/**
+ * Rebuilds the sidebar after the frontend swaps the view, and keeps the
+ * element's hass fresh. Errors while the frontend is mid-transition are
+ * swallowed so the next tick can retry.
+ */
 function ensureSidebar(): void {
   try {
     const huiRoot = getHuiRoot();
@@ -171,6 +208,10 @@ function ensureSidebar(): void {
   }
 }
 
+/**
+ * Starts the sidebar: builds it now, on every navigation, and on a slow poll
+ * that recovers from frontend view swaps that fire no navigation event.
+ */
 export function startSidebar(): void {
   window.addEventListener('location-changed', () => ensureSidebar());
   window.setInterval(ensureSidebar, 1000);

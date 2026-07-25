@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import jsdoc from 'eslint-plugin-jsdoc';
 import lit from 'eslint-plugin-lit';
 import wc from 'eslint-plugin-wc';
 import globals from 'globals';
@@ -14,6 +15,7 @@ export default tseslint.config(
   wc.configs['flat/recommended'],
   {
     files: ['src/**/*.ts'],
+    plugins: { jsdoc },
     languageOptions: {
       globals: {
         ...globals.browser,
@@ -23,10 +25,41 @@ export default tseslint.config(
         tsconfigRootDir: import.meta.dirname,
       },
     },
+    settings: {
+      jsdoc: { mode: 'typescript' },
+    },
     rules: {
       // Home Assistant's `hass` object is untyped in many places; allow `any`
       // deliberately rather than littering the code with casts.
       '@typescript-eslint/no-explicit-any': 'off',
+
+      // Require a JSDoc block before every function, method, and class, on
+      // every type/interface/enum, and on every interface property. The
+      // property rule is scoped to interface bodies so it does not fire on
+      // inline object types (which cannot carry doc comments). Class-field
+      // arrow handlers are covered explicitly.
+      'jsdoc/require-jsdoc': [
+        'error',
+        {
+          require: {
+            FunctionDeclaration: true,
+            MethodDefinition: true,
+            ClassDeclaration: true,
+          },
+          contexts: [
+            'TSInterfaceDeclaration',
+            'TSTypeAliasDeclaration',
+            'TSEnumDeclaration',
+            'TSInterfaceBody > TSPropertySignature',
+            'PropertyDefinition > ArrowFunctionExpression',
+          ],
+          enableFixer: false,
+        },
+      ],
+      // Every JSDoc block must carry an actual description, not just tags.
+      'jsdoc/require-description': ['error', { contexts: ['any'] }],
+      // Reject empty /** */ blocks that would satisfy require-jsdoc trivially.
+      'jsdoc/no-blank-blocks': 'error',
     },
   },
 );

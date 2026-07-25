@@ -1,116 +1,14 @@
-import type { ActionConfig, LovelaceCardConfig } from 'custom-card-helpers';
-
 import { DATE_TOKENS, TIME_TOKENS, invalidToken } from './format';
+import { isCategory, isDivider } from './guards';
+import type { DashboardSidebarConfig, SidebarEntry, SidebarItemConfig } from './types';
 
+/** Clock-format aliases accepted in place of a strftime pattern. */
 const CLOCK_ALIASES = ['iso', '24h', '12h', 'locale'];
+
+/** Date-format aliases accepted in place of a strftime pattern. */
 const DATE_ALIASES = ['iso', 'locale'];
 
-/** A string that may contain a Jinja template. Resolved at runtime. */
-export type MaybeTemplate = string;
-
-export type SidebarPosition = 'left' | 'right';
-export type Align = 'left' | 'center' | 'right';
-
-/**
- * Clock format: an alias (`iso` = %H:%M:%S, `24h` = %H:%M, `12h` = %-I:%M %p,
- * `locale`) or a strftime pattern using only time tokens, e.g. `%-I:%M:%S %p`.
- */
-export type TimeFormat = string;
-
-/**
- * Date format: an alias (`iso` = %Y-%m-%d, `locale`) or a strftime pattern
- * using only date tokens, e.g. `%A, %B %-d` (names localize).
- */
-export type DateFormat = string;
-
-export interface SidebarItemConfig {
-  type?: 'item';
-  title: MaybeTemplate;
-  icon?: MaybeTemplate;
-  text_color?: MaybeTemplate;
-  icon_color?: MaybeTemplate;
-  /** Target for toggle / more-info actions. Not templatable. */
-  entity?: string;
-  tap_action: ActionConfig;
-}
-
-export interface SidebarCategoryConfig {
-  type?: 'category';
-  title: MaybeTemplate;
-  icon?: MaybeTemplate;
-  /** Whether the category starts collapsed when the sidebar is expanded. */
-  start_collapsed?: boolean;
-  /** Whether to draw the vertical guide line beside the items. Default true. */
-  guide_line?: boolean;
-  items: SidebarItemConfig[];
-}
-
-export interface SidebarDividerConfig {
-  type: 'divider';
-}
-
-export type SidebarEntry = SidebarItemConfig | SidebarCategoryConfig | SidebarDividerConfig;
-
-export interface SidebarFooterButtonConfig {
-  icon: MaybeTemplate;
-  icon_color?: MaybeTemplate;
-  title?: MaybeTemplate;
-  /** Target for toggle / more-info actions. Not templatable. */
-  entity?: string;
-  tap_action: ActionConfig;
-}
-
-export interface DashboardSidebarConfig {
-  position?: SidebarPosition;
-  width?: number;
-  start_collapsed?: boolean;
-  /** Hide the sidebar on narrow (mobile) viewports. */
-  hide_on_mobile?: boolean;
-  /** Sidebar background: any CSS color; defaults to the theme card background. */
-  background?: string;
-  clock?: boolean;
-  clock_format?: TimeFormat;
-  /** Collapsed clock style: 24h (default) or 12h with no AM/PM label. */
-  collapsed_clock_format?: '12h' | '24h';
-  date?: boolean;
-  date_format?: DateFormat;
-  title?: MaybeTemplate;
-  /** Alignment of the title, clock, and date. Default center. */
-  header_align?: Align;
-  /** Custom content below the clock/date: a markdown string or any card. */
-  content?: string | LovelaceCardConfig;
-  /** Alignment of the custom content. Default left. */
-  content_align?: Align;
-  /** Custom content background: any CSS color. */
-  content_background?: string;
-  items: SidebarEntry[];
-  /** Icon buttons anchored to the bottom of the sidebar. */
-  footer_buttons?: SidebarFooterButtonConfig[];
-  /** Whether the footer shows its top divider bar. Default true. */
-  footer_divider?: boolean;
-  /**
-   * Passed to the card-mod integration (if installed) to style the sidebar.
-   * Target the dashboard-sidebar-* classes on the rendered elements.
-   */
-  card_mod?: Record<string, unknown>;
-}
-
-/** A horizontal divider between entries. */
-export function isDivider(entry: SidebarEntry): entry is SidebarDividerConfig {
-  return entry.type === 'divider';
-}
-
-/** A category is any entry that carries a sub-item list. */
-export function isCategory(entry: SidebarEntry): entry is SidebarCategoryConfig {
-  if (entry.type === 'category') {
-    return true;
-  }
-  if (entry.type === 'item' || entry.type === 'divider') {
-    return false;
-  }
-  return Array.isArray((entry as SidebarCategoryConfig).items);
-}
-
+/** Recognized keys on the top-level config, for unknown-key detection. */
 const TOP_KEYS = new Set([
   'type',
   'position',
@@ -133,6 +31,8 @@ const TOP_KEYS = new Set([
   'footer_divider',
   'card_mod',
 ]);
+
+/** Recognized keys on an item entry. */
 const ITEM_KEYS = new Set([
   'type',
   'title',
@@ -142,11 +42,23 @@ const ITEM_KEYS = new Set([
   'entity',
   'tap_action',
 ]);
+
+/** Recognized keys on a category entry. */
 const CATEGORY_KEYS = new Set(['type', 'title', 'icon', 'start_collapsed', 'guide_line', 'items']);
+
+/** Recognized keys on a divider entry. */
 const DIVIDER_KEYS = new Set(['type']);
+
+/** Recognized keys on a footer button. */
 const FOOTER_KEYS = new Set(['icon', 'icon_color', 'title', 'entity', 'tap_action']);
+
+/** Accepted alignment values for header and content. */
 const ALIGNS = ['left', 'center', 'right'];
 
+/**
+ * Reports any keys on `obj` that are not in the `allowed` set, prefixing each
+ * message with the config path `ctx`.
+ */
 function unknownKeys(obj: object, allowed: Set<string>, ctx: string, errors: string[]): void {
   Object.keys(obj).forEach((key) => {
     if (!allowed.has(key)) {
@@ -155,12 +67,18 @@ function unknownKeys(obj: object, allowed: Set<string>, ctx: string, errors: str
   });
 }
 
+/**
+ * Records an error when a defined value is not a boolean.
+ */
 function checkBool(value: unknown, ctx: string, errors: string[]): void {
   if (value !== undefined && typeof value !== 'boolean') {
     errors.push(`${ctx}: must be true or false`);
   }
 }
 
+/**
+ * Validates a single item entry: known keys, a title, and a tap_action.
+ */
 function validateItem(item: SidebarItemConfig, ctx: string, errors: string[]): void {
   unknownKeys(item, ITEM_KEYS, ctx, errors);
   if (typeof item.title !== 'string') {
@@ -171,6 +89,10 @@ function validateItem(item: SidebarItemConfig, ctx: string, errors: string[]): v
   }
 }
 
+/**
+ * Validates one top-level entry, dispatching on whether it is a divider,
+ * category, or item, and recursing into a category's items.
+ */
 function validateEntry(entry: SidebarEntry, ctx: string, errors: string[]): void {
   if (!entry || typeof entry !== 'object') {
     errors.push(`${ctx}: must be a mapping`);
@@ -203,13 +125,17 @@ function validateEntry(entry: SidebarEntry, ctx: string, errors: string[]): void
   validateItem(entry, ctx, errors);
 }
 
-/** Returns a list of config problems, empty when the config is valid. */
+/**
+ * Validates a full sidebar config and returns every problem found, so the
+ * element can surface them all at once. The list is empty when the config is
+ * valid.
+ */
 export function validateConfig(config: DashboardSidebarConfig): string[] {
   const errors: string[] = [];
   if (!config || typeof config !== 'object') {
     return ['dashboard_sidebar: config must be a mapping'];
   }
-  const c = config as Record<string, unknown>;
+  const c = config as unknown as Record<string, unknown>;
   unknownKeys(config, TOP_KEYS, 'dashboard_sidebar', errors);
 
   if (config.position !== undefined && config.position !== 'left' && config.position !== 'right') {

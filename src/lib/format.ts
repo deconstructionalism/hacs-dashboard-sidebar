@@ -1,34 +1,55 @@
-const pad = (n: number): string => String(n).padStart(2, '0');
+/**
+ * Pads a number to two digits with a leading zero.
+ */
+function pad(n: number): string {
+  return String(n).padStart(2, '0');
+}
 
-const localName = (date: Date, locale: string, opts: Intl.DateTimeFormatOptions): string =>
-  new Intl.DateTimeFormat(locale, opts).format(date);
+/**
+ * Formats a single localized name part (month or weekday) for a date.
+ */
+function localName(date: Date, locale: string, opts: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat(locale, opts).format(date);
+}
 
-const tzName = (date: Date, locale: string): string => {
+/**
+ * Returns the short localized time-zone name (e.g. `EST`) for a date.
+ */
+function tzName(date: Date, locale: string): string {
   const parts = new Intl.DateTimeFormat(locale, { timeZoneName: 'short' }).formatToParts(date);
   return parts.find((p) => p.type === 'timeZoneName')?.value ?? '';
-};
+}
 
-const tzOffset = (date: Date): string => {
+/**
+ * Returns the numeric UTC offset for a date in `+HHMM` / `-HHMM` form.
+ */
+function tzOffset(date: Date): string {
   const minutesEast = -date.getTimezoneOffset();
   const sign = minutesEast >= 0 ? '+' : '-';
   const abs = Math.abs(minutesEast);
   return `${sign}${pad(Math.floor(abs / 60))}${pad(abs % 60)}`;
-};
+}
 
-const dayOfYear = (date: Date): number => {
+/**
+ * Returns the 1-based day of the year for a date.
+ */
+function dayOfYear(date: Date): number {
   const start = new Date(date.getFullYear(), 0, 0);
   const diff = date.getTime() - start.getTime();
   return Math.floor(diff / 86400000);
-};
+}
 
 /**
- * Formats a date with a strftime pattern (as used by Home Assistant's
- * `now().strftime`). A leading `-` on a numeric token drops zero padding
+ * Formats a date with a strftime pattern, as used by Home Assistant's
+ * `now().strftime`. A leading `-` on a numeric token drops zero padding
  * (`%-d`). Month and weekday names localize; unknown tokens pass through.
  */
 export function strftime(date: Date, pattern: string, locale: string): string {
   const h12 = ((date.getHours() + 11) % 12) + 1;
   return pattern.replace(/%(-?)([A-Za-z%])/g, (match: string, dash: string, ch: string): string => {
+    /**
+     * Renders a numeric field, honoring the token's zero-padding flag.
+     */
     const num = (n: number): string => (dash === '-' ? String(n) : pad(n));
     switch (ch) {
       case 'Y':
@@ -76,13 +97,16 @@ export function strftime(date: Date, pattern: string, locale: string): string {
   });
 }
 
-/** strftime letters allowed in a time (clock) pattern. */
+/** strftime letters permitted in a time (clock) pattern. */
 export const TIME_TOKENS = new Set(['H', 'I', 'M', 'S', 'p', 'P', 'z', 'Z', '%']);
 
-/** strftime letters allowed in a date pattern. */
+/** strftime letters permitted in a date pattern. */
 export const DATE_TOKENS = new Set(['Y', 'y', 'm', 'B', 'b', 'h', 'd', 'e', 'A', 'a', 'j', '%']);
 
-/** Returns the first token in `pattern` not in `allowed`, or null if all pass. */
+/**
+ * Returns the first strftime token in `pattern` that is not in `allowed`, or
+ * null when every token is permitted.
+ */
 export function invalidToken(pattern: string, allowed: Set<string>): string | null {
   const re = /%(-?)([A-Za-z%])/g;
   for (let m = re.exec(pattern); m !== null; m = re.exec(pattern)) {
@@ -93,17 +117,22 @@ export function invalidToken(pattern: string, allowed: Set<string>): string | nu
   return null;
 }
 
+/** Named aliases expanded to strftime patterns for the expanded clock. */
 const CLOCK_ALIASES: Record<string, string> = {
   iso: '%H:%M:%S',
   '24h': '%H:%M',
   '12h': '%-I:%M %p',
 };
 
+/** Named aliases expanded to strftime patterns for the expanded date. */
 const DATE_ALIASES: Record<string, string> = {
   iso: '%Y-%m-%d',
 };
 
-/** Expanded clock. `locale` uses the locale time; otherwise a strftime pattern. */
+/**
+ * Formats the expanded-header clock. `locale` (or empty) uses the locale time;
+ * any other value is treated as an alias or strftime pattern.
+ */
 export function formatClock(date: Date, format: string, locale: string): string {
   if (!format || format === 'locale') {
     return date.toLocaleTimeString(locale);
@@ -111,7 +140,10 @@ export function formatClock(date: Date, format: string, locale: string): string 
   return strftime(date, CLOCK_ALIASES[format] ?? format, locale);
 }
 
-/** Expanded date. `locale` uses the locale date; otherwise a strftime pattern. */
+/**
+ * Formats the expanded-header date. `locale` (or empty) uses the locale date;
+ * any other value is treated as an alias or strftime pattern.
+ */
 export function formatDate(date: Date, format: string, locale: string): string {
   if (!format || format === 'locale') {
     return date.toLocaleDateString(locale);
@@ -119,7 +151,10 @@ export function formatDate(date: Date, format: string, locale: string): string {
   return strftime(date, DATE_ALIASES[format] ?? format, locale);
 }
 
-/** Collapsed clock: 24h HH:MM, or 12h h:MM with no AM/PM label. */
+/**
+ * Formats the collapsed clock: `HH:MM` in 24-hour form, or `h:MM` in 12-hour
+ * form with no AM/PM label.
+ */
 export function formatCollapsedClock(date: Date, twelveHour: boolean): string {
   if (twelveHour) {
     const h12 = ((date.getHours() + 11) % 12) + 1;
@@ -128,12 +163,18 @@ export function formatCollapsedClock(date: Date, twelveHour: boolean): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-/** Collapsed date is fixed at M-D (no leading zeros) to fit the strip. */
+/**
+ * Formats the collapsed date, fixed at `M-D` with no leading zeros so it fits
+ * the narrow strip.
+ */
 export function formatCollapsedDate(date: Date): string {
   return `${date.getMonth() + 1}-${date.getDate()}`;
 }
 
-/** 1 to 2 letter initials used when a collapsed entry has no icon. */
+/**
+ * Derives 1-to-2-letter initials from a title, used when a collapsed entry has
+ * no icon.
+ */
 export function initials(title: string): string {
   const words = title.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) {

@@ -1,79 +1,108 @@
 import { type HomeAssistant, handleAction } from 'custom-card-helpers';
-import { LitElement, css, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
+import { LitElement, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
-import { STORAGE_PREFIX } from './const';
+import { applyCardMod } from './lib/card-mod';
+import { STORAGE_PREFIX, TOGGLE_EVENT } from './lib/const';
 import {
   formatClock,
   formatCollapsedClock,
   formatCollapsedDate,
   formatDate,
   initials,
-} from './format';
-import { TemplateManager } from './templates';
-import {
-  type Align,
-  type DashboardSidebarConfig,
-  type SidebarCategoryConfig,
-  type SidebarEntry,
-  type SidebarFooterButtonConfig,
-  type SidebarItemConfig,
-  isCategory,
-  isDivider,
-  validateConfig,
-} from './types';
+} from './lib/format';
+import { isCategory, isDivider } from './lib/guards';
+import { TemplateManager } from './lib/templates';
+import type {
+  Align,
+  DashboardSidebarConfig,
+  SidebarCategoryConfig,
+  SidebarEntry,
+  SidebarFooterButtonConfig,
+  SidebarItemConfig,
+} from './lib/types';
+import { validateConfig } from './lib/validate';
+import { sidebarStyles } from './styles';
 
+/** Maps a config alignment to its flexbox `align-items` value. */
 const FLEX_ALIGN: Record<Align, string> = {
   left: 'flex-start',
   center: 'center',
   right: 'flex-end',
 };
 
-/** Fired when the collapsed state changes so the bootstrap can resize. */
-export const TOGGLE_EVENT = 'dashboard-sidebar-toggle';
-
+/**
+ * The dashboard sidebar element. Renders the configured header, custom content,
+ * menu (items, categories, dividers), and footer buttons, in both the expanded
+ * and collapsed layouts, and surfaces config errors in-panel.
+ */
 @customElement('dashboard-sidebar')
 export class DashboardSidebar extends LitElement {
+  /** The current Home Assistant object, assigned by the bootstrap. */
   @property({ attribute: false }) public hass?: HomeAssistant;
 
+  /** The validated configuration, or undefined before setConfig runs. */
   @state() private _config?: DashboardSidebarConfig;
 
+  /** Whether the sidebar is currently collapsed to its icon strip. */
   @state() private _collapsed = false;
 
+  /** Clock tick; reassigned each interval so the header re-renders. */
   @state() private _now = new Date();
 
+  /** Index of the collapsed category whose popover is open, or null. */
   @state() private _openCategory: number | null = null;
 
+  /** Viewport rect of the control anchoring an open popover, or null. */
   @state() private _popoverAnchor: DOMRect | null = null;
 
+  /** Whether the footer overflow popover is open. */
   @state() private _footerOpen = false;
 
+  /** Indices of categories currently collapsed in the expanded menu. */
   @state() private _collapsedCats = new Set<number>();
 
+  /** Config validation problems; non-empty switches render to the error panel. */
   @state() private _errors: string[] = [];
 
+  /** Manager that subscribes to and caches templated field values. */
   private readonly _templates = new TemplateManager(() => this.requestUpdate());
 
+  /** Handle of the clock/date interval timer, when running. */
   private _tick?: number;
 
+  /** The instantiated custom-content card, when `content` is configured. */
   private _contentCard?: HTMLElement & { hass?: HomeAssistant };
 
+  /** Whether card-mod styles have already been applied for this config. */
   private _cardModApplied = false;
 
+  /**
+   * Document-level click handler that closes any open popover when the click
+   * lands outside this element.
+   */
   private readonly _onDocumentClick = (ev: MouseEvent): void => {
     if ((this._openCategory !== null || this._footerOpen) && !ev.composedPath().includes(this)) {
       this._closePopovers();
     }
   };
 
+  /**
+   * Closes the category and footer popovers and clears the anchor.
+   */
   private _closePopovers(): void {
     this._openCategory = null;
     this._footerOpen = false;
     this._popoverAnchor = null;
   }
 
+  /**
+   * Validates and stores the config, seeds the collapsed state and per-category
+   * collapse set, collects templates, and starts the clock. Invalid configs are
+   * kept only as an error list for the panel.
+   */
   public setConfig(config: DashboardSidebarConfig): void {
     this._errors = validateConfig(config);
     this._config = config;
@@ -95,6 +124,10 @@ export class DashboardSidebar extends LitElement {
     void this._buildContent();
   }
 
+  /**
+   * Builds the custom-content card element from a markdown string or an
+   * embedded card config, using Home Assistant's card helpers.
+   */
   private async _buildContent(): Promise<void> {
     this._contentCard = undefined;
     const content = this._config?.content;
@@ -114,12 +147,18 @@ export class DashboardSidebar extends LitElement {
     this.requestUpdate();
   }
 
+  /**
+   * Registers the outside-click listener and starts the clock when connected.
+   */
   public connectedCallback(): void {
     super.connectedCallback();
     window.addEventListener('click', this._onDocumentClick);
     this._restartTick();
   }
 
+  /**
+   * Removes listeners, stops the clock, and unsubscribes templates on removal.
+   */
   public disconnectedCallback(): void {
     super.disconnectedCallback();
     window.removeEventListener('click', this._onDocumentClick);
@@ -127,6 +166,11 @@ export class DashboardSidebar extends LitElement {
     this._templates.clear();
   }
 
+  /**
+   * Reacts to reactive-property changes: fires the collapse toggle event first
+   * so the wrapper resizes, forwards hass to templates and the content card,
+   * then (re)applies card-mod.
+   */
   protected updated(changed: PropertyValues): void {
     if (changed.has('_collapsed')) {
       this.dispatchEvent(
@@ -147,49 +191,42 @@ export class DashboardSidebar extends LitElement {
   }
 
   /**
-   * Delegates styling to the card-mod integration when it is installed.
-   * card-mod exposes a static `applyToElement(element, type, config)` that
-   * renders the given styles into the element's shadow root and keeps them
-   * live against hass; it is not a card, so it has no `setConfig`.
-   *
-   * The fifth argument must be left at its `true` default: card-mod uses it
-   * to decide whether to attach inside `element.shadowRoot` (what we want, so
-   * the styles reach the dashboard-sidebar-* classes) or the light DOM.
+   * Applies the configured card-mod styles once per config, when the card-mod
+   * integration is installed. Retries on later updates until it succeeds, so a
+   * card-mod that loads after us is still honored.
    */
   private _applyCardMod(): void {
     const cfg = this._config?.card_mod;
     if (!cfg || this._cardModApplied || this._errors.length > 0) {
       return;
     }
-    const CardMod = customElements.get('card-mod') as
-      | {
-          applyToElement?: (element: HTMLElement, type: string, config: unknown) => void;
-        }
-      | undefined;
-    if (typeof CardMod?.applyToElement !== 'function') {
-      return;
-    }
-    try {
-      CardMod.applyToElement(this, 'dashboard-sidebar', cfg);
-      this._cardModApplied = true;
-    } catch (err) {
-      // Never let a card-mod failure break the sidebar (e.g. collapse).
-      console.warn('[dashboard-sidebar] card-mod failed:', err);
-    }
+    this._cardModApplied = applyCardMod(this, cfg);
   }
 
+  /**
+   * The resolved dock side, defaulting to left.
+   */
   private get _position(): 'left' | 'right' {
     return this._config?.position === 'right' ? 'right' : 'left';
   }
 
+  /**
+   * The active locale, from hass or the browser, used for date/time names.
+   */
   private get _locale(): string {
     return this.hass?.locale?.language ?? navigator.language;
   }
 
+  /**
+   * The localStorage key for this view and dock side's collapsed state.
+   */
   private _storageKey(): string {
     return `${STORAGE_PREFIX}:${window.location.pathname}:${this._position}`;
   }
 
+  /**
+   * Reads the stored collapsed state, or null when unset or unavailable.
+   */
   private _readStored(): boolean | null {
     try {
       const raw = window.localStorage.getItem(this._storageKey());
@@ -199,6 +236,10 @@ export class DashboardSidebar extends LitElement {
     }
   }
 
+  /**
+   * Restarts the clock/date timer, ticking every second when a clock is shown
+   * or every minute for date-only, and not at all when neither is configured.
+   */
   private _restartTick(): void {
     this._stopTick();
     if (!this._config?.clock && !this._config?.date) {
@@ -210,6 +251,9 @@ export class DashboardSidebar extends LitElement {
     }, interval);
   }
 
+  /**
+   * Stops the clock/date timer if it is running.
+   */
   private _stopTick(): void {
     if (this._tick !== undefined) {
       window.clearInterval(this._tick);
@@ -217,6 +261,9 @@ export class DashboardSidebar extends LitElement {
     }
   }
 
+  /**
+   * Toggles the collapsed state, closes popovers, and persists the choice.
+   */
   private _toggleCollapse(): void {
     this._collapsed = !this._collapsed;
     this._closePopovers();
@@ -227,6 +274,9 @@ export class DashboardSidebar extends LitElement {
     }
   }
 
+  /**
+   * Runs a configured tap action through Home Assistant and closes popovers.
+   */
   private _runAction(cfg: { entity?: string; tap_action: SidebarItemConfig['tap_action'] }): void {
     if (!this.hass) {
       return;
@@ -235,6 +285,10 @@ export class DashboardSidebar extends LitElement {
     this._closePopovers();
   }
 
+  /**
+   * Toggles the footer overflow popover open or closed, anchoring it to the
+   * clicked control.
+   */
   private _toggleFooter(ev: Event): void {
     if (this._footerOpen) {
       this._closePopovers();
@@ -245,17 +299,28 @@ export class DashboardSidebar extends LitElement {
     this._popoverAnchor = (ev.currentTarget as HTMLElement).getBoundingClientRect();
   }
 
+  /**
+   * Computes fixed-position coordinates for a popover beside its anchor, on the
+   * side away from the dock edge and growing up or down as requested.
+   */
   private _popoverStyle(anchor: DOMRect, growUp: boolean): Record<string, string> {
-    const side =
-      this._position === 'left'
-        ? { left: `${anchor.right + 8}px` }
-        : { right: `${window.innerWidth - anchor.left + 8}px` };
-    const vert = growUp
-      ? { bottom: `${window.innerHeight - anchor.bottom}px` }
-      : { top: `${anchor.top}px` };
-    return { ...side, ...vert };
+    const style: Record<string, string> = {};
+    if (this._position === 'left') {
+      style.left = `${anchor.right + 8}px`;
+    } else {
+      style.right = `${window.innerWidth - anchor.left + 8}px`;
+    }
+    if (growUp) {
+      style.bottom = `${window.innerHeight - anchor.bottom}px`;
+    } else {
+      style.top = `${anchor.top}px`;
+    }
+    return style;
   }
 
+  /**
+   * Toggles the popover for a collapsed category, anchoring it to the row.
+   */
   private _toggleCategory(index: number, ev: Event): void {
     if (this._openCategory === index) {
       this._openCategory = null;
@@ -267,6 +332,9 @@ export class DashboardSidebar extends LitElement {
     this._popoverAnchor = (ev.currentTarget as HTMLElement).getBoundingClientRect();
   }
 
+  /**
+   * Toggles whether a category is collapsed within the expanded menu.
+   */
   private _toggleCategoryCollapse(index: number): void {
     const next = new Set(this._collapsedCats);
     if (next.has(index)) {
@@ -277,6 +345,9 @@ export class DashboardSidebar extends LitElement {
     this._collapsedCats = next;
   }
 
+  /**
+   * Renders the sidebar, or the error panel when the config is invalid.
+   */
   protected render(): TemplateResult {
     if (this._errors.length > 0) {
       return this._renderErrors();
@@ -337,6 +408,9 @@ export class DashboardSidebar extends LitElement {
     `;
   }
 
+  /**
+   * Renders the config-error panel listing every validation problem.
+   */
   private _renderErrors(): TemplateResult {
     return html`
       <div class="config-error">
@@ -351,6 +425,10 @@ export class DashboardSidebar extends LitElement {
     `;
   }
 
+  /**
+   * Renders the header block (title, clock, date), or nothing when none are
+   * enabled. The title is hidden while collapsed.
+   */
   private _renderHeader(collapsed: boolean): TemplateResult | typeof nothing {
     const cfg = this._config;
     if (!cfg) {
@@ -392,6 +470,10 @@ export class DashboardSidebar extends LitElement {
     `;
   }
 
+  /**
+   * Renders one menu entry, dispatching on divider, category (collapsed or
+   * expanded), or item.
+   */
   private _renderEntry(entry: SidebarEntry, index: number, collapsed: boolean): TemplateResult {
     if (isDivider(entry)) {
       return html`<div class="entry-divider dashboard-sidebar-divider"></div>`;
@@ -404,6 +486,10 @@ export class DashboardSidebar extends LitElement {
     return this._renderItemRow(entry, collapsed);
   }
 
+  /**
+   * Renders a single item row: an icon-only button when collapsed (falling back
+   * to initials), or an icon-and-label row when expanded.
+   */
   private _renderItemRow(item: SidebarItemConfig, collapsed: boolean): TemplateResult {
     const title = this._templates.resolve(item.title);
     const icon = item.icon ? this._templates.resolve(item.icon) : '';
@@ -448,6 +534,10 @@ export class DashboardSidebar extends LitElement {
     `;
   }
 
+  /**
+   * Renders an expanded category: a clickable header with a chevron, and its
+   * items behind an optional guide line when open.
+   */
   private _renderExpandedCategory(category: SidebarCategoryConfig, index: number): TemplateResult {
     const title = this._templates.resolve(category.title);
     const icon = category.icon ? this._templates.resolve(category.icon) : '';
@@ -480,6 +570,10 @@ export class DashboardSidebar extends LitElement {
     `;
   }
 
+  /**
+   * Renders a collapsed category as an icon button that opens a popover listing
+   * its items.
+   */
   private _renderCollapsedCategory(category: SidebarCategoryConfig, index: number): TemplateResult {
     const title = this._templates.resolve(category.title);
     const icon = category.icon ? this._templates.resolve(category.icon) : '';
@@ -505,8 +599,11 @@ export class DashboardSidebar extends LitElement {
     `;
   }
 
+  /**
+   * Renders a collapsed category's popover: its title and item rows, fixed to
+   * the viewport so it escapes the scrollable menu's clipping.
+   */
   private _renderPopover(category: SidebarCategoryConfig, anchor: DOMRect): TemplateResult {
-    // Fixed to the viewport so it escapes the scrollable menu's clipping.
     return html`
       <div
         class="popover dashboard-sidebar-popover"
@@ -521,6 +618,10 @@ export class DashboardSidebar extends LitElement {
     `;
   }
 
+  /**
+   * Renders the footer button bar. Collapsed shows a dots menu; expanded fits
+   * as many buttons as the width allows and moves the rest behind a dots menu.
+   */
   private _renderFooter(collapsed: boolean): TemplateResult | typeof nothing {
     const buttons = this._config?.footer_buttons ?? [];
     if (buttons.length === 0) {
@@ -562,6 +663,9 @@ export class DashboardSidebar extends LitElement {
     `;
   }
 
+  /**
+   * Renders the overflow "dots" button that opens the footer popover.
+   */
   private _renderDots(cls: string): TemplateResult {
     return html`
       <button
@@ -577,6 +681,10 @@ export class DashboardSidebar extends LitElement {
     `;
   }
 
+  /**
+   * Renders the footer overflow popover holding the given buttons, fixed to the
+   * viewport and growing upward from its anchor.
+   */
   private _renderFooterPopover(
     buttons: SidebarFooterButtonConfig[],
     anchor: DOMRect,
@@ -592,6 +700,9 @@ export class DashboardSidebar extends LitElement {
     `;
   }
 
+  /**
+   * Renders a single footer icon button that runs its configured action.
+   */
   private _renderFooterButton(btn: SidebarFooterButtonConfig): TemplateResult {
     const icon = this._templates.resolve(btn.icon);
     const color = btn.icon_color ? this._templates.resolve(btn.icon_color) : '';
@@ -611,324 +722,14 @@ export class DashboardSidebar extends LitElement {
     `;
   }
 
-  static styles = css`
-    :host {
-      display: block;
-      height: 100%;
-      box-sizing: border-box;
-      color: var(--primary-text-color, #000);
-      background: var(--card-background-color, var(--primary-background-color, #fff));
-      font-family: var(--ha-font-family-body, inherit);
-    }
-
-    .sidebar {
-      position: relative;
-      display: flex;
-      height: 100%;
-      flex-direction: column;
-      box-sizing: border-box;
-      padding: 16px 12px;
-      overflow: visible;
-    }
-
-    .sidebar.collapsed {
-      align-items: center;
-      padding: 16px 6px;
-    }
-
-    .toggle {
-      position: absolute;
-      top: 16px;
-      width: 26px;
-      height: 26px;
-      padding: 0;
-      border: 1px solid var(--divider-color, rgb(0 0 0 / 12%));
-      border-radius: 50%;
-      background: var(--card-background-color, var(--primary-background-color, #fff));
-      color: var(--primary-text-color, #000);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      z-index: 6;
-      box-shadow: 0 1px 4px rgb(0 0 0 / 25%);
-    }
-
-    .pos-left .toggle {
-      right: -13px;
-    }
-
-    .pos-right .toggle {
-      left: -13px;
-    }
-
-    .toggle ha-icon {
-      --mdc-icon-size: 18px;
-      transition: transform 0.2s ease;
-    }
-
-    .pos-right .toggle ha-icon {
-      transform: rotate(180deg);
-    }
-
-    .collapsed.pos-left .toggle ha-icon {
-      transform: rotate(180deg);
-    }
-
-    .collapsed.pos-right .toggle ha-icon {
-      transform: rotate(0deg);
-    }
-
-    .header {
-      margin-bottom: 16px;
-      text-align: center;
-    }
-
-    .app-title {
-      font-size: 1.25rem;
-      font-weight: 500;
-      margin-bottom: 8px;
-    }
-
-    .clock {
-      font-size: 1.5rem;
-      font-weight: 300;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .collapsed .clock {
-      font-size: 0.85rem;
-    }
-
-    .date {
-      font-size: 0.9rem;
-      opacity: 0.75;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .collapsed .date {
-      font-size: 0.7rem;
-    }
-
-    .menu {
-      display: flex;
-      flex: 1 1 auto;
-      flex-direction: column;
-      gap: 2px;
-      width: 100%;
-      min-height: 0;
-      overflow-y: auto;
-    }
-
-    .collapsed .menu {
-      align-items: center;
-    }
-
-    .row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      width: 100%;
-      padding: 10px 12px;
-      border: none;
-      border-radius: 10px;
-      background: transparent;
-      color: inherit;
-      font: inherit;
-      text-align: left;
-      cursor: pointer;
-    }
-
-    .row:hover {
-      background: var(--divider-color, rgb(0 0 0 / 8%));
-    }
-
-    .row .label {
-      flex: 1;
-      font-size: 1rem;
-    }
-
-    .collapsed-row {
-      width: 44px;
-      height: 44px;
-      justify-content: center;
-      padding: 0;
-      gap: 0;
-    }
-
-    .collapsed-row.active {
-      background: var(--primary-color, #03a9f4);
-      color: var(--text-primary-color, #fff);
-    }
-
-    .initials {
-      font-size: 0.85rem;
-      font-weight: 600;
-    }
-
-    .category {
-      margin: 4px 0;
-    }
-
-    .category-header {
-      font-weight: 600;
-      opacity: 0.85;
-    }
-
-    .chevron {
-      --mdc-icon-size: 20px;
-      flex: 0 0 auto;
-      opacity: 0.7;
-      transition: transform 0.2s ease;
-    }
-
-    .chevron:not(.open) {
-      transform: rotate(-90deg);
-    }
-
-    .category-items {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding-left: 8px;
-      border-left: 1px solid var(--divider-color, rgb(0 0 0 / 12%));
-      margin-left: 18px;
-    }
-
-    .category-items.no-line {
-      border-left: none;
-    }
-
-    .category-anchor {
-      position: relative;
-    }
-
-    .popover {
-      position: fixed;
-      min-width: 180px;
-      padding: 8px;
-      border-radius: 12px;
-      background: var(--card-background-color, var(--primary-background-color, #fff));
-      box-shadow: 0 4px 16px rgb(0 0 0 / 30%);
-      z-index: 9;
-    }
-
-    .content {
-      display: flex;
-      flex-direction: column;
-      margin-bottom: 12px;
-    }
-
-    .collapsed .content {
-      display: none;
-    }
-
-    .entry-divider {
-      flex: none;
-      align-self: stretch;
-      height: 1px;
-      min-height: 1px;
-      margin: 6px 4px;
-      background: var(--divider-color, rgb(0 0 0 / 12%));
-    }
-
-    .collapsed .entry-divider {
-      width: 60%;
-      margin: 6px auto;
-    }
-
-    .popover-title {
-      font-weight: 600;
-      padding: 4px 12px 8px;
-    }
-
-    .footer {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-      align-items: center;
-      margin-top: 8px;
-      padding-top: 8px;
-      border-top: 1px solid var(--divider-color, rgb(0 0 0 / 12%));
-    }
-
-    .collapsed .footer {
-      justify-content: center;
-    }
-
-    .footer.no-divider {
-      border-top: none;
-      padding-top: 0;
-    }
-
-    .footer-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 40px;
-      padding: 0;
-      border: none;
-      border-radius: 10px;
-      background: transparent;
-      color: inherit;
-      cursor: pointer;
-    }
-
-    .footer-btn:hover,
-    .footer-btn.active {
-      background: var(--divider-color, rgb(0 0 0 / 8%));
-    }
-
-    .footer-popover {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-      min-width: 0;
-      width: max-content;
-      max-width: 220px;
-    }
-
-    ha-icon {
-      color: var(--paper-item-icon-color, var(--primary-text-color, #000));
-    }
-
-    .config-error {
-      margin: 12px;
-      padding: 12px;
-      border: 1px solid var(--error-color, #db4437);
-      border-radius: 8px;
-      background: color-mix(in srgb, var(--error-color, #db4437) 12%, transparent);
-      color: var(--primary-text-color, #000);
-      font-size: 0.85rem;
-      overflow-y: auto;
-    }
-
-    .config-error-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-
-    .config-error-title ha-icon {
-      color: var(--error-color, #db4437);
-    }
-
-    .config-error ul {
-      margin: 0;
-      padding-left: 18px;
-    }
-
-    .config-error li {
-      margin: 4px 0;
-    }
-  `;
+  /** The composed set of stylesheets for the element. */
+  static styles = sidebarStyles;
 }
 
 declare global {
+  /** Registers the element's tag name for typed DOM lookups. */
   interface HTMLElementTagNameMap {
+    /** The dashboard sidebar custom element. */
     'dashboard-sidebar': DashboardSidebar;
   }
 }

@@ -60,7 +60,7 @@ export class DashboardSidebar extends LitElement {
 
   private _contentCard?: HTMLElement & { hass?: HomeAssistant };
 
-  private _cardMod?: HTMLElement & { hass?: HomeAssistant };
+  private _cardModApplied = false;
 
   private readonly _onDocumentClick = (ev: MouseEvent): void => {
     if ((this._openCategory !== null || this._footerOpen) && !ev.composedPath().includes(this)) {
@@ -77,8 +77,7 @@ export class DashboardSidebar extends LitElement {
   public setConfig(config: DashboardSidebarConfig): void {
     this._errors = validateConfig(config);
     this._config = config;
-    this._cardMod?.remove();
-    this._cardMod = undefined;
+    this._cardModApplied = false;
     if (this._errors.length > 0) {
       console.warn(`[dashboard-sidebar] config errors:\n- ${this._errors.join('\n- ')}`);
       return;
@@ -147,26 +146,34 @@ export class DashboardSidebar extends LitElement {
     this._applyCardMod();
   }
 
-  /** Delegates styling to the card-mod integration when it is installed. */
+  /**
+   * Delegates styling to the card-mod integration when it is installed.
+   * card-mod exposes a static `applyToElement(element, type, config)` that
+   * renders the given styles into the element's shadow root and keeps them
+   * live against hass; it is not a card, so it has no `setConfig`.
+   */
   private _applyCardMod(): void {
     const cfg = this._config?.card_mod;
-    if (!cfg || !this.shadowRoot || this._errors.length > 0) {
+    if (!cfg || this._cardModApplied || this._errors.length > 0) {
       return;
     }
     const CardMod = customElements.get('card-mod') as
-      | (new () => HTMLElement & { hass?: HomeAssistant; setConfig: (c: unknown) => void })
+      | {
+          applyToElement?: (
+            element: HTMLElement,
+            type: string,
+            config: unknown,
+            options?: object,
+            wait?: boolean,
+          ) => void;
+        }
       | undefined;
-    if (!CardMod) {
+    if (typeof CardMod?.applyToElement !== 'function') {
       return;
     }
     try {
-      if (!this._cardMod) {
-        const el = new CardMod();
-        el.setConfig(cfg);
-        this._cardMod = el;
-        this.shadowRoot.appendChild(el);
-      }
-      this._cardMod.hass = this.hass;
+      CardMod.applyToElement(this, 'dashboard-sidebar', cfg, {}, false);
+      this._cardModApplied = true;
     } catch (err) {
       // Never let a card-mod failure break the sidebar (e.g. collapse).
       console.warn('[dashboard-sidebar] card-mod failed:', err);

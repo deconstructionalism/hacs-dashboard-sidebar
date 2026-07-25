@@ -398,34 +398,61 @@ export class DashboardSidebar extends LitElement {
     if (buttons.length === 0) {
       return nothing;
     }
+    const anchor = this._popoverAnchor;
+
     if (collapsed) {
       return html`
         <div class="footer collapsed-footer">
-          <button
-            class="row item collapsed-row ${this._footerOpen ? 'active' : ''}"
-            title="More"
-            @click=${(ev: Event) => {
-              ev.stopPropagation();
-              this._toggleFooter(ev);
-            }}
-          >
-            <ha-icon icon="mdi:dots-vertical"></ha-icon>
-          </button>
-          ${
-            this._footerOpen && this._popoverAnchor
-              ? html`<div
-                  class="popover footer-popover"
-                  style=${styleMap(this._popoverStyle(this._popoverAnchor, true))}
-                  @click=${(ev: Event) => ev.stopPropagation()}
-                >
-                  ${buttons.map((btn) => this._renderFooterButton(btn))}
-                </div>`
-              : nothing
-          }
+          ${this._renderDots('row item collapsed-row')}
+          ${this._footerOpen && anchor ? this._renderFooterPopover(buttons, anchor) : nothing}
         </div>
       `;
     }
-    return html` <div class="footer">${buttons.map((btn) => this._renderFooterButton(btn))}</div> `;
+
+    // Fit as many as the width allows; the rest go behind a dots button.
+    const width = this._config?.width ?? 240;
+    const maxFit = Math.max(1, Math.floor((width - 24 + 4) / 44)); // 40px button + 4px gap
+    if (buttons.length <= maxFit) {
+      return html`<div class="footer">${buttons.map((btn) => this._renderFooterButton(btn))}</div>`;
+    }
+    const inline = buttons.slice(0, maxFit - 1);
+    const overflow = buttons.slice(maxFit - 1);
+    return html`
+      <div class="footer">
+        ${inline.map((btn) => this._renderFooterButton(btn))} ${this._renderDots('footer-btn')}
+        ${this._footerOpen && anchor ? this._renderFooterPopover(overflow, anchor) : nothing}
+      </div>
+    `;
+  }
+
+  private _renderDots(cls: string): TemplateResult {
+    return html`
+      <button
+        class="${cls} ${this._footerOpen ? 'active' : ''}"
+        title="More"
+        @click=${(ev: Event) => {
+          ev.stopPropagation();
+          this._toggleFooter(ev);
+        }}
+      >
+        <ha-icon icon="mdi:dots-vertical"></ha-icon>
+      </button>
+    `;
+  }
+
+  private _renderFooterPopover(
+    buttons: SidebarFooterButtonConfig[],
+    anchor: DOMRect,
+  ): TemplateResult {
+    return html`
+      <div
+        class="popover footer-popover"
+        style=${styleMap(this._popoverStyle(anchor, true))}
+        @click=${(ev: Event) => ev.stopPropagation()}
+      >
+        ${buttons.map((btn) => this._renderFooterButton(btn))}
+      </div>
+    `;
   }
 
   private _renderFooterButton(btn: SidebarFooterButtonConfig): TemplateResult {
@@ -678,7 +705,8 @@ export class DashboardSidebar extends LitElement {
       cursor: pointer;
     }
 
-    .footer-btn:hover {
+    .footer-btn:hover,
+    .footer-btn.active {
       background: var(--divider-color, rgb(0 0 0 / 8%));
     }
 
@@ -686,7 +714,9 @@ export class DashboardSidebar extends LitElement {
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
-      max-width: 200px;
+      min-width: 0;
+      width: max-content;
+      max-width: 220px;
     }
 
     ha-icon {

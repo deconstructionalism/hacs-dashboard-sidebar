@@ -53,7 +53,7 @@ function readConfig(huiRoot: { lovelace?: any }): DashboardSidebarConfig | null 
 
 function widthCss(config: DashboardSidebarConfig): string {
   const expanded = config.width ?? DEFAULT_WIDTH;
-  const collapsed = config.collapsed_width ?? DEFAULT_COLLAPSED_WIDTH;
+  const collapsed = DEFAULT_COLLAPSED_WIDTH;
   return `
     #${WRAPPER_ID} {
       display: flex;

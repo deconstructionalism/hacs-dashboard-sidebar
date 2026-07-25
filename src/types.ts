@@ -56,7 +56,6 @@ export interface SidebarFooterButtonConfig {
 export interface DashboardSidebarConfig {
   position?: SidebarPosition;
   width?: number;
-  collapsed_width?: number;
   start_collapsed?: boolean;
   clock?: boolean;
   clock_format?: TimeFormat;

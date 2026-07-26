@@ -735,7 +735,7 @@ export class DashboardSidebarEditor extends LitElement {
     .tab {
       font: inherit;
       padding: 6px 12px;
-      border: none;
+      border: 1px solid transparent;
       border-radius: 8px 8px 0 0;
       background: transparent;
       color: inherit;
@@ -744,8 +744,9 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     .tab.active {
-      background: var(--primary-text-color, #212121);
-      color: var(--card-background-color, #fff);
+      border-top-color: var(--divider-color, rgb(0 0 0 / 12%));
+      border-left-color: var(--divider-color, rgb(0 0 0 / 12%));
+      border-right-color: var(--divider-color, rgb(0 0 0 / 12%));
       opacity: 1;
       font-weight: 600;
     }

@@ -1,18 +1,25 @@
 import { CONFIG_KEY, DEFAULT_COLLAPSED_WIDTH, DEFAULT_WIDTH, TOGGLE_EVENT } from './const';
-import type { DashboardSidebarConfig } from './types';
+import type { DashboardSidebarConfig, SidebarConfig, SidebarPosition } from './types';
 import type { DashboardSidebar } from '../dashboard-sidebar';
 
-/** DOM id of the flex wrapper that holds the sidebar host and the view. */
+/** DOM id of the flex wrapper that holds the sidebar hosts and the view. */
 const WRAPPER_ID = 'dashboard-sidebar-wrapper';
-
-/** DOM id of the sticky host element the sidebar renders into. */
-const HOST_ID = 'dashboard-sidebar-host';
 
 /** DOM id of the injected `<style>` element that lays out the wrapper. */
 const STYLE_ID = 'dashboard-sidebar-style';
 
+/** The two sides a sidebar can dock to. */
+const SIDES: SidebarPosition[] = ['left', 'right'];
+
 /** An element that may expose a shadow root, or null. */
 type AnyEl = (Element & { shadowRoot?: ShadowRoot | null }) | null;
+
+/**
+ * The DOM id of the sticky host element for one side's sidebar.
+ */
+function hostId(side: SidebarPosition): string {
+  return `dashboard-sidebar-host-${side}`;
+}
 
 /**
  * Descends one level into an element's shadow root (or the element itself when
@@ -61,14 +68,15 @@ function getHeaderHeight(shadow: ShadowRoot): number {
 }
 
 /**
- * Pushes the sidebar host down by the current header height.
+ * Pushes a sidebar host down by the current header height.
  */
 function applyHeaderOffset(shadow: ShadowRoot, host: HTMLElement): void {
   host.style.paddingTop = `${getHeaderHeight(shadow)}px`;
 }
 
 /**
- * Reads the sidebar config from the Lovelace config, or null when absent.
+ * Reads the dashboard_sidebar container from the Lovelace config, or null when
+ * absent.
  */
 function readConfig(huiRoot: { lovelace?: any }): DashboardSidebarConfig | null {
   const config = huiRoot.lovelace?.config?.[CONFIG_KEY];
@@ -76,20 +84,15 @@ function readConfig(huiRoot: { lovelace?: any }): DashboardSidebarConfig | null 
 }
 
 /**
- * Builds the wrapper/host layout CSS, including the collapsed width and the
- * optional hide-on-mobile media query.
+ * Builds the sticky-host layout CSS for one side, including its collapsed width
+ * and optional hide-on-mobile media query.
  */
-function widthCss(config: DashboardSidebarConfig): string {
+function sideHostCss(side: SidebarPosition, config: SidebarConfig): string {
   const expanded = config.width ?? DEFAULT_WIDTH;
   const collapsed = DEFAULT_COLLAPSED_WIDTH;
+  const host = hostId(side);
   return `
-    #${WRAPPER_ID} {
-      display: flex;
-      flex-direction: row;
-      height: 100%;
-      width: 100%;
-    }
-    #${HOST_ID} {
+    #${host} {
       flex: 0 0 auto;
       width: ${expanded}px;
       box-sizing: border-box;
@@ -101,27 +104,51 @@ function widthCss(config: DashboardSidebarConfig): string {
       z-index: 5;
       transition: width 0.25s ease;
     }
-    #${WRAPPER_ID}.collapsed #${HOST_ID} {
+    #${WRAPPER_ID}.collapsed-${side} #${host} {
       width: ${collapsed}px;
+    }
+    ${config.hide_on_mobile ? `@media (max-width: 768px) { #${host} { display: none; } }` : ''}
+  `;
+}
+
+/**
+ * Builds the full wrapper layout CSS for the present sides.
+ */
+function wrapperCss(config: DashboardSidebarConfig): string {
+  return `
+    #${WRAPPER_ID} {
+      display: flex;
+      flex-direction: row;
+      height: 100%;
+      width: 100%;
     }
     #${WRAPPER_ID} > #view {
       flex: 1 1 0;
       min-width: 0;
     }
-    ${
-      config.hide_on_mobile
-        ? `@media (max-width: 768px) {
-             #${HOST_ID} { display: none; }
-             #${WRAPPER_ID} > #view { flex-basis: 100%; }
-           }`
-        : ''
-    }
+    ${config.left ? sideHostCss('left', config.left) : ''}
+    ${config.right ? sideHostCss('right', config.right) : ''}
   `;
 }
 
 /**
- * Creates the wrapper, host, and sidebar element and inserts them around the
- * current view, once per view. No-ops if the config, view, or a prior wrapper
+ * Creates a host and mounts a sidebar element for one side.
+ */
+function mountSide(shadow: ShadowRoot, side: SidebarPosition, config: SidebarConfig): HTMLElement {
+  const host = document.createElement('div');
+  host.id = hostId(side);
+  applyHeaderOffset(shadow, host);
+  const element = document.createElement('dashboard-sidebar') as DashboardSidebar;
+  element.side = side;
+  element.hass = getHass();
+  element.setConfig(config);
+  host.appendChild(element);
+  return host;
+}
+
+/**
+ * Creates the wrapper, hosts, and sidebar elements and inserts them around the
+ * current view, once per view. No-ops when the config, view, or a prior wrapper
  * says there is nothing to do.
  */
 function buildSidebar(): void {
@@ -131,15 +158,13 @@ function buildSidebar(): void {
   }
   const config = readConfig(huiRoot);
   const shadow = huiRoot.shadowRoot;
-  const existing = shadow.getElementById(WRAPPER_ID);
 
-  if (!config) {
+  if (!config || (!config.left && !config.right)) {
     return;
   }
-  if (existing) {
+  if (shadow.getElementById(WRAPPER_ID)) {
     return;
   }
-
   const view = shadow.getElementById('view');
   if (!view || !view.parentNode) {
     return;
@@ -151,36 +176,29 @@ function buildSidebar(): void {
     style.id = STYLE_ID;
     shadow.appendChild(style);
   }
-  style.textContent = widthCss(config);
+  style.textContent = wrapperCss(config);
 
   const wrapper = document.createElement('div');
   wrapper.id = WRAPPER_ID;
   view.parentNode.insertBefore(wrapper, view);
 
-  const host = document.createElement('div');
-  host.id = HOST_ID;
-  applyHeaderOffset(shadow, host);
-  const element = document.createElement('dashboard-sidebar') as DashboardSidebar;
-  element.hass = getHass();
-  element.setConfig(config);
-  host.appendChild(element);
-
-  if (config.position === 'right') {
-    wrapper.appendChild(view);
-    wrapper.appendChild(host);
-  } else {
-    wrapper.appendChild(host);
-    wrapper.appendChild(view);
+  if (config.left) {
+    wrapper.appendChild(mountSide(shadow, 'left', config.left));
+  }
+  wrapper.appendChild(view);
+  if (config.right) {
+    wrapper.appendChild(mountSide(shadow, 'right', config.right));
   }
 
   wrapper.addEventListener(TOGGLE_EVENT, (ev: Event) => {
-    const collapsed = Boolean((ev as CustomEvent).detail?.collapsed);
-    wrapper.classList.toggle('collapsed', collapsed);
+    const detail = (ev as CustomEvent).detail ?? {};
+    const side = detail.side === 'right' ? 'right' : 'left';
+    wrapper.classList.toggle(`collapsed-${side}`, Boolean(detail.collapsed));
   });
 }
 
 /**
- * Rebuilds the sidebar after the frontend swaps the view, and keeps the
+ * Rebuilds the sidebars after the frontend swaps the view, and keeps each
  * element's hass fresh. Errors while the frontend is mid-transition are
  * swallowed so the next tick can retry.
  */
@@ -190,27 +208,32 @@ function ensureSidebar(): void {
     if (!huiRoot) {
       return;
     }
-    const wrapper = huiRoot.shadowRoot.getElementById(WRAPPER_ID);
+    const shadow = huiRoot.shadowRoot;
+    const wrapper = shadow.getElementById(WRAPPER_ID);
     if (!wrapper) {
       buildSidebar();
       return;
     }
-    const host = huiRoot.shadowRoot.getElementById(HOST_ID);
-    if (host) {
-      applyHeaderOffset(huiRoot.shadowRoot, host);
-    }
-    const element = wrapper.querySelector('dashboard-sidebar') as DashboardSidebar | null;
-    if (element && !element.hass) {
-      element.hass = getHass();
-    }
+    SIDES.forEach((side) => {
+      const host = shadow.getElementById(hostId(side));
+      if (host) {
+        applyHeaderOffset(shadow, host);
+      }
+    });
+    wrapper.querySelectorAll('dashboard-sidebar').forEach((el) => {
+      const element = el as DashboardSidebar;
+      if (!element.hass) {
+        element.hass = getHass();
+      }
+    });
   } catch {
     // frontend not ready yet; the next tick retries
   }
 }
 
 /**
- * Starts the sidebar: builds it now, on every navigation, and on a slow poll
- * that recovers from frontend view swaps that fire no navigation event.
+ * Starts the sidebars: builds now, on every navigation, and on a slow poll that
+ * recovers from frontend view swaps that fire no navigation event.
  */
 export function startSidebar(): void {
   window.addEventListener('location-changed', () => ensureSidebar());

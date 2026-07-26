@@ -164,10 +164,8 @@ export interface FooterConfig {
   card?: string | LovelaceCardConfig;
 }
 
-/** The full configuration read from the Lovelace `dashboard_sidebar` key. */
-export interface DashboardSidebarConfig {
-  /** Edge the sidebar docks to. Default left. */
-  position?: SidebarPosition;
+/** The configuration for a single sidebar (one side of the dashboard). */
+export interface SidebarConfig {
   /** Expanded width in pixels. Default {@link DEFAULT_WIDTH}. */
   width?: number;
   /** Whether the sidebar starts collapsed, before any stored preference. */
@@ -187,6 +185,18 @@ export interface DashboardSidebarConfig {
    * Target the dashboard-sidebar-* classes on the rendered elements.
    */
   card_mod?: Record<string, unknown>;
+}
+
+/**
+ * The full configuration read from the Lovelace `dashboard_sidebar` key: an
+ * optional left and/or right sidebar. Keyed by side, so a dashboard can have at
+ * most one of each.
+ */
+export interface DashboardSidebarConfig {
+  /** The left sidebar, if present. */
+  left?: SidebarConfig;
+  /** The right sidebar, if present. */
+  right?: SidebarConfig;
 }
 
 /** The two block regions, used as stable key prefixes for block state. */

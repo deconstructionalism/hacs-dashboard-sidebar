@@ -19,15 +19,16 @@ import type {
   CardBlock,
   CategoryBlock,
   ClockBlock,
-  DashboardSidebarConfig,
   DateBlock,
   FooterButtonConfig,
   ItemBlock,
   Region,
   SidebarBlock,
+  SidebarConfig,
+  SidebarPosition,
   TitleBlock,
 } from './lib/types';
-import { validateConfig } from './lib/validate';
+import { validateSidebar } from './lib/validate';
 import { sidebarStyles } from './styles';
 
 /** Maps a config alignment to its flexbox `align-items` value. */
@@ -55,8 +56,11 @@ export class DashboardSidebar extends LitElement {
   /** The current Home Assistant object, assigned by the bootstrap. */
   @property({ attribute: false }) public hass?: HomeAssistant;
 
+  /** Which side this sidebar docks to, set by the bootstrap. */
+  @property({ attribute: false }) public side: SidebarPosition = 'left';
+
   /** The validated configuration, or undefined before setConfig runs. */
-  @state() private _config?: DashboardSidebarConfig;
+  @state() private _config?: SidebarConfig;
 
   /** Whether the sidebar is currently collapsed to its icon strip. */
   @state() private _collapsed = false;
@@ -118,8 +122,8 @@ export class DashboardSidebar extends LitElement {
    * collapse set, collects templates, builds card blocks, and starts the clock.
    * Invalid configs are kept only as an error list for the panel.
    */
-  public setConfig(config: DashboardSidebarConfig): void {
-    this._errors = validateConfig(config);
+  public setConfig(config: SidebarConfig): void {
+    this._errors = validateSidebar(config);
     this._config = config;
     this._cardModApplied = false;
     if (this._errors.length > 0) {
@@ -219,7 +223,7 @@ export class DashboardSidebar extends LitElement {
     if (changed.has('_collapsed')) {
       this.dispatchEvent(
         new CustomEvent(TOGGLE_EVENT, {
-          detail: { collapsed: this._collapsed },
+          detail: { collapsed: this._collapsed, side: this.side },
           bubbles: true,
           composed: true,
         }),
@@ -247,13 +251,6 @@ export class DashboardSidebar extends LitElement {
   }
 
   /**
-   * The resolved dock side, defaulting to left.
-   */
-  private get _position(): 'left' | 'right' {
-    return this._config?.position === 'right' ? 'right' : 'left';
-  }
-
-  /**
    * The active locale, from hass or the browser, used for date/time names.
    */
   private get _locale(): string {
@@ -264,7 +261,7 @@ export class DashboardSidebar extends LitElement {
    * The localStorage key for this view and dock side's collapsed state.
    */
   private _storageKey(): string {
-    return `${STORAGE_PREFIX}:${window.location.pathname}:${this._position}`;
+    return `${STORAGE_PREFIX}:${window.location.pathname}:${this.side}`;
   }
 
   /**
@@ -366,7 +363,7 @@ export class DashboardSidebar extends LitElement {
    */
   private _popoverStyle(anchor: DOMRect, growUp: boolean): Record<string, string> {
     const style: Record<string, string> = {};
-    if (this._position === 'left') {
+    if (this.side === 'left') {
       style.left = `${anchor.right + 8}px`;
     } else {
       style.right = `${window.innerWidth - anchor.left + 8}px`;
@@ -407,7 +404,7 @@ export class DashboardSidebar extends LitElement {
    */
   private _tipStyle(rect: DOMRect): Record<string, string> {
     const style: Record<string, string> = { top: `${rect.top + rect.height / 2}px` };
-    if (this._position === 'left') {
+    if (this.side === 'left') {
       style.left = `${rect.right + 8}px`;
     } else {
       style.right = `${window.innerWidth - rect.left + 8}px`;
@@ -458,7 +455,7 @@ export class DashboardSidebar extends LitElement {
       sidebar: true,
       'dashboard-sidebar-root': true,
       collapsed,
-      [`pos-${this._position}`]: true,
+      [`pos-${this.side}`]: true,
     };
     const sidebarStyle = cfg.background ? { background: cfg.background } : {};
 

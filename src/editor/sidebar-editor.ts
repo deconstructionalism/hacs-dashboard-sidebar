@@ -573,7 +573,7 @@ export class DashboardSidebarEditor extends LitElement {
   private _renderSplit(region: Region): TemplateResult {
     const types = region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
     return html`
-      <div class="split">
+      <div class="split ${this._previewCollapsed ? 'pv-collapsed' : ''}">
         <div class="editor">
           ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
           ${this._renderSelectedForm()}
@@ -716,7 +716,7 @@ export class DashboardSidebarEditor extends LitElement {
     `;
     if (cardMode) {
       return html`
-        <div class="split">
+        <div class="split ${this._previewCollapsed ? 'pv-collapsed' : ''}">
           <div class="editor">
             ${controls}
             ${areaField(
@@ -737,7 +737,7 @@ export class DashboardSidebarEditor extends LitElement {
     }
     const buttons = footer?.buttons ?? [];
     return html`
-      <div class="split">
+      <div class="split ${this._previewCollapsed ? 'pv-collapsed' : ''}">
         <div class="editor">
           ${controls}
           <button class="add-btn" @click=${() => this._addFooterButton()}>＋ Add button</button>
@@ -1070,6 +1070,18 @@ export class DashboardSidebarEditor extends LitElement {
     .preview {
       flex: 1 1 220px;
       min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Collapsed: the editor grows and the narrow icon-strip frame pins to the
+       right edge of the modal. */
+    .split.pv-collapsed .editor {
+      flex: 1 1 auto;
+    }
+
+    .split.pv-collapsed .preview {
+      flex: 0 0 auto;
     }
 
     .preview-head {
@@ -1116,10 +1128,11 @@ export class DashboardSidebarEditor extends LitElement {
       background: var(--card-background-color, #fff);
     }
 
-    /* Collapsed preview: narrow to the icon-strip width so it reads like the
-       real collapsed sidebar. */
+    /* Collapsed preview: narrow to the icon-strip width, pinned to the right
+       edge of the (content-sized) preview column. */
     .pv-frame.collapsed {
       width: 76px;
+      align-self: flex-end;
     }
 
     /* Each block preview renders at its natural height so previews stack tightly

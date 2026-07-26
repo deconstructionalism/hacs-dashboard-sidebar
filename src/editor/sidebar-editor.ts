@@ -969,8 +969,11 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     .content {
+      flex: 1 1 auto;
+      min-height: 0;
       padding: 12px;
-      overflow-y: auto;
+      /* Clip here; the columns inside scroll independently. */
+      overflow: hidden;
       background-color: var(--primary-background-color, #fff);
       background-image: linear-gradient(
         var(--card-background-color, #fff),
@@ -1010,6 +1013,8 @@ export class DashboardSidebarEditor extends LitElement {
       display: flex;
       flex-direction: column;
       gap: 10px;
+      max-height: 100%;
+      overflow-y: auto;
     }
 
     .icon-choice {
@@ -1053,16 +1058,20 @@ export class DashboardSidebarEditor extends LitElement {
     .split {
       display: flex;
       gap: 20px;
-      align-items: flex-start;
+      align-items: stretch;
       flex-wrap: wrap;
+      height: 100%;
     }
 
     .editor {
       flex: 0 0 300px;
       min-width: 0;
+      min-height: 0;
       display: flex;
       flex-direction: column;
       gap: 10px;
+      /* Scrolls independently of the preview. */
+      overflow-y: auto;
     }
 
     /* The preview fills the rest of the modal; its content renders at whatever
@@ -1070,6 +1079,7 @@ export class DashboardSidebarEditor extends LitElement {
     .preview {
       flex: 1 1 220px;
       min-width: 0;
+      min-height: 0;
       display: flex;
       flex-direction: column;
     }
@@ -1127,6 +1137,10 @@ export class DashboardSidebarEditor extends LitElement {
       border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
       border-radius: 10px;
       background: var(--card-background-color, #fff);
+      /* Fill the preview height and scroll on its own, below the fixed heading. */
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
     }
 
     /* Collapsed preview: narrow to the icon-strip width, pinned to the right
@@ -1144,13 +1158,24 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     @media (width < 640px) {
+      /* Stacked: scroll the whole content as one instead of per-column. */
+      .content {
+        overflow-y: auto;
+      }
+
       .split {
         flex-direction: column;
+        height: auto;
       }
 
       .editor,
       .preview {
         width: 100%;
+      }
+
+      .editor,
+      .pv-frame {
+        overflow: visible;
       }
     }
 

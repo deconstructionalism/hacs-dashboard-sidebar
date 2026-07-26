@@ -97,11 +97,12 @@ describe('formatCollapsedDate', () => {
 });
 
 describe('initials', () => {
-  it('derives one or two letters from a title', () => {
-    expect(initials('Home')).toBe('HO');
+  it('derives one or two letters, preserving the title casing', () => {
+    expect(initials('Home')).toBe('Ho');
     expect(initials('Living Room')).toBe('LR');
     expect(initials('EV Charger Station')).toBe('EC');
-    expect(initials('  spaced  out ')).toBe('SO');
+    expect(initials('iPhone Hub')).toBe('iH');
+    expect(initials('  spaced  out ')).toBe('so');
     expect(initials('')).toBe('');
   });
 });

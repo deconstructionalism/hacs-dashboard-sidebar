@@ -77,4 +77,18 @@ export const baseStyles = css`
   ha-icon {
     color: var(--paper-item-icon-color, var(--primary-text-color, #000));
   }
+
+  .tooltip {
+    position: fixed;
+    transform: translateY(-50%);
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: var(--card-background-color, var(--primary-background-color, #fff));
+    color: var(--primary-text-color, #000);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
+    font-size: 0.85rem;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 10;
+  }
 `;

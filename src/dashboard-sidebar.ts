@@ -73,6 +73,9 @@ export class DashboardSidebar extends LitElement {
   /** Whether the footer overflow popover is open. */
   @state() private _footerOpen = false;
 
+  /** The active hover tooltip for a collapsed row, or null. */
+  @state() private _tooltip: { text: string; rect: DOMRect } | null = null;
+
   /** Keys (`region-index`) of categories currently collapsed when expanded. */
   @state() private _collapsedCats = new Set<string>();
 
@@ -316,6 +319,7 @@ export class DashboardSidebar extends LitElement {
    */
   private _toggleCollapse(): void {
     this._collapsed = !this._collapsed;
+    this._tooltip = null;
     this._closePopovers();
     try {
       window.localStorage.setItem(this._storageKey(), this._collapsed ? '1' : '0');
@@ -363,6 +367,40 @@ export class DashboardSidebar extends LitElement {
       style.bottom = `${window.innerHeight - anchor.bottom}px`;
     } else {
       style.top = `${anchor.top}px`;
+    }
+    return style;
+  }
+
+  /**
+   * Shows the hover tooltip for a collapsed row, anchored to the row. HA tends
+   * to suppress native title tooltips, so this provides a reliable one.
+   */
+  private _showTip(ev: MouseEvent, text: string): void {
+    if (!this._collapsed || !text) {
+      return;
+    }
+    this._tooltip = { text, rect: (ev.currentTarget as HTMLElement).getBoundingClientRect() };
+  }
+
+  /**
+   * Hides the hover tooltip.
+   */
+  private _hideTip(): void {
+    if (this._tooltip) {
+      this._tooltip = null;
+    }
+  }
+
+  /**
+   * Computes fixed-position coordinates for the tooltip beside its row, on the
+   * side away from the dock edge and vertically centered.
+   */
+  private _tipStyle(rect: DOMRect): Record<string, string> {
+    const style: Record<string, string> = { top: `${rect.top + rect.height / 2}px` };
+    if (this._position === 'left') {
+      style.left = `${rect.right + 8}px`;
+    } else {
+      style.right = `${window.innerWidth - rect.left + 8}px`;
     }
     return style;
   }
@@ -425,9 +463,24 @@ export class DashboardSidebar extends LitElement {
         </button>
         ${this._renderRegion('header', cfg.header, collapsed, 'region-header dashboard-sidebar-header')}
         ${this._renderRegion('body', cfg.body, collapsed, 'region-body dashboard-sidebar-body')}
-        ${this._renderFooter(collapsed)}
+        ${this._renderFooter(collapsed)} ${collapsed ? this._renderTooltip() : nothing}
       </div>
     `;
+  }
+
+  /**
+   * Renders the hover tooltip for a collapsed row, fixed to the viewport.
+   */
+  private _renderTooltip(): TemplateResult | typeof nothing {
+    if (!this._tooltip) {
+      return nothing;
+    }
+    return html`<div
+      class="tooltip dashboard-sidebar-tooltip"
+      style=${styleMap(this._tipStyle(this._tooltip.rect))}
+    >
+      ${this._tooltip.text}
+    </div>`;
   }
 
   /**
@@ -577,7 +630,9 @@ export class DashboardSidebar extends LitElement {
       return html`
         <button
           class="row item collapsed-row dashboard-sidebar-item"
-          title=${title}
+          aria-label=${title}
+          @mouseenter=${(ev: MouseEvent) => this._showTip(ev, title)}
+          @mouseleave=${this._hideTip}
           @click=${() => this._runAction(item)}
         >
           ${
@@ -587,7 +642,9 @@ export class DashboardSidebar extends LitElement {
                   icon=${icon}
                   style=${styleMap({ color: iconColor })}
                 ></ha-icon>`
-              : html`<span class="initials dashboard-sidebar-initials">${initials(title)}</span>`
+              : html`<span class="initials dashboard-sidebar-initials"
+                  >${item.abbr ?? initials(title)}</span
+                >`
           }
         </button>
       `;
@@ -658,7 +715,9 @@ export class DashboardSidebar extends LitElement {
       <div class="category-anchor dashboard-sidebar-category">
         <button
           class="row item collapsed-row dashboard-sidebar-item ${open ? 'active' : ''}"
-          title=${title}
+          aria-label=${title}
+          @mouseenter=${(ev: MouseEvent) => this._showTip(ev, title)}
+          @mouseleave=${this._hideTip}
           @click=${(ev: Event) => {
             ev.stopPropagation();
             this._toggleCategory(key, ev);
@@ -667,7 +726,9 @@ export class DashboardSidebar extends LitElement {
           ${
             icon
               ? html`<ha-icon class="dashboard-sidebar-item-icon" icon=${icon}></ha-icon>`
-              : html`<span class="initials dashboard-sidebar-initials">${initials(title)}</span>`
+              : html`<span class="initials dashboard-sidebar-initials"
+                  >${category.abbr ?? initials(title)}</span
+                >`
           }
         </button>
         ${open && this._popoverAnchor ? this._renderPopover(category, this._popoverAnchor) : nothing}

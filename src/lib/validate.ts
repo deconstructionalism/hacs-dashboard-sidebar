@@ -29,8 +29,17 @@ const BLOCK_KEYS: Record<string, Set<string>> = {
   clock: new Set(['type', 'format', 'collapsed_format', 'align']),
   date: new Set(['type', 'format', 'align']),
   divider: new Set(['type']),
-  item: new Set(['type', 'title', 'icon', 'text_color', 'icon_color', 'entity', 'tap_action']),
-  category: new Set(['type', 'title', 'icon', 'start_collapsed', 'guide_line', 'items']),
+  item: new Set([
+    'type',
+    'title',
+    'icon',
+    'abbr',
+    'text_color',
+    'icon_color',
+    'entity',
+    'tap_action',
+  ]),
+  category: new Set(['type', 'title', 'icon', 'abbr', 'start_collapsed', 'guide_line', 'items']),
   card: new Set(['type', 'card', 'align', 'background']),
 };
 
@@ -67,6 +76,26 @@ function checkBool(value: unknown, ctx: string, errors: string[]): void {
 function checkAlign(value: unknown, ctx: string, errors: string[]): void {
   if (value !== undefined && (typeof value !== 'string' || !ALIGNS.includes(value))) {
     errors.push(`${ctx}: must be left, center, or right`);
+  }
+}
+
+/**
+ * Records an error when a defined value is not a string.
+ */
+function checkString(value: unknown, ctx: string, errors: string[]): void {
+  if (value !== undefined && typeof value !== 'string') {
+    errors.push(`${ctx}: must be a string`);
+  }
+}
+
+/**
+ * Records an error when `abbr` is set alongside an icon, since the collapsed
+ * glyph override only applies when there is no icon to show.
+ */
+function checkAbbr(abbr: unknown, icon: unknown, ctx: string, errors: string[]): void {
+  checkString(abbr, `${ctx}.abbr`, errors);
+  if (abbr !== undefined && icon !== undefined) {
+    errors.push(`${ctx}: abbr is only allowed when icon is not set`);
   }
 }
 
@@ -111,6 +140,7 @@ function validateItem(item: ItemBlock, ctx: string, errors: string[]): void {
   if (!item.tap_action) {
     errors.push(`${ctx}: needs a tap_action`);
   }
+  checkAbbr(item.abbr, item.icon, ctx, errors);
 }
 
 /**
@@ -178,6 +208,12 @@ function validateBlock(block: SidebarBlock, ctx: string, errors: string[]): void
         errors,
       );
       checkBool((block as { guide_line?: unknown }).guide_line, `${ctx}.guide_line`, errors);
+      checkAbbr(
+        (block as { abbr?: unknown }).abbr,
+        (block as { icon?: unknown }).icon,
+        ctx,
+        errors,
+      );
       {
         const items = (block as { items?: unknown }).items;
         if (!Array.isArray(items) || items.length === 0) {

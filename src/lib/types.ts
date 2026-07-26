@@ -73,6 +73,11 @@ export interface ItemBlock {
   title: MaybeTemplate;
   /** Optional mdi icon shown before the label. Templatable. */
   icon?: MaybeTemplate;
+  /**
+   * Collapsed glyph override, used only when no icon is set. Defaults to the
+   * initials of the title; set it to disambiguate colliding initials.
+   */
+  abbr?: string;
   /** Optional label color, any CSS color. Templatable. */
   text_color?: MaybeTemplate;
   /** Optional icon color, any CSS color. Templatable. */
@@ -91,6 +96,11 @@ export interface CategoryBlock {
   title: MaybeTemplate;
   /** Optional mdi icon shown before the heading. Templatable. */
   icon?: MaybeTemplate;
+  /**
+   * Collapsed glyph override, used only when no icon is set. Defaults to the
+   * initials of the title; set it to disambiguate colliding initials.
+   */
+  abbr?: string;
   /** Whether the group starts collapsed when the sidebar is expanded. */
   start_collapsed?: boolean;
   /** Whether to draw the vertical guide line beside the items. Default true. */

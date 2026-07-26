@@ -173,7 +173,8 @@ export function formatCollapsedDate(date: Date): string {
 
 /**
  * Derives 1-to-2-letter initials from a title, used when a collapsed entry has
- * no icon.
+ * no icon and no explicit abbreviation. The title's own casing is preserved so
+ * that otherwise-identical initials keep some differentiation.
  */
 export function initials(title: string): string {
   const words = title.trim().split(/\s+/).filter(Boolean);
@@ -181,7 +182,7 @@ export function initials(title: string): string {
     return '';
   }
   if (words.length === 1) {
-    return words[0].slice(0, 2).toUpperCase();
+    return words[0].slice(0, 2);
   }
-  return (words[0][0] + words[1][0]).toUpperCase();
+  return words[0][0] + words[1][0];
 }

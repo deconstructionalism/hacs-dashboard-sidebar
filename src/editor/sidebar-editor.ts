@@ -19,11 +19,12 @@ import {
   blockFields,
   blockSummary,
   checkboxField,
+  codeField,
   footerButtonFields,
-  numberField,
+  iconChoiceField,
+  intField,
   type Patch,
-  selectField,
-  textField,
+  titleCase,
 } from './block-form';
 
 /** Every block type, offered when adding to the header. */
@@ -408,17 +409,23 @@ export class DashboardSidebarEditor extends LitElement {
     const c = this._working;
     return html`
       <section class="region settings">
-        ${selectField('Position', c.position ?? 'left', ['left', 'right'], (v) =>
-          this._patchConfig({ position: v }),
+        ${iconChoiceField(
+          'Position',
+          c.position ?? 'left',
+          [
+            { value: 'left', icon: 'mdi:page-layout-sidebar-left', title: 'Left' },
+            { value: 'right', icon: 'mdi:page-layout-sidebar-right', title: 'Right' },
+          ],
+          (v) => this._patchConfig({ position: v }),
         )}
-        ${numberField('Width (px)', c.width, (v) => this._patchConfig({ width: v }))}
+        ${intField('Width (px)', c.width, (v) => this._patchConfig({ width: v }))}
         ${checkboxField('Start collapsed', c.start_collapsed ?? false, (v) =>
           this._patchConfig({ start_collapsed: v }),
         )}
         ${checkboxField('Hide on mobile', c.hide_on_mobile ?? false, (v) =>
           this._patchConfig({ hide_on_mobile: v }),
         )}
-        ${textField('Background (CSS color)', c.background, (v) =>
+        ${codeField('Background (CSS color)', c.background, (v) =>
           this._patchConfig({ background: v || undefined }),
         )}
       </section>
@@ -658,7 +665,7 @@ export class DashboardSidebarEditor extends LitElement {
         }}
       >
         <option value="">＋ Add…</option>
-        ${types.map((t) => html`<option value=${t}>${t}</option>`)}
+        ${types.map((t) => html`<option value=${t}>${titleCase(t)}</option>`)}
       </select>
     `;
   }
@@ -747,6 +754,33 @@ export class DashboardSidebarEditor extends LitElement {
       display: flex;
       flex-direction: column;
       gap: 10px;
+    }
+
+    .icon-choice {
+      display: flex;
+      gap: 6px;
+    }
+
+    .choice {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 14px;
+      border: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
+      border-radius: 8px;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .choice.sel {
+      background: var(--primary-color, #03a9f4);
+      color: var(--text-primary-color, #fff);
+      border-color: transparent;
+    }
+
+    .mono {
+      font-family: var(--code-font-family, ui-monospace, monospace);
     }
 
     .advanced {

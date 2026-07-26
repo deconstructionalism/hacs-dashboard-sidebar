@@ -91,9 +91,17 @@ export function checkboxField(
 }
 
 /**
- * Renders a labelled numeric input, reporting undefined when cleared.
+ * Capitalizes the first letter of a word, for display labels.
  */
-export function numberField(
+export function titleCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/**
+ * Renders a labelled integer input that accepts only digits, reporting
+ * undefined when cleared.
+ */
+export function intField(
   label: string,
   value: number | undefined,
   onInput: (value: number | undefined) => void,
@@ -101,14 +109,64 @@ export function numberField(
   return html`<label class="field">
     <span>${label}</span>
     <input
-      type="number"
+      type="text"
+      inputmode="numeric"
       .value=${value != null ? String(value) : ''}
       @input=${(e: Event) => {
-        const s = (e.target as HTMLInputElement).value;
-        onInput(s === '' ? undefined : Number(s));
+        const el = e.target as HTMLInputElement;
+        const digits = el.value.replace(/[^0-9]/g, '');
+        el.value = digits;
+        onInput(digits === '' ? undefined : Number(digits));
       }}
     />
   </label>`;
+}
+
+/**
+ * Renders a labelled monospace text input, for values like CSS colors.
+ */
+export function codeField(
+  label: string,
+  value: string | undefined,
+  onInput: (value: string) => void,
+): TemplateResult {
+  return html`<label class="field">
+    <span>${label}</span>
+    <input
+      type="text"
+      class="mono"
+      .value=${value ?? ''}
+      @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
+    />
+  </label>`;
+}
+
+/**
+ * Renders a labelled single-choice group of icon buttons.
+ */
+export function iconChoiceField(
+  label: string,
+  value: string,
+  options: Array<{ value: string; icon: string; title: string }>,
+  onChange: (value: string) => void,
+): TemplateResult {
+  return html`<div class="field">
+    <span>${label}</span>
+    <div class="icon-choice">
+      ${options.map(
+        (opt) =>
+          html`<button
+            type="button"
+            class="choice ${opt.value === value ? 'sel' : ''}"
+            title=${opt.title}
+            aria-label=${opt.title}
+            @click=${() => onChange(opt.value)}
+          >
+            <ha-icon icon=${opt.icon}></ha-icon>
+          </button>`,
+      )}
+    </div>
+  </div>`;
 }
 
 /**

@@ -55,12 +55,10 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(root(el).querySelectorAll('.row .drag').length).to.be.greaterThan(0);
   });
 
-  it('edits sidebar settings', async () => {
+  it('edits sidebar settings (position via icon choice)', async () => {
     const el = await mount(cfg());
     await tab(el, 'Settings');
-    const sel = root(el).querySelector('.settings select') as HTMLSelectElement;
-    sel.value = 'right';
-    sel.dispatchEvent(new Event('change'));
+    (root(el).querySelectorAll('.settings .choice')[1] as HTMLButtonElement).click();
     await el.updateComplete;
     let saved: DashboardSidebarConfig | undefined;
     el.onSave = (c) => {

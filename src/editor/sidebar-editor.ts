@@ -713,6 +713,9 @@ export class DashboardSidebarEditor extends LitElement {
     if (!el) {
       el = document.createElement('dashboard-sidebar') as DashboardSidebar;
       el.preview = true;
+      // Set the attribute up front too, so the sidebar's :host([preview])
+      // compacting rules apply on the very first paint (not a reflection later).
+      el.setAttribute('preview', '');
       this._previews.set(id, el);
     }
     el.hass = this.hass;
@@ -911,18 +914,18 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     .editor {
-      flex: 1 1 42%;
-      min-width: 0;
+      flex: 1 1 auto;
+      min-width: 240px;
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
 
+    /* The preview column shrinks to the frame width so no dead space trails it;
+       it scrolls if the configured width outgrows the space. */
     .preview {
-      flex: 1 1 58%;
-      min-width: 0;
-      /* Left gutter holds the drag handles outside the width-accurate frame. */
-      padding: 4px 4px 4px 26px;
+      flex: 0 0 auto;
+      max-width: 100%;
       overflow-x: auto;
     }
 
@@ -935,6 +938,13 @@ export class DashboardSidebarEditor extends LitElement {
       border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
       border-radius: 10px;
       background: var(--card-background-color, #fff);
+    }
+
+    /* Each block preview renders at its natural height so previews stack tightly
+       like the real sidebar instead of filling the host's full height. */
+    .pv-body dashboard-sidebar {
+      display: block;
+      height: auto;
     }
 
     @media (width < 640px) {
@@ -969,12 +979,21 @@ export class DashboardSidebarEditor extends LitElement {
     .drag,
     .idrag {
       position: absolute;
-      left: -20px;
+      left: 1px;
       top: 50%;
       transform: translateY(-50%);
       cursor: grab;
-      opacity: 0.4;
+      opacity: 0;
       user-select: none;
+      font-size: 0.8rem;
+      line-height: 1;
+      transition: opacity 0.1s ease;
+    }
+
+    .pv-node:hover .drag,
+    .pv-node:hover .idrag,
+    .pv-cat-head:hover .drag {
+      opacity: 0.5;
     }
 
     .pv-node,

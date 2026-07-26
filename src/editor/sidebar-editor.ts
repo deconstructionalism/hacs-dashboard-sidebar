@@ -31,7 +31,7 @@ const ALL_TYPES: BlockType[] = ['title', 'clock', 'date', 'divider', 'item', 'ca
 
 /** The modal tabs, in order. `body` is labelled "Content". */
 const TABS: Array<{ id: 'settings' | 'header' | 'body' | 'footer'; label: string }> = [
-  { id: 'settings', label: 'Sidebar Settings' },
+  { id: 'settings', label: 'Settings' },
   { id: 'header', label: 'Header' },
   { id: 'body', label: 'Content' },
   { id: 'footer', label: 'Footer' },
@@ -57,7 +57,7 @@ export class DashboardSidebarEditor extends LitElement {
   @property({ attribute: false }) public onClose?: () => void;
 
   /** The active tab. */
-  @state() private _tab: 'settings' | 'header' | 'body' | 'footer' = 'header';
+  @state() private _tab: 'settings' | 'header' | 'body' | 'footer' = 'settings';
 
   /** Keys of rows expanded for field editing. */
   @state() private _expanded = new Set<string>();
@@ -434,7 +434,6 @@ export class DashboardSidebarEditor extends LitElement {
     return html`
       <section class="region">
         <div class="region-head">
-          <h3>${region}</h3>
           ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
         </div>
         <div class="rows" data-sort=${region}>
@@ -553,7 +552,6 @@ export class DashboardSidebarEditor extends LitElement {
     return html`
       <section class="region">
         <div class="region-head">
-          <h3>footer</h3>
           <div class="modes">
             <button
               class="mode ${cardMode ? '' : 'sel'}"

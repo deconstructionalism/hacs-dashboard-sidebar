@@ -45,7 +45,7 @@ describe('<dashboard-sidebar-editor>', () => {
   it('renders the four tabs', async () => {
     const el = await mount(cfg());
     const labels = [...root(el).querySelectorAll('.tab')].map((b) => b.textContent?.trim());
-    expect(labels).to.deep.equal(['Sidebar Settings', 'Header', 'Content', 'Footer']);
+    expect(labels).to.deep.equal(['Settings', 'Header', 'Content', 'Footer']);
   });
 
   it('renders sortable lists with drag handles', async () => {
@@ -57,7 +57,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('edits sidebar settings', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Sidebar Settings');
+    await tab(el, 'Settings');
     const sel = root(el).querySelector('.settings select') as HTMLSelectElement;
     sel.value = 'right';
     sel.dispatchEvent(new Event('change'));

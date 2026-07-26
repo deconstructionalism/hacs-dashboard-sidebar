@@ -48,11 +48,11 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(labels).to.deep.equal(['Settings', 'Header', 'Content', 'Footer']);
   });
 
-  it('renders sortable lists with drag handles', async () => {
+  it('renders a sortable preview list with drag handles', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');
-    expect(root(el).querySelector('.rows[data-sort="body"]')).to.exist;
-    expect(root(el).querySelectorAll('.row .drag').length).to.be.greaterThan(0);
+    expect(root(el).querySelector('.pv-list[data-sort="body"]')).to.exist;
+    expect(root(el).querySelectorAll('.pv-node .drag').length).to.be.greaterThan(0);
   });
 
   it('edits sidebar settings (position via icon choice)', async () => {
@@ -71,41 +71,48 @@ describe('<dashboard-sidebar-editor>', () => {
   it('adds a block through the Content add menu', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');
-    const before = root(el).querySelectorAll('.rows > .row').length;
+    const before = root(el).querySelectorAll('.pv-list[data-sort="body"] > .pv-node').length;
     const sel = root(el).querySelector('select.add') as HTMLSelectElement;
     sel.value = 'divider';
     sel.dispatchEvent(new Event('change'));
     await el.updateComplete;
-    expect(root(el).querySelectorAll('.rows > .row').length).to.equal(before + 1);
+    expect(root(el).querySelectorAll('.pv-list[data-sort="body"] > .pv-node').length).to.equal(
+      before + 1,
+    );
   });
 
-  it('deletes a block', async () => {
+  it('deletes the selected block from its form', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');
-    const before = root(el).querySelectorAll('.rows > .row').length;
-    (root(el).querySelector('.row .danger') as HTMLButtonElement).click();
+    const before = root(el).querySelectorAll('.pv-list[data-sort="body"] > .pv-node').length;
+    (root(el).querySelector('.pv-list[data-sort="body"] > .pv-node') as HTMLElement).click();
     await el.updateComplete;
-    expect(root(el).querySelectorAll('.rows > .row').length).to.equal(before - 1);
+    (root(el).querySelector('.form .danger') as HTMLButtonElement).click();
+    await el.updateComplete;
+    expect(root(el).querySelectorAll('.pv-list[data-sort="body"] > .pv-node').length).to.equal(
+      before - 1,
+    );
   });
 
-  it('expands a row to reveal its fields', async () => {
+  it('selecting a preview node reveals its edit form', async () => {
     const el = await mount(cfg());
     await tab(el, 'Header');
-    (root(el).querySelector('.row .icon') as HTMLButtonElement).click();
+    (root(el).querySelector('.pv-list[data-sort="header"] > .pv-node') as HTMLElement).click();
     await el.updateComplete;
-    expect(root(el).querySelector('.fields')).to.exist;
+    expect(root(el).querySelector('.form')).to.exist;
     expect(root(el).querySelector('.advanced')).to.exist;
   });
 
-  it('edits a category and shows its item list', async () => {
+  it('shows category items in the preview and offers add-item when selected', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');
-    const catRow = [...root(el).querySelectorAll('.row')].find((r) =>
-      r.querySelector('.pv-chevron'),
-    ) as HTMLElement;
-    (catRow.querySelector('.icon') as HTMLButtonElement).click();
+    expect(root(el).querySelector('.pv-sublist .pv-subnode')).to.exist;
+    (root(el).querySelector('.pv-cat-head') as HTMLElement).click();
     await el.updateComplete;
-    expect(root(el).querySelector('.subhead')?.textContent).to.contain('Items');
+    const addItem = [...root(el).querySelectorAll('.form .add-btn')].some((b) =>
+      b.textContent?.includes('Add item'),
+    );
+    expect(addItem).to.equal(true);
   });
 
   it('toggles the footer to a custom component', async () => {

@@ -58,6 +58,13 @@ export class DashboardSidebar extends LitElement {
   /** Whether the dashboard is in edit mode, which reveals the edit button. */
   @property({ attribute: false }) public editMode = false;
 
+  /**
+   * Whether this is an inert, chrome-less preview of a single block, embedded in
+   * the editor. Suppresses the toggle/edit controls, the collapse state, and all
+   * interaction, while keeping the real template, clock, card, and icon render.
+   */
+  @property({ type: Boolean, reflect: true }) public preview = false;
+
   /** The validated configuration, or undefined before setConfig runs. */
   @state() private _config?: DashboardSidebarConfig;
 
@@ -122,14 +129,18 @@ export class DashboardSidebar extends LitElement {
    * Invalid configs are kept only as an error list for the panel.
    */
   public setConfig(config: DashboardSidebarConfig): void {
-    this._errors = validateConfig(config);
+    // A preview renders a single region (e.g. a lone footer) best-effort, so it
+    // skips the whole-sidebar validation that would otherwise gate rendering.
+    this._errors = this.preview ? [] : validateConfig(config);
     this._config = config;
     this._cardModApplied = false;
     if (this._errors.length > 0) {
       console.warn(`[dashboard-sidebar] config errors:\n- ${this._errors.join('\n- ')}`);
       return;
     }
-    this._collapsed = this._readStored() ?? Boolean(config.start_collapsed);
+    this._collapsed = this.preview
+      ? false
+      : (this._readStored() ?? Boolean(config.start_collapsed));
     const cats = new Set<string>();
     this._eachBlock((block, region, i) => {
       if (block.type === 'category' && (block.start_collapsed ?? true)) {
@@ -199,7 +210,9 @@ export class DashboardSidebar extends LitElement {
    */
   public connectedCallback(): void {
     super.connectedCallback();
-    window.addEventListener('click', this._onDocumentClick);
+    if (!this.preview) {
+      window.addEventListener('click', this._onDocumentClick);
+    }
     this._restartTick();
   }
 
@@ -464,39 +477,44 @@ export class DashboardSidebar extends LitElement {
     if (!this._config) {
       return html``;
     }
-    const collapsed = this._collapsed;
+    const collapsed = this.preview ? false : this._collapsed;
     const cfg = this._config;
     const classes = {
       sidebar: true,
       'dashboard-sidebar-root': true,
       collapsed,
+      preview: this.preview,
       [`pos-${this._side}`]: true,
     };
     const sidebarStyle = cfg.background ? { background: cfg.background } : {};
 
     return html`
       <div class=${classMap(classes)} style=${styleMap(sidebarStyle)}>
-        <button
-          class="toggle dashboard-sidebar-toggle"
-          title=${collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          @click=${this._toggleCollapse}
-        >
-          <ha-icon icon="mdi:chevron-left"></ha-icon>
-        </button>
         ${
-          this.editMode
-            ? html`<button
-                class="edit-btn dashboard-sidebar-edit"
-                title="Edit sidebar"
-                @click=${this._openEditor}
-              >
-                <ha-icon icon="mdi:pencil"></ha-icon>
-              </button>`
-            : nothing
+          this.preview
+            ? nothing
+            : html`<button
+                  class="toggle dashboard-sidebar-toggle"
+                  title=${collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                  @click=${this._toggleCollapse}
+                >
+                  <ha-icon icon="mdi:chevron-left"></ha-icon>
+                </button>
+                ${
+                  this.editMode
+                    ? html`<button
+                        class="edit-btn dashboard-sidebar-edit"
+                        title="Edit sidebar"
+                        @click=${this._openEditor}
+                      >
+                        <ha-icon icon="mdi:pencil"></ha-icon>
+                      </button>`
+                    : nothing
+                }`
         }
         ${this._renderRegion('header', cfg.header, collapsed, 'region-header dashboard-sidebar-header')}
         ${this._renderRegion('body', cfg.body, collapsed, 'region-body dashboard-sidebar-body')}
-        ${this._renderFooter(collapsed)} ${this._renderTooltip()}
+        ${this._renderFooter(collapsed)} ${this.preview ? nothing : this._renderTooltip()}
       </div>
     `;
   }

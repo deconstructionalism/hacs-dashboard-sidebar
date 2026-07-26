@@ -7,11 +7,13 @@ import type {
   BlockType,
   CategoryBlock,
   DashboardSidebarConfig,
+  FooterButtonConfig,
   ItemBlock,
   Region,
   SidebarBlock,
 } from '../lib/types';
-import { formatClock, formatDate, initials } from '../lib/format';
+import type { DashboardSidebar } from '../dashboard-sidebar';
+import '../dashboard-sidebar';
 import { validateConfig } from '../lib/validate';
 import { defaultBlock, defaultFooterButton } from './arrange';
 import { makeSortable } from './sortable';
@@ -38,6 +40,12 @@ const TABS: Array<{ id: 'settings' | 'header' | 'body' | 'footer'; label: string
   { id: 'footer', label: 'Footer' },
 ];
 
+/** The resolved location of the selected element within the working copy. */
+type Selected =
+  | { kind: 'block'; region: Region; index: number; block: SidebarBlock }
+  | { kind: 'item'; region: Region; index: number; itemIndex: number; item: ItemBlock }
+  | { kind: 'footer'; index: number; btn: FooterButtonConfig };
+
 /**
  * The visual editor for one dashboard_sidebar. Opened by the bootstrap in
  * dashboard edit mode; edits a working copy of the config and hands it back
@@ -60,8 +68,8 @@ export class DashboardSidebarEditor extends LitElement {
   /** The active tab. */
   @state() private _tab: 'settings' | 'header' | 'body' | 'footer' = 'settings';
 
-  /** Keys of rows expanded for field editing. */
-  @state() private _expanded = new Set<string>();
+  /** Stable id of the element selected for editing in the preview, or null. */
+  @state() private _selected: string | null = null;
 
   /** Validation errors from the last save attempt. */
   @state() private _errors: string[] = [];
@@ -78,6 +86,12 @@ export class DashboardSidebarEditor extends LitElement {
   /** Row containers already wired for drag-and-drop. */
   private readonly _sorted = new WeakSet<HTMLElement>();
 
+  /** Cached live preview elements, keyed by the row object's stable id. */
+  private readonly _previews = new Map<string, DashboardSidebar>();
+
+  /** Last config serialized into each preview, to skip redundant rebuilds. */
+  private readonly _previewCfg = new WeakMap<DashboardSidebar, string>();
+
   /**
    * Clones the incoming config into the working copy.
    */
@@ -91,10 +105,11 @@ export class DashboardSidebarEditor extends LitElement {
    * Wires drag-and-drop on any row list not already handled.
    */
   protected updated(): void {
-    this.renderRoot.querySelectorAll<HTMLElement>('.rows[data-sort]').forEach((el) => {
+    this.renderRoot.querySelectorAll<HTMLElement>('[data-sort]').forEach((el) => {
       if (!this._sorted.has(el)) {
         this._sorted.add(el);
-        makeSortable(el, (from, to) => this._onSort(el.dataset.sort ?? '', from, to));
+        const handle = el.classList.contains('pv-sublist') ? '.idrag' : '.drag';
+        makeSortable(el, (from, to) => this._onSort(el.dataset.sort ?? '', from, to), handle);
       }
     });
   }
@@ -148,16 +163,46 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Toggles whether a row is expanded for field editing.
+   * Selects an element for editing, stopping the click from bubbling to a
+   * parent selectable (e.g. a category behind one of its items).
    */
-  private _toggleExpand(key: string): void {
-    const next = new Set(this._expanded);
-    if (next.has(key)) {
-      next.delete(key);
-    } else {
-      next.add(key);
+  private _select(ev: Event, id: string): void {
+    ev.stopPropagation();
+    this._selected = id;
+  }
+
+  /**
+   * Finds the currently selected element and its location in the working copy,
+   * or null when nothing is selected or the selection no longer exists.
+   */
+  private _locate(id: string | null): Selected | null {
+    if (!id) {
+      return null;
     }
-    this._expanded = next;
+    for (const region of ['header', 'body'] as Region[]) {
+      const blocks = this._working[region] ?? [];
+      for (let i = 0; i < blocks.length; i += 1) {
+        const block = blocks[i];
+        if (this._ids.get(block) === id) {
+          return { kind: 'block', region, index: i, block };
+        }
+        if (block.type === 'category') {
+          const items = block.items ?? [];
+          for (let j = 0; j < items.length; j += 1) {
+            if (this._ids.get(items[j]) === id) {
+              return { kind: 'item', region, index: i, itemIndex: j, item: items[j] };
+            }
+          }
+        }
+      }
+    }
+    const buttons = this._working.footer?.buttons ?? [];
+    for (let i = 0; i < buttons.length; i += 1) {
+      if (this._ids.get(buttons[i]) === id) {
+        return { kind: 'footer', index: i, btn: buttons[i] };
+      }
+    }
+    return null;
   }
 
   /**
@@ -173,7 +218,9 @@ export class DashboardSidebarEditor extends LitElement {
    */
   private _addBlock(region: Region, type: BlockType): void {
     const list = this._working[region] ?? (this._working[region] = []);
-    list.push(defaultBlock(type));
+    const block = defaultBlock(type);
+    list.push(block);
+    this._selected = this._idFor(block);
     this._touch();
   }
 
@@ -208,7 +255,9 @@ export class DashboardSidebarEditor extends LitElement {
    * Appends a new item to a category.
    */
   private _addItem(region: Region, index: number): void {
-    this._category(region, index)?.items.push(defaultBlock('item') as ItemBlock);
+    const item = defaultBlock('item') as ItemBlock;
+    this._category(region, index)?.items.push(item);
+    this._selected = this._idFor(item);
     this._touch();
   }
 
@@ -249,7 +298,9 @@ export class DashboardSidebarEditor extends LitElement {
    */
   private _addFooterButton(): void {
     const footer = this._working.footer ?? (this._working.footer = {});
-    (footer.buttons ?? (footer.buttons = [])).push(defaultFooterButton());
+    const btn = defaultFooterButton();
+    (footer.buttons ?? (footer.buttons = [])).push(btn);
+    this._selected = this._idFor(btn);
     this._touch();
   }
 
@@ -326,6 +377,7 @@ export class DashboardSidebarEditor extends LitElement {
                 class="tab ${this._tab === t.id ? 'active' : ''}"
                 @click=${() => {
                   this._tab = t.id;
+                  this._selected = null;
                 }}
               >
                 ${t.label}
@@ -357,11 +409,11 @@ export class DashboardSidebarEditor extends LitElement {
       case 'settings':
         return this._renderSettings();
       case 'header':
-        return this._renderSection('header');
+        return this._renderSplit('header');
       case 'body':
-        return this._renderSection('body');
+        return this._renderSplit('body');
       case 'footer':
-        return this._renderFooter();
+        return this._renderFooterTab();
       default:
         return html``;
     }
@@ -398,268 +450,287 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Renders a block region (header or body) with its rows and add control.
+   * Renders a region (header or body) as a two-column split: the edit panel on
+   * the left, the live, drag-reorderable preview on the right.
    */
-  private _renderSection(region: Region): TemplateResult {
-    const blocks = this._working[region] ?? [];
+  private _renderSplit(region: Region): TemplateResult {
     const types = region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
     return html`
-      <section class="region">
-        <div class="region-head">
+      <div class="split">
+        <div class="editor">
           ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
+          ${this._renderSelectedForm()}
         </div>
-        <div class="rows" data-sort=${region}>
+        <div class="preview">${this._renderRegionPreview(region)}</div>
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the live preview list for a region: one selectable, draggable node
+   * per block, with a nested item list for each category.
+   */
+  private _renderRegionPreview(region: Region): TemplateResult {
+    const blocks = this._working[region] ?? [];
+    return html`
+      <div class="pv-list" data-sort=${region}>
+        ${repeat(
+          blocks,
+          (block) => this._idFor(block),
+          (block, i) => this._renderPreviewNode(region, i, block),
+        )}
+      </div>
+      ${
+        blocks.length === 0
+          ? html`<p class="hint">No elements yet — use “Add element”.</p>`
+          : nothing
+      }
+    `;
+  }
+
+  /**
+   * Renders one preview node: a selectable, draggable block, plus a nested
+   * draggable item list when the block is a category.
+   */
+  private _renderPreviewNode(region: Region, index: number, block: SidebarBlock): TemplateResult {
+    const id = this._idFor(block);
+    if (block.type !== 'category') {
+      return html`
+        <div
+          class="pv-node ${this._selected === id ? 'sel' : ''}"
+          data-id=${id}
+          @click=${(e: Event) => this._select(e, id)}
+        >
+          <span class="drag" title="Drag to reorder">⣿</span>
+          <div class="pv-body">${this._renderBlockPreview(block)}</div>
+        </div>
+      `;
+    }
+    return html`
+      <div class="pv-node pv-cat">
+        <div
+          class="pv-cat-head ${this._selected === id ? 'sel' : ''}"
+          data-id=${id}
+          @click=${(e: Event) => this._select(e, id)}
+        >
+          <span class="drag" title="Drag to reorder">⣿</span>
+          <div class="pv-body">${this._renderBlockPreview(block)}</div>
+        </div>
+        <div class="pv-sublist" data-sort=${`cat:${region}:${index}`}>
           ${repeat(
-            blocks,
-            (block) => this._idFor(block),
-            (block, i) => this._renderRow(region, i, block),
+            block.items,
+            (item) => this._idFor(item),
+            (item) => this._renderPreviewItem(item),
           )}
         </div>
-      </section>
-    `;
-  }
-
-  /**
-   * Renders one block row: summary, controls, and expandable fields.
-   */
-  private _renderRow(region: Region, index: number, block: SidebarBlock): TemplateResult {
-    const key = `${region}-${index}`;
-    const expanded = this._expanded.has(key);
-    return html`
-      <div class="row">
-        <span class="drag" title="Drag to reorder">⣿</span>
-        <div class="rpreview">${this._renderBlockPreview(block)}</div>
-        ${this._renderControls(
-          () => this._toggleExpand(key),
-          () => this._removeBlock(region, index),
-        )}
       </div>
-      ${
-        expanded
-          ? html`<div class="fields">
-              ${
-                block.type === 'category'
-                  ? this._renderCategoryFields(region, index, block)
-                  : blockFields(block, (partial) => this._patchBlock(region, index, partial))
-              }
-            </div>`
-          : nothing
-      }
     `;
   }
 
   /**
-   * Renders a category's own fields plus its editable item list.
+   * Renders one selectable, draggable category-item node.
    */
-  private _renderCategoryFields(
-    region: Region,
-    index: number,
-    category: CategoryBlock,
-  ): TemplateResult {
+  private _renderPreviewItem(item: ItemBlock): TemplateResult {
+    const id = this._idFor(item);
     return html`
-      ${blockFields(category, (partial) => this._patchBlock(region, index, partial))}
-      <div class="subhead">Items</div>
-      <div class="rows" data-sort=${`cat:${region}:${index}`}>
-        ${repeat(
-          category.items,
-          (item) => this._idFor(item),
-          (item, j) => this._renderItemRow(region, index, j, item),
-        )}
+      <div
+        class="pv-node pv-subnode ${this._selected === id ? 'sel' : ''}"
+        data-id=${id}
+        @click=${(e: Event) => this._select(e, id)}
+      >
+        <span class="idrag" title="Drag to reorder">⣿</span>
+        <div class="pv-body">${this._renderItemPreview(item)}</div>
       </div>
-      <button class="add-btn" @click=${() => this._addItem(region, index)}>＋ Add item</button>
     `;
   }
 
   /**
-   * Renders one category item row with controls and expandable fields.
+   * Renders the footer tab: a mode toggle and, per mode, the button editor or
+   * the card field, each split into edit controls and a live preview.
    */
-  private _renderItemRow(
-    region: Region,
-    index: number,
-    itemIndex: number,
-    item: ItemBlock,
-  ): TemplateResult {
-    const key = `${region}-${index}-i${itemIndex}`;
-    const expanded = this._expanded.has(key);
-    const patch: Patch = (partial) => this._patchItem(region, index, itemIndex, partial);
-    return html`
-      <div class="row">
-        <span class="drag" title="Drag to reorder">⣿</span>
-        <div class="rpreview">${this._renderItemPreview(item)}</div>
-        ${this._renderControls(
-          () => this._toggleExpand(key),
-          () => this._removeItem(region, index, itemIndex),
-        )}
-      </div>
-      ${
-        expanded
-          ? html`<div class="fields">${blockFields({ ...item, type: 'item' }, patch)}</div>`
-          : nothing
-      }
-    `;
-  }
-
-  /**
-   * Renders the footer editor: a mode toggle, then buttons or a card field.
-   */
-  private _renderFooter(): TemplateResult {
+  private _renderFooterTab(): TemplateResult {
     const footer = this._working.footer;
     const cardMode = footer?.card !== undefined;
-    const buttons = footer?.buttons ?? [];
-    return html`
-      <section class="region">
-        <div class="region-head">
-          <div class="modes">
-            <button
-              class="mode ${cardMode ? '' : 'sel'}"
-              @click=${() => this._setFooterMode(false)}
-            >
-              Buttons
-            </button>
-            <button class="mode ${cardMode ? 'sel' : ''}" @click=${() => this._setFooterMode(true)}>
-              Component
-            </button>
+    const modes = html`
+      <div class="modes">
+        <button class="mode ${cardMode ? '' : 'sel'}" @click=${() => this._setFooterMode(false)}>
+          Buttons
+        </button>
+        <button class="mode ${cardMode ? 'sel' : ''}" @click=${() => this._setFooterMode(true)}>
+          Component
+        </button>
+      </div>
+    `;
+    if (cardMode) {
+      return html`
+        <div class="split">
+          <div class="editor">
+            ${modes}
+            ${areaField(
+              'Card (markdown or JSON)',
+              typeof footer?.card === 'string'
+                ? footer.card
+                : JSON.stringify(footer?.card ?? '', null, 2),
+              (v) => this._setFooterCard(v),
+            )}
+          </div>
+          <div class="preview">
+            ${this._previewEl('footer-card', {
+              footer: { card: footer?.card ?? '', divider: false },
+            })}
           </div>
         </div>
-        ${
-          cardMode
-            ? areaField(
-                'Card (markdown or JSON)',
-                typeof footer?.card === 'string'
-                  ? footer.card
-                  : JSON.stringify(footer?.card ?? '', null, 2),
-                (v) => this._setFooterCard(v),
-              )
-            : html`
-                <div class="rows" data-sort="footer">
-                  ${repeat(
-                    buttons,
-                    (btn) => this._idFor(btn),
-                    (btn, i) => this._renderFooterButtonRow(i, btn),
-                  )}
-                </div>
-                <button class="add-btn" @click=${() => this._addFooterButton()}>
-                  ＋ Add button
-                </button>
-              `
-        }
-      </section>
-    `;
-  }
-
-  /**
-   * Renders one footer button row with controls and expandable fields.
-   */
-  private _renderFooterButtonRow(
-    index: number,
-    btn: { icon?: string; title?: string },
-  ): TemplateResult {
-    const key = `footer-${index}`;
-    const expanded = this._expanded.has(key);
-    return html`
-      <div class="row">
-        <span class="drag" title="Drag to reorder">⣿</span>
-        <div class="rpreview">${this._renderFooterButtonPreview(btn)}</div>
-        ${this._renderControls(
-          () => this._toggleExpand(key),
-          () => this._removeFooterButton(index),
-        )}
-      </div>
-      ${
-        expanded
-          ? html`<div class="fields">
-              ${footerButtonFields(btn, (partial) => this._patchFooterButton(index, partial))}
-            </div>`
-          : nothing
-      }
-    `;
-  }
-
-  /**
-   * The active locale, from hass or the browser, used for date/time previews.
-   */
-  private get _locale(): string {
-    return this.hass?.locale?.language ?? navigator.language;
-  }
-
-  /**
-   * Renders a faithful, non-interactive preview of a block as currently set,
-   * shown in its collapsed row in place of a raw config summary.
-   */
-  private _renderBlockPreview(block: SidebarBlock): TemplateResult {
-    switch (block.type) {
-      case 'title':
-        return html`<div class="pv-line pv-title" style="text-align: ${block.align ?? 'center'}">
-          ${block.text || '(title)'}
-        </div>`;
-      case 'clock':
-        return html`<div class="pv-line pv-time" style="text-align: ${block.align ?? 'center'}">
-          ${formatClock(new Date(), block.format ?? 'locale', this._locale)}
-        </div>`;
-      case 'date':
-        return html`<div class="pv-line pv-time" style="text-align: ${block.align ?? 'center'}">
-          ${formatDate(new Date(), block.format ?? 'locale', this._locale)}
-        </div>`;
-      case 'divider':
-        return html`<hr class="pv-divider" />`;
-      case 'item':
-        return this._renderItemPreview(block);
-      case 'category':
-        return html`<div class="pv-row">
-          ${
-            block.icon
-              ? html`<ha-icon icon=${block.icon}></ha-icon>`
-              : html`<span class="pv-initials">${initials(block.title || '')}</span>`
-          }
-          <span class="pv-label">${block.title || '(category)'}</span>
-          <ha-icon class="pv-chevron" icon="mdi:chevron-down"></ha-icon>
-        </div>`;
-      case 'card':
-        return html`<div class="pv-line pv-card">
-          ${
-            typeof block.card === 'string'
-              ? block.card || '(markdown)'
-              : `card: ${(block.card as LovelaceCardConfig)?.type ?? '?'}`
-          }
-        </div>`;
-      default:
-        return html``;
+      `;
     }
-  }
-
-  /**
-   * Renders a preview of an item row: its icon (or initials) and title.
-   */
-  private _renderItemPreview(item: ItemBlock): TemplateResult {
-    const title = item.title || '(item)';
-    return html`<div class="pv-row">
-      ${
-        item.icon
-          ? html`<ha-icon icon=${item.icon}></ha-icon>`
-          : html`<span class="pv-initials">${item.abbr ?? initials(title)}</span>`
-      }
-      <span class="pv-label">${title}</span>
-    </div>`;
-  }
-
-  /**
-   * Renders a preview of a footer button: its icon and optional title.
-   */
-  private _renderFooterButtonPreview(btn: { icon?: string; title?: string }): TemplateResult {
-    return html`<div class="pv-row">
-      ${btn.icon ? html`<ha-icon icon=${btn.icon}></ha-icon>` : nothing}
-      ${btn.title ? html`<span class="pv-label">${btn.title}</span>` : nothing}
-    </div>`;
-  }
-
-  /**
-   * Renders the edit and delete controls for a row; reordering is by drag.
-   */
-  private _renderControls(onEdit: () => void, onDelete: () => void): TemplateResult {
+    const buttons = footer?.buttons ?? [];
     return html`
-      <button class="icon" title="Edit" @click=${onEdit}>✎</button>
-      <button class="icon danger" title="Delete" @click=${onDelete}>✕</button>
+      <div class="split">
+        <div class="editor">
+          ${modes}
+          <button class="add-btn" @click=${() => this._addFooterButton()}>＋ Add button</button>
+          ${this._renderSelectedForm()}
+        </div>
+        <div class="preview">
+          <div class="pv-list" data-sort="footer">
+            ${repeat(
+              buttons,
+              (btn) => this._idFor(btn),
+              (btn) => this._renderFooterNode(btn),
+            )}
+          </div>
+          ${buttons.length === 0 ? html`<p class="hint">No buttons yet.</p>` : nothing}
+        </div>
+      </div>
     `;
+  }
+
+  /**
+   * Renders one selectable, draggable footer-button node.
+   */
+  private _renderFooterNode(btn: FooterButtonConfig): TemplateResult {
+    const id = this._idFor(btn);
+    return html`
+      <div
+        class="pv-node ${this._selected === id ? 'sel' : ''}"
+        data-id=${id}
+        @click=${(e: Event) => this._select(e, id)}
+      >
+        <span class="drag" title="Drag to reorder">⣿</span>
+        <div class="pv-body">${this._renderFooterButtonPreview(btn)}</div>
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the left-panel edit form for the selected element, with a delete
+   * control, or a hint when nothing is selected in the current tab.
+   */
+  private _renderSelectedForm(): TemplateResult {
+    const sel = this._locate(this._selected);
+    if (!sel) {
+      return html`<p class="hint">Select an element in the preview to edit it.</p>`;
+    }
+    if (sel.kind === 'footer') {
+      return html`
+        <div class="form">
+          ${footerButtonFields(sel.btn, (partial) => this._patchFooterButton(sel.index, partial))}
+          <button
+            class="add-btn danger"
+            @click=${() => {
+              this._removeFooterButton(sel.index);
+              this._selected = null;
+            }}
+          >
+            Delete button
+          </button>
+        </div>
+      `;
+    }
+    if (sel.kind === 'item') {
+      const patch: Patch = (partial) =>
+        this._patchItem(sel.region, sel.index, sel.itemIndex, partial);
+      return html`
+        <div class="form">
+          ${blockFields({ ...sel.item, type: 'item' }, patch)}
+          <button
+            class="add-btn danger"
+            @click=${() => {
+              this._removeItem(sel.region, sel.index, sel.itemIndex);
+              this._selected = null;
+            }}
+          >
+            Delete item
+          </button>
+        </div>
+      `;
+    }
+    const patch: Patch = (partial) => this._patchBlock(sel.region, sel.index, partial);
+    return html`
+      <div class="form">
+        ${blockFields(sel.block, patch)}
+        ${
+          sel.block.type === 'category'
+            ? html`<button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
+                ＋ Add item
+              </button>`
+            : nothing
+        }
+        <button
+          class="add-btn danger"
+          @click=${() => {
+            this._removeBlock(sel.region, sel.index);
+            this._selected = null;
+          }}
+        >
+          Delete element
+        </button>
+      </div>
+    `;
+  }
+
+  /**
+   * Returns a cached, inert `<dashboard-sidebar preview>` for a row, rebuilt only
+   * when its single-block config changes so live cards are not re-instantiated on
+   * every keystroke.
+   */
+  private _previewEl(id: string, config: DashboardSidebarConfig): DashboardSidebar {
+    let el = this._previews.get(id);
+    if (!el) {
+      el = document.createElement('dashboard-sidebar') as DashboardSidebar;
+      el.preview = true;
+      this._previews.set(id, el);
+    }
+    el.hass = this.hass;
+    const key = JSON.stringify(config);
+    if (this._previewCfg.get(el) !== key) {
+      el.setConfig(config);
+      this._previewCfg.set(el, key);
+    }
+    return el;
+  }
+
+  /**
+   * Renders a live preview of a block as currently set, using the real sidebar
+   * element so templates, clocks, cards, and icons all resolve.
+   */
+  private _renderBlockPreview(block: SidebarBlock): DashboardSidebar {
+    const config: DashboardSidebarConfig =
+      block.type === 'category' ? { body: [{ ...block, items: [] }] } : { body: [block] };
+    return this._previewEl(this._idFor(block), config);
+  }
+
+  /**
+   * Renders a live preview of a category item as a single-item sidebar row.
+   */
+  private _renderItemPreview(item: ItemBlock): DashboardSidebar {
+    return this._previewEl(this._idFor(item), { body: [{ ...item, type: 'item' }] });
+  }
+
+  /**
+   * Renders a live preview of a footer button as a divider-less footer.
+   */
+  private _renderFooterButtonPreview(btn: FooterButtonConfig): DashboardSidebar {
+    return this._previewEl(this._idFor(btn), { footer: { buttons: [btn], divider: false } });
   }
 
   /**
@@ -677,7 +748,7 @@ export class DashboardSidebarEditor extends LitElement {
           }
         }}
       >
-        <option value="">＋ Add…</option>
+        <option value="">＋ Add element…</option>
         ${types.map((t) => html`<option value=${t}>${titleCase(t)}</option>`)}
       </select>
     `;
@@ -708,7 +779,7 @@ export class DashboardSidebarEditor extends LitElement {
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: min(560px, 92vw);
+      width: min(900px, 94vw);
       max-height: 88vh;
       display: flex;
       flex-direction: column;
@@ -818,116 +889,101 @@ export class DashboardSidebarEditor extends LitElement {
       margin-bottom: 16px;
     }
 
-    .region-head {
+    .split {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 6px;
+      gap: 16px;
+      align-items: flex-start;
     }
 
-    .region-head h3 {
-      margin: 0;
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      opacity: 0.7;
+    .editor {
+      flex: 1 1 42%;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
 
-    .subhead {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      opacity: 0.6;
-      margin: 8px 0 4px;
+    .preview {
+      flex: 1 1 58%;
+      min-width: 0;
+      padding: 8px;
+      border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
+      border-radius: 10px;
+      background: var(--card-background-color, #fff);
     }
 
-    .rows {
+    @media (width < 640px) {
+      .split {
+        flex-direction: column;
+      }
+
+      .editor,
+      .preview {
+        width: 100%;
+      }
+    }
+
+    .form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .pv-list,
+    .pv-sublist,
+    .pv-cat {
       display: flex;
       flex-direction: column;
       gap: 4px;
     }
 
-    .row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 8px;
-      border-radius: 8px;
-      background: var(--secondary-background-color, rgb(0 0 0 / 4%));
+    .pv-sublist {
+      margin-left: 16px;
     }
 
-    .drag {
+    .drag,
+    .idrag {
       cursor: grab;
       opacity: 0.4;
       user-select: none;
     }
 
-    .rpreview {
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-    }
-
-    .pv-line,
-    .pv-label {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .pv-line {
-      font-size: 0.9rem;
-    }
-
-    .pv-title {
-      font-weight: 600;
-    }
-
-    .pv-time {
-      font-variant-numeric: tabular-nums;
-    }
-
-    .pv-card {
-      opacity: 0.75;
-      font-style: italic;
-    }
-
-    .pv-row {
+    .pv-node,
+    .pv-cat-head {
       display: flex;
       align-items: center;
-      gap: 8px;
-      min-width: 0;
-      font-size: 0.9rem;
+      gap: 6px;
+      padding: 2px 4px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
     }
 
-    .pv-row ha-icon {
-      --mdc-icon-size: 18px;
-
-      flex: 0 0 auto;
-    }
-
-    .pv-chevron {
-      --mdc-icon-size: 16px;
-
-      margin-left: auto;
-      opacity: 0.5;
-    }
-
-    .pv-initials {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 18px;
-      height: 18px;
-      flex: 0 0 auto;
-      font-size: 0.7rem;
-      opacity: 0.7;
-    }
-
-    .pv-divider {
-      width: 100%;
-      margin: 4px 0;
+    .pv-cat {
+      padding: 0;
       border: none;
-      border-top: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
+      cursor: default;
+    }
+
+    .pv-node:hover,
+    .pv-cat-head:hover {
+      background: var(--secondary-background-color, rgb(0 0 0 / 4%));
+    }
+
+    .pv-node.sel,
+    .pv-cat-head.sel {
+      border-color: var(--primary-color, #03a9f4);
+      background: color-mix(in srgb, var(--primary-color, #03a9f4) 12%, transparent);
+    }
+
+    .pv-body {
+      flex: 1;
+      min-width: 0;
+      pointer-events: none;
+    }
+
+    .danger {
+      color: var(--error-color, #db4437);
     }
 
     .icon {
@@ -951,13 +1007,6 @@ export class DashboardSidebarEditor extends LitElement {
 
     .icon.danger:hover {
       color: var(--error-color, #db4437);
-    }
-
-    .fields {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      padding: 8px 8px 12px;
     }
 
     .field {

@@ -1,6 +1,6 @@
 import type { HomeAssistant } from 'custom-card-helpers';
 
-import type { ItemBlock, SidebarBlock, SidebarConfig } from './types';
+import type { ItemBlock, SidebarBlock, DashboardSidebarConfig } from './types';
 
 /** Matches the opening delimiter of any Jinja construct. */
 const TEMPLATE_RE = /\{\{|\{%|\{#/;
@@ -66,7 +66,7 @@ export class TemplateManager {
    * Registers every templatable string across the header, body, and footer for
    * subscription, clearing any previously collected templates first.
    */
-  public collect(config: SidebarConfig): void {
+  public collect(config: DashboardSidebarConfig): void {
     this.clear();
     /**
      * Registers one candidate string if it is a not-yet-seen template.

@@ -5,7 +5,7 @@ import { classMap } from 'lit/directives/class-map.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import { applyCardMod } from './lib/card-mod';
-import { EDIT_EVENT, STORAGE_PREFIX, TOGGLE_EVENT } from './lib/const';
+import { STORAGE_PREFIX, TOGGLE_EVENT } from './lib/const';
 import {
   formatClock,
   formatCollapsedClock,
@@ -19,16 +19,15 @@ import type {
   CardBlock,
   CategoryBlock,
   ClockBlock,
+  DashboardSidebarConfig,
   DateBlock,
   FooterButtonConfig,
   ItemBlock,
   Region,
   SidebarBlock,
-  SidebarConfig,
-  SidebarPosition,
   TitleBlock,
 } from './lib/types';
-import { validateSidebar } from './lib/validate';
+import { validateConfig } from './lib/validate';
 import { sidebarStyles } from './styles';
 
 /** Maps a config alignment to its flexbox `align-items` value. */
@@ -56,14 +55,11 @@ export class DashboardSidebar extends LitElement {
   /** The current Home Assistant object, assigned by the bootstrap. */
   @property({ attribute: false }) public hass?: HomeAssistant;
 
-  /** Which side this sidebar docks to, set by the bootstrap. */
-  @property({ attribute: false }) public side: SidebarPosition = 'left';
-
   /** Whether the dashboard is in edit mode, which reveals the edit button. */
   @property({ attribute: false }) public editMode = false;
 
   /** The validated configuration, or undefined before setConfig runs. */
-  @state() private _config?: SidebarConfig;
+  @state() private _config?: DashboardSidebarConfig;
 
   /** Whether the sidebar is currently collapsed to its icon strip. */
   @state() private _collapsed = false;
@@ -125,8 +121,8 @@ export class DashboardSidebar extends LitElement {
    * collapse set, collects templates, builds card blocks, and starts the clock.
    * Invalid configs are kept only as an error list for the panel.
    */
-  public setConfig(config: SidebarConfig): void {
-    this._errors = validateSidebar(config);
+  public setConfig(config: DashboardSidebarConfig): void {
+    this._errors = validateConfig(config);
     this._config = config;
     this._cardModApplied = false;
     if (this._errors.length > 0) {
@@ -226,7 +222,7 @@ export class DashboardSidebar extends LitElement {
     if (changed.has('_collapsed')) {
       this.dispatchEvent(
         new CustomEvent(TOGGLE_EVENT, {
-          detail: { collapsed: this._collapsed, side: this.side },
+          detail: { collapsed: this._collapsed, side: this._side },
           bubbles: true,
           composed: true,
         }),
@@ -254,6 +250,13 @@ export class DashboardSidebar extends LitElement {
   }
 
   /**
+   * The resolved dock side, from the config position (default left).
+   */
+  private get _side(): 'left' | 'right' {
+    return this._config?.position === 'right' ? 'right' : 'left';
+  }
+
+  /**
    * The active locale, from hass or the browser, used for date/time names.
    */
   private get _locale(): string {
@@ -264,7 +267,7 @@ export class DashboardSidebar extends LitElement {
    * The localStorage key for this view and dock side's collapsed state.
    */
   private _storageKey(): string {
-    return `${STORAGE_PREFIX}:${window.location.pathname}:${this.side}`;
+    return `${STORAGE_PREFIX}:${window.location.pathname}:${this._side}`;
   }
 
   /**
@@ -323,19 +326,6 @@ export class DashboardSidebar extends LitElement {
   }
 
   /**
-   * Fires the edit event so the bootstrap opens the editor for this side.
-   */
-  private _openEditor(): void {
-    this.dispatchEvent(
-      new CustomEvent(EDIT_EVENT, {
-        detail: { side: this.side },
-        bubbles: true,
-        composed: true,
-      }),
-    );
-  }
-
-  /**
    * Toggles the collapsed state, closes popovers, and persists the choice.
    */
   private _toggleCollapse(): void {
@@ -379,7 +369,7 @@ export class DashboardSidebar extends LitElement {
    */
   private _popoverStyle(anchor: DOMRect, growUp: boolean): Record<string, string> {
     const style: Record<string, string> = {};
-    if (this.side === 'left') {
+    if (this._side === 'left') {
       style.left = `${anchor.right + 8}px`;
     } else {
       style.right = `${window.innerWidth - anchor.left + 8}px`;
@@ -420,7 +410,7 @@ export class DashboardSidebar extends LitElement {
    */
   private _tipStyle(rect: DOMRect): Record<string, string> {
     const style: Record<string, string> = { top: `${rect.top + rect.height / 2}px` };
-    if (this.side === 'left') {
+    if (this._side === 'left') {
       style.left = `${rect.right + 8}px`;
     } else {
       style.right = `${window.innerWidth - rect.left + 8}px`;
@@ -471,7 +461,7 @@ export class DashboardSidebar extends LitElement {
       sidebar: true,
       'dashboard-sidebar-root': true,
       collapsed,
-      [`pos-${this.side}`]: true,
+      [`pos-${this._side}`]: true,
     };
     const sidebarStyle = cfg.background ? { background: cfg.background } : {};
 
@@ -484,17 +474,6 @@ export class DashboardSidebar extends LitElement {
         >
           <ha-icon icon="mdi:chevron-left"></ha-icon>
         </button>
-        ${
-          this.editMode
-            ? html`<button
-                class="edit-btn dashboard-sidebar-edit"
-                title="Edit sidebar"
-                @click=${this._openEditor}
-              >
-                <ha-icon icon="mdi:pencil"></ha-icon>
-              </button>`
-            : nothing
-        }
         ${this._renderRegion('header', cfg.header, collapsed, 'region-header dashboard-sidebar-header')}
         ${this._renderRegion('body', cfg.body, collapsed, 'region-body dashboard-sidebar-body')}
         ${this._renderFooter(collapsed)} ${this._renderTooltip()}

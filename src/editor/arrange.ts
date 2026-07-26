@@ -5,7 +5,7 @@ import type {
   FooterButtonConfig,
   Region,
   SidebarBlock,
-  SidebarConfig,
+  DashboardSidebarConfig,
 } from '../lib/types';
 
 /** A block's location within one sidebar. */
@@ -32,10 +32,10 @@ export function canPlace(block: SidebarBlock, region: Region): boolean {
  * config. A move the title-in-header rule forbids returns the input unchanged.
  */
 export function moveBlock(
-  config: SidebarConfig,
+  config: DashboardSidebarConfig,
   from: BlockLocation,
   to: BlockLocation,
-): SidebarConfig {
+): DashboardSidebarConfig {
   const header = [...(config.header ?? [])];
   const body = [...(config.body ?? [])];
   const src = from.region === 'header' ? header : body;
@@ -87,6 +87,6 @@ export function defaultFooterButton(): FooterButtonConfig {
 /**
  * Creates a starter sidebar config for a newly added side.
  */
-export function starterSidebar(): SidebarConfig {
+export function starterSidebar(): DashboardSidebarConfig {
   return { body: [{ type: 'item', title: 'Item', tap_action: NO_ACTION }] };
 }

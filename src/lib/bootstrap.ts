@@ -1,16 +1,18 @@
 import {
+  CONFIG_CHANGED_EVENT,
   CONFIG_KEY,
   DEFAULT_COLLAPSED_WIDTH,
   DEFAULT_WIDTH,
-  EDIT_EVENT,
   TOGGLE_EVENT,
 } from './const';
-import type { DashboardSidebarConfig, SidebarConfig, SidebarPosition } from './types';
+import type { DashboardSidebarConfig } from './types';
 import type { DashboardSidebar } from '../dashboard-sidebar';
-import type { DashboardSidebarEditor } from '../editor/sidebar-editor';
 
-/** DOM id of the flex wrapper that holds the sidebar hosts and the view. */
+/** DOM id of the flex wrapper that holds the sidebar host and the view. */
 const WRAPPER_ID = 'dashboard-sidebar-wrapper';
+
+/** DOM id of the sticky host element the sidebar renders into. */
+const HOST_ID = 'dashboard-sidebar-host';
 
 /** DOM id of the injected `<style>` element that lays out the wrapper. */
 const STYLE_ID = 'dashboard-sidebar-style';
@@ -18,18 +20,11 @@ const STYLE_ID = 'dashboard-sidebar-style';
 /** DOM id of the floating "add sidebar" button shown when none exists yet. */
 const ADD_BUTTON_ID = 'dashboard-sidebar-add';
 
-/** The two sides a sidebar can dock to. */
-const SIDES: SidebarPosition[] = ['left', 'right'];
+/** A starter sidebar seeded when the user adds one to a bare dashboard. */
+const STARTER: DashboardSidebarConfig = { position: 'left', body: [] };
 
 /** An element that may expose a shadow root, or null. */
 type AnyEl = (Element & { shadowRoot?: ShadowRoot | null }) | null;
-
-/**
- * The DOM id of the sticky host element for one side's sidebar.
- */
-function hostId(side: SidebarPosition): string {
-  return `dashboard-sidebar-host-${side}`;
-}
 
 /**
  * Descends one level into an element's shadow root (or the element itself when
@@ -86,16 +81,15 @@ function getHeaderHeight(shadow: ShadowRoot): number {
 
 /**
  * Records the current header height as a CSS variable so the host can sit
- * entirely below the header. Using margin (not padding) keeps the host box —
- * which is stacked above the view — from overlapping the header's controls.
+ * entirely below the header (via margin, not padding), keeping its box — which
+ * is stacked above the view — from overlapping the header's controls.
  */
 function applyHeaderOffset(shadow: ShadowRoot, host: HTMLElement): void {
   host.style.setProperty('--dsb-header', `${getHeaderHeight(shadow)}px`);
 }
 
 /**
- * Reads the dashboard_sidebar container from the Lovelace config, or null when
- * absent.
+ * Reads the sidebar config from the Lovelace config, or null when absent.
  */
 function readConfig(huiRoot: { lovelace?: any }): DashboardSidebarConfig | null {
   const config = huiRoot.lovelace?.config?.[CONFIG_KEY];
@@ -103,14 +97,7 @@ function readConfig(huiRoot: { lovelace?: any }): DashboardSidebarConfig | null 
 }
 
 /**
- * Whether a container has at least one side configured.
- */
-function hasAnySide(config: DashboardSidebarConfig | null): boolean {
-  return Boolean(config && (config.left || config.right));
-}
-
-/**
- * Writes the edited container back to the Lovelace config.
+ * Writes an edited config back to the Lovelace config.
  */
 function saveConfig(huiRoot: { lovelace?: any }, config: DashboardSidebarConfig): void {
   const lovelace = huiRoot.lovelace;
@@ -121,15 +108,28 @@ function saveConfig(huiRoot: { lovelace?: any }, config: DashboardSidebarConfig)
 }
 
 /**
- * Builds the sticky-host layout CSS for one side, including its collapsed width
- * and optional hide-on-mobile media query.
+ * A key that changes only when the host layout (side or width) must be rebuilt,
+ * so pure content edits can update the element in place instead.
  */
-function sideHostCss(side: SidebarPosition, config: SidebarConfig): string {
+function structureKey(config: DashboardSidebarConfig): string {
+  return `${config.position ?? 'left'}:${config.width ?? DEFAULT_WIDTH}:${config.hide_on_mobile ? 1 : 0}`;
+}
+
+/**
+ * Builds the wrapper/host layout CSS, including the collapsed width and the
+ * optional hide-on-mobile media query.
+ */
+function wrapperCss(config: DashboardSidebarConfig): string {
   const expanded = config.width ?? DEFAULT_WIDTH;
   const collapsed = DEFAULT_COLLAPSED_WIDTH;
-  const host = hostId(side);
   return `
-    #${host} {
+    #${WRAPPER_ID} {
+      display: flex;
+      flex-direction: row;
+      height: 100%;
+      width: 100%;
+    }
+    #${HOST_ID} {
       flex: 0 0 auto;
       width: ${expanded}px;
       box-sizing: border-box;
@@ -142,56 +142,26 @@ function sideHostCss(side: SidebarPosition, config: SidebarConfig): string {
       z-index: 5;
       transition: width 0.25s ease;
     }
-    #${WRAPPER_ID}.collapsed-${side} #${host} {
+    #${WRAPPER_ID}.collapsed #${HOST_ID} {
       width: ${collapsed}px;
-    }
-    ${config.hide_on_mobile ? `@media (max-width: 768px) { #${host} { display: none; } }` : ''}
-  `;
-}
-
-/**
- * Builds the full wrapper layout CSS for the present sides.
- */
-function wrapperCss(config: DashboardSidebarConfig): string {
-  return `
-    #${WRAPPER_ID} {
-      display: flex;
-      flex-direction: row;
-      height: 100%;
-      width: 100%;
     }
     #${WRAPPER_ID} > #view {
       flex: 1 1 0;
       min-width: 0;
     }
-    ${config.left ? sideHostCss('left', config.left) : ''}
-    ${config.right ? sideHostCss('right', config.right) : ''}
+    ${
+      config.hide_on_mobile
+        ? `@media (max-width: 768px) {
+             #${HOST_ID} { display: none; }
+             #${WRAPPER_ID} > #view { flex-basis: 100%; }
+           }`
+        : ''
+    }
   `;
 }
 
 /**
- * Creates a host and mounts a sidebar element for one side.
- */
-function mountSide(
-  shadow: ShadowRoot,
-  side: SidebarPosition,
-  config: SidebarConfig,
-  editMode: boolean,
-): HTMLElement {
-  const host = document.createElement('div');
-  host.id = hostId(side);
-  applyHeaderOffset(shadow, host);
-  const element = document.createElement('dashboard-sidebar') as DashboardSidebar;
-  element.side = side;
-  element.editMode = editMode;
-  element.hass = getHass();
-  element.setConfig(config);
-  host.appendChild(element);
-  return host;
-}
-
-/**
- * Creates the wrapper, hosts, and sidebar elements and inserts them around the
+ * Creates the wrapper, host, and sidebar element and inserts them around the
  * current view, once per view. No-ops when the config, view, or a prior wrapper
  * says there is nothing to do.
  */
@@ -203,7 +173,7 @@ function buildSidebar(): void {
   const config = readConfig(huiRoot);
   const shadow = huiRoot.shadowRoot;
 
-  if (!hasAnySide(config) || !config) {
+  if (!config) {
     return;
   }
   if (shadow.getElementById(WRAPPER_ID)) {
@@ -222,24 +192,32 @@ function buildSidebar(): void {
   }
   style.textContent = wrapperCss(config);
 
-  const editMode = isEditMode(huiRoot);
   const wrapper = document.createElement('div');
   wrapper.id = WRAPPER_ID;
   wrapper.dataset.cfg = JSON.stringify(config);
+  wrapper.dataset.struct = structureKey(config);
   view.parentNode.insertBefore(wrapper, view);
 
-  if (config.left) {
-    wrapper.appendChild(mountSide(shadow, 'left', config.left, editMode));
-  }
-  wrapper.appendChild(view);
-  if (config.right) {
-    wrapper.appendChild(mountSide(shadow, 'right', config.right, editMode));
+  const host = document.createElement('div');
+  host.id = HOST_ID;
+  applyHeaderOffset(shadow, host);
+  const element = document.createElement('dashboard-sidebar') as DashboardSidebar;
+  element.editMode = isEditMode(huiRoot);
+  element.hass = getHass();
+  element.setConfig(config);
+  host.appendChild(element);
+
+  if (config.position === 'right') {
+    wrapper.appendChild(view);
+    wrapper.appendChild(host);
+  } else {
+    wrapper.appendChild(host);
+    wrapper.appendChild(view);
   }
 
   wrapper.addEventListener(TOGGLE_EVENT, (ev: Event) => {
-    const detail = (ev as CustomEvent).detail ?? {};
-    const side = detail.side === 'right' ? 'right' : 'left';
-    wrapper.classList.toggle(`collapsed-${side}`, Boolean(detail.collapsed));
+    const collapsed = Boolean((ev as CustomEvent).detail?.collapsed);
+    wrapper.classList.toggle('collapsed', collapsed);
   });
 }
 
@@ -259,26 +237,6 @@ function teardown(shadow: ShadowRoot): void {
 }
 
 /**
- * Opens the editor for a side, unless it is already open.
- */
-function openEditor(
-  huiRoot: { shadowRoot: ShadowRoot; lovelace?: any },
-  side: SidebarPosition,
-): void {
-  const shadow = huiRoot.shadowRoot;
-  if (shadow.querySelector('dashboard-sidebar-editor')) {
-    return;
-  }
-  const editor = document.createElement('dashboard-sidebar-editor') as DashboardSidebarEditor;
-  editor.hass = getHass();
-  editor.config = readConfig(huiRoot) ?? {};
-  editor.focusSide = side;
-  editor.onSave = (config) => saveConfig(huiRoot, config);
-  editor.onClose = () => editor.remove();
-  shadow.appendChild(editor);
-}
-
-/**
  * Shows a floating "add sidebar" button while editing a sidebar-less dashboard.
  */
 function ensureAddButton(huiRoot: { shadowRoot: ShadowRoot; lovelace?: any }): void {
@@ -293,7 +251,7 @@ function ensureAddButton(huiRoot: { shadowRoot: ShadowRoot; lovelace?: any }): v
     'position:fixed;bottom:24px;left:24px;z-index:6;padding:10px 16px;border:none;' +
     'border-radius:20px;background:var(--primary-color,#03a9f4);color:var(--text-primary-color,#fff);' +
     'cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);font:inherit;';
-  btn.addEventListener('click', () => openEditor(huiRoot, 'left'));
+  btn.addEventListener('click', () => saveConfig(huiRoot, STARTER));
   shadow.appendChild(btn);
 }
 
@@ -305,9 +263,9 @@ function removeAddButton(shadow: ShadowRoot): void {
 }
 
 /**
- * Rebuilds the sidebars after the frontend swaps the view or the config
- * changes, keeps each element's hass and edit mode fresh, and manages the
- * add-sidebar affordance. Errors mid-transition are swallowed for the next tick.
+ * Rebuilds the sidebar after the frontend swaps the view or the config changes,
+ * keeps hass and edit mode fresh, and manages the add-sidebar affordance.
+ * A content-only change updates the element in place to avoid flicker.
  */
 function ensureSidebar(): void {
   try {
@@ -321,7 +279,7 @@ function ensureSidebar(): void {
     const wrapper = shadow.getElementById(WRAPPER_ID);
 
     if (!wrapper) {
-      if (hasAnySide(config)) {
+      if (config) {
         buildSidebar();
       } else if (editMode) {
         ensureAddButton(huiRoot);
@@ -332,43 +290,48 @@ function ensureSidebar(): void {
     }
 
     removeAddButton(shadow);
+    const element = wrapper.querySelector('dashboard-sidebar') as DashboardSidebar | null;
 
-    // Rebuild when the config changed (e.g. the editor saved).
-    if (wrapper.dataset.cfg !== JSON.stringify(config ?? {})) {
-      teardown(shadow);
-      buildSidebar();
+    if (wrapper.dataset.cfg !== JSON.stringify(config ?? null)) {
+      const sameStructure = Boolean(
+        config && element && wrapper.dataset.struct === structureKey(config),
+      );
+      if (config && sameStructure && element) {
+        element.setConfig(config);
+        wrapper.dataset.cfg = JSON.stringify(config);
+      } else {
+        teardown(shadow);
+        buildSidebar();
+      }
       return;
     }
 
-    SIDES.forEach((side) => {
-      const host = shadow.getElementById(hostId(side));
-      if (host) {
-        applyHeaderOffset(shadow, host);
-      }
-    });
-    wrapper.querySelectorAll('dashboard-sidebar').forEach((el) => {
-      const element = el as DashboardSidebar;
+    const host = shadow.getElementById(HOST_ID);
+    if (host) {
+      applyHeaderOffset(shadow, host);
+    }
+    if (element) {
       element.editMode = editMode;
       if (!element.hass) {
         element.hass = getHass();
       }
-    });
+    }
   } catch {
     // frontend not ready yet; the next tick retries
   }
 }
 
 /**
- * Starts the sidebars: builds now, on every navigation, on a slow poll, and
- * opens the editor when a sidebar requests it.
+ * Starts the sidebar: builds now, on every navigation, on a slow poll, and
+ * persists in-place edits the element reports.
  */
 export function startSidebar(): void {
   window.addEventListener('location-changed', () => ensureSidebar());
-  window.addEventListener(EDIT_EVENT, (ev: Event) => {
-    const side = (ev as CustomEvent).detail?.side === 'right' ? 'right' : 'left';
+  window.addEventListener(CONFIG_CHANGED_EVENT, (ev: Event) => {
+    const config = (ev as CustomEvent).detail as DashboardSidebarConfig | undefined;
     const huiRoot = getHuiRoot();
-    if (huiRoot) {
-      openEditor(huiRoot, side);
+    if (huiRoot && config) {
+      saveConfig(huiRoot, config);
     }
   });
   window.setInterval(ensureSidebar, 1000);

@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import type { SidebarConfig } from './types';
-import { validateSidebar } from './validate';
+import type { DashboardSidebarConfig } from './types';
+import { validateConfig } from './validate';
 
 /** A tap action reused across the fixtures. */
 const TAP = { action: 'toggle' } as const;
 
-describe('validateSidebar — abbr', () => {
+describe('validateConfig — abbr', () => {
   it('accepts an abbr on an icon-less item', () => {
     expect(
-      validateSidebar({
+      validateConfig({
         body: [{ type: 'item', title: 'Loft Room', abbr: 'Lo', tap_action: TAP }],
       }),
     ).toHaveLength(0);
@@ -17,15 +17,15 @@ describe('validateSidebar — abbr', () => {
 
   it('rejects a non-string abbr', () => {
     expect(
-      validateSidebar({
+      validateConfig({
         body: [{ type: 'item', title: 'A', abbr: 5, tap_action: TAP }],
-      } as unknown as SidebarConfig),
+      } as unknown as DashboardSidebarConfig),
     ).toContain('body[0].abbr: must be a string');
   });
 
   it('rejects abbr together with an icon on an item', () => {
     expect(
-      validateSidebar({
+      validateConfig({
         body: [{ type: 'item', title: 'A', icon: 'mdi:home', abbr: 'A', tap_action: TAP }],
       }),
     ).toContain('body[0]: abbr is only allowed when icon is not set');
@@ -33,14 +33,14 @@ describe('validateSidebar — abbr', () => {
 
   it('applies the same rules to categories', () => {
     expect(
-      validateSidebar({
+      validateConfig({
         body: [
           { type: 'category', title: 'Utah', abbr: 'Ut', items: [{ title: 'x', tap_action: TAP }] },
         ],
       }),
     ).toHaveLength(0);
     expect(
-      validateSidebar({
+      validateConfig({
         body: [
           {
             type: 'category',

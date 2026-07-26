@@ -1,7 +1,7 @@
 import { aTimeout, expect, fixture, html } from '@open-wc/testing';
 
 import type { DashboardSidebar } from './dashboard-sidebar';
-import type { SidebarConfig } from './lib/types';
+import type { DashboardSidebarConfig } from './lib/types';
 import './dashboard-sidebar';
 
 /** Card configs handed to the stubbed card helpers, reset per test. */
@@ -11,7 +11,7 @@ let createdCards: unknown[] = [];
  * Mounts a fresh element, applies the config, and waits for the first render
  * and any async card builds.
  */
-async function mount(config: SidebarConfig): Promise<DashboardSidebar> {
+async function mount(config: DashboardSidebarConfig): Promise<DashboardSidebar> {
   const el = await fixture<DashboardSidebar>(html`<dashboard-sidebar></dashboard-sidebar>`);
   el.setConfig(config);
   await el.updateComplete;
@@ -86,10 +86,11 @@ describe('<dashboard-sidebar> config species', () => {
       expect(root(el).querySelector('.sidebar')?.classList.contains('pos-left')).to.equal(true);
     });
 
-    it('docks right when the side is right', async () => {
-      const el = await mount({ body: [{ type: 'item', title: 'A', tap_action: TAP }] });
-      el.side = 'right';
-      await el.updateComplete;
+    it('docks right when position is right', async () => {
+      const el = await mount({
+        position: 'right',
+        body: [{ type: 'item', title: 'A', tap_action: TAP }],
+      });
       expect(root(el).querySelector('.sidebar')?.classList.contains('pos-right')).to.equal(true);
     });
   });
@@ -343,7 +344,7 @@ describe('<dashboard-sidebar> config species', () => {
 
     cases.forEach(([name, config, message]) => {
       it(`shows the error panel: ${name}`, async () => {
-        const el = await mount(config as SidebarConfig);
+        const el = await mount(config as DashboardSidebarConfig);
         const panel = root(el).querySelector('.config-error');
         expect(panel, name).to.exist;
         expect(panel?.textContent).to.contain(message);

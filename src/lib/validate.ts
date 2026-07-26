@@ -1,5 +1,5 @@
 import { DATE_TOKENS, TIME_TOKENS, invalidToken } from './format';
-import type { DashboardSidebarConfig, ItemBlock, SidebarBlock, SidebarConfig } from './types';
+import type { DashboardSidebarConfig, ItemBlock, SidebarBlock } from './types';
 
 /** Clock-format aliases accepted in place of a strftime pattern. */
 const CLOCK_ALIASES = ['iso', '24h', '12h', 'locale'];
@@ -10,8 +10,9 @@ const DATE_ALIASES = ['iso', 'locale'];
 /** Accepted alignment values. */
 const ALIGNS = ['left', 'center', 'right'];
 
-/** Recognized keys on a single sidebar config. */
-const SIDEBAR_KEYS = new Set([
+/** Recognized keys on the top-level config. */
+const TOP_KEYS = new Set([
+  'position',
   'width',
   'start_collapsed',
   'hide_on_mobile',
@@ -21,9 +22,6 @@ const SIDEBAR_KEYS = new Set([
   'footer',
   'card_mod',
 ]);
-
-/** Recognized keys on the top-level container (the two sides). */
-const TOP_KEYS = new Set(['left', 'right']);
 
 /** CSS targeting hooks accepted on every block and footer button. */
 const COMMON = ['class', 'id'];
@@ -331,59 +329,29 @@ function validateFooter(footer: unknown, ctx: string, errors: string[]): void {
 }
 
 /**
- * Validates one sidebar config into `errors`, prefixing messages with `prefix`
- * (empty for a standalone sidebar, or the side name within a container).
- */
-function validateSidebarInto(config: SidebarConfig, prefix: string, errors: string[]): void {
-  const label = prefix || 'dashboard_sidebar';
-  const p = prefix ? `${prefix}.` : '';
-  if (!config || typeof config !== 'object') {
-    errors.push(`${label}: must be a mapping`);
-    return;
-  }
-  const c = config as unknown as Record<string, unknown>;
-  unknownKeys(config, SIDEBAR_KEYS, label, errors);
-  if (config.width !== undefined && typeof config.width !== 'number') {
-    errors.push(`${p}width: must be a number`);
-  }
-  checkBool(c.start_collapsed, `${p}start_collapsed`, errors);
-  checkBool(c.hide_on_mobile, `${p}hide_on_mobile`, errors);
-  validateRegion(config.header, `${p}header`, errors);
-  validateRegion(config.body, `${p}body`, errors);
-  if (config.header === undefined && config.body === undefined) {
-    errors.push(`${label}: needs a header or body with at least one block`);
-  }
-  validateFooter(config.footer, `${p}footer`, errors);
-}
-
-/**
- * Validates a single sidebar config and returns every problem, for the element
- * to surface in its error panel. Empty when valid.
- */
-export function validateSidebar(config: SidebarConfig): string[] {
-  const errors: string[] = [];
-  validateSidebarInto(config, '', errors);
-  return errors;
-}
-
-/**
- * Validates the full `dashboard_sidebar` container (left and/or right) and
- * returns every problem found. The list is empty when valid.
+ * Validates a full sidebar config and returns every problem found, so the
+ * element can surface them all at once. The list is empty when valid.
  */
 export function validateConfig(config: DashboardSidebarConfig): string[] {
   const errors: string[] = [];
   if (!config || typeof config !== 'object') {
     return ['dashboard_sidebar: config must be a mapping'];
   }
+  const c = config as unknown as Record<string, unknown>;
   unknownKeys(config, TOP_KEYS, 'dashboard_sidebar', errors);
-  if (config.left === undefined && config.right === undefined) {
-    errors.push('dashboard_sidebar: needs a left or right sidebar');
+  if (config.position !== undefined && config.position !== 'left' && config.position !== 'right') {
+    errors.push('position: must be "left" or "right"');
   }
-  if (config.left !== undefined) {
-    validateSidebarInto(config.left, 'left', errors);
+  if (config.width !== undefined && typeof config.width !== 'number') {
+    errors.push('width: must be a number');
   }
-  if (config.right !== undefined) {
-    validateSidebarInto(config.right, 'right', errors);
+  checkBool(c.start_collapsed, 'start_collapsed', errors);
+  checkBool(c.hide_on_mobile, 'hide_on_mobile', errors);
+  validateRegion(config.header, 'header', errors);
+  validateRegion(config.body, 'body', errors);
+  if (config.header === undefined && config.body === undefined) {
+    errors.push('dashboard_sidebar: needs a header or body with at least one block');
   }
+  validateFooter(config.footer, 'footer', errors);
   return errors;
 }

@@ -1,11 +1,11 @@
 import { expect, fixture, html } from '@open-wc/testing';
 
 import type { DashboardSidebar } from './dashboard-sidebar';
-import type { SidebarConfig } from './lib/types';
+import type { DashboardSidebarConfig } from './lib/types';
 import './dashboard-sidebar';
 
 /** Mounts a fresh element with the given config and waits for its render. */
-async function mount(config: SidebarConfig): Promise<DashboardSidebar> {
+async function mount(config: DashboardSidebarConfig): Promise<DashboardSidebar> {
   const el = await fixture<DashboardSidebar>(html`<dashboard-sidebar></dashboard-sidebar>`);
   el.setConfig(config);
   await el.updateComplete;

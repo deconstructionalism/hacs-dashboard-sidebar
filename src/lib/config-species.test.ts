@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import type { SidebarConfig } from './types';
-import { validateSidebar } from './validate';
+import type { DashboardSidebarConfig } from './types';
+import { validateConfig } from './validate';
 
-describe('validateSidebar — every block and option together', () => {
+describe('validateConfig — every block and option together', () => {
   it('accepts a config exercising every block type and option', () => {
-    const config: SidebarConfig = {
+    const config: DashboardSidebarConfig = {
       width: 300,
       start_collapsed: false,
       hide_on_mobile: true,
@@ -47,14 +47,14 @@ describe('validateSidebar — every block and option together', () => {
       },
       card_mod: { style: '.x {}' },
     };
-    expect(validateSidebar(config)).toHaveLength(0);
+    expect(validateConfig(config)).toHaveLength(0);
   });
 
   it('accepts a footer card in place of buttons', () => {
-    const config: SidebarConfig = {
+    const config: DashboardSidebarConfig = {
       body: [{ type: 'item', title: 'A', tap_action: { action: 'toggle' } }],
       footer: { card: { type: 'gauge', entity: 'sensor.x' } },
     };
-    expect(validateSidebar(config)).toHaveLength(0);
+    expect(validateConfig(config)).toHaveLength(0);
   });
 });

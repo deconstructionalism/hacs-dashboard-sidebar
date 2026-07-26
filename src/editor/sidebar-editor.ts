@@ -14,6 +14,7 @@ import type {
 } from '../lib/types';
 import type { DashboardSidebar } from '../dashboard-sidebar';
 import '../dashboard-sidebar';
+import { DEFAULT_WIDTH } from '../lib/const';
 import { validateConfig } from '../lib/validate';
 import { defaultBlock, defaultFooterButton } from './arrange';
 import { makeSortable } from './sortable';
@@ -461,9 +462,19 @@ export class DashboardSidebarEditor extends LitElement {
           ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
           ${this._renderSelectedForm()}
         </div>
-        <div class="preview">${this._renderRegionPreview(region)}</div>
+        <div class="preview" style="--dsb-w: ${this._previewWidth}px">
+          <div class="pv-frame">${this._renderRegionPreview(region)}</div>
+        </div>
       </div>
     `;
+  }
+
+  /**
+   * The width, in px, at which to render the preview column so it mirrors the
+   * configured (or default) sidebar width.
+   */
+  private get _previewWidth(): number {
+    return this._working.width ?? DEFAULT_WIDTH;
   }
 
   /**
@@ -574,10 +585,12 @@ export class DashboardSidebarEditor extends LitElement {
               (v) => this._setFooterCard(v),
             )}
           </div>
-          <div class="preview">
-            ${this._previewEl('footer-card', {
-              footer: { card: footer?.card ?? '', divider: false },
-            })}
+          <div class="preview" style="--dsb-w: ${this._previewWidth}px">
+            <div class="pv-frame">
+              ${this._previewEl('footer-card', {
+                footer: { card: footer?.card ?? '', divider: false },
+              })}
+            </div>
           </div>
         </div>
       `;
@@ -590,15 +603,17 @@ export class DashboardSidebarEditor extends LitElement {
           <button class="add-btn" @click=${() => this._addFooterButton()}>＋ Add button</button>
           ${this._renderSelectedForm()}
         </div>
-        <div class="preview">
-          <div class="pv-list" data-sort="footer">
-            ${repeat(
-              buttons,
-              (btn) => this._idFor(btn),
-              (btn) => this._renderFooterNode(btn),
-            )}
+        <div class="preview" style="--dsb-w: ${this._previewWidth}px">
+          <div class="pv-frame">
+            <div class="pv-list" data-sort="footer">
+              ${repeat(
+                buttons,
+                (btn) => this._idFor(btn),
+                (btn) => this._renderFooterNode(btn),
+              )}
+            </div>
+            ${buttons.length === 0 ? html`<p class="hint">No buttons yet.</p>` : nothing}
           </div>
-          ${buttons.length === 0 ? html`<p class="hint">No buttons yet.</p>` : nothing}
         </div>
       </div>
     `;
@@ -906,7 +921,17 @@ export class DashboardSidebarEditor extends LitElement {
     .preview {
       flex: 1 1 58%;
       min-width: 0;
-      padding: 8px;
+      /* Left gutter holds the drag handles outside the width-accurate frame. */
+      padding: 4px 4px 4px 26px;
+      overflow-x: auto;
+    }
+
+    /* Renders the region at the configured sidebar width so content wraps and
+       truncates exactly as it will in the real sidebar. */
+    .pv-frame {
+      width: var(--dsb-w, 240px);
+      box-sizing: border-box;
+      padding: 8px 0;
       border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
       border-radius: 10px;
       background: var(--card-background-color, #fff);
@@ -943,6 +968,10 @@ export class DashboardSidebarEditor extends LitElement {
 
     .drag,
     .idrag {
+      position: absolute;
+      left: -20px;
+      top: 50%;
+      transform: translateY(-50%);
       cursor: grab;
       opacity: 0.4;
       user-select: none;
@@ -950,9 +979,9 @@ export class DashboardSidebarEditor extends LitElement {
 
     .pv-node,
     .pv-cat-head {
+      position: relative;
       display: flex;
       align-items: center;
-      gap: 6px;
       padding: 2px 4px;
       border: 2px solid transparent;
       border-radius: 8px;

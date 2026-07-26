@@ -35,7 +35,9 @@ export const baseStyles = css`
   :host([preview]) .sidebar,
   :host([preview]) .sidebar.preview {
     height: auto;
-    padding: 0;
+    /* Keep the real horizontal inset so content sits where it will in the live
+       sidebar, but no vertical padding so stacked previews stay compact. */
+    padding: 0 12px;
     pointer-events: none;
   }
 

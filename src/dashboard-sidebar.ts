@@ -360,6 +360,7 @@ export class DashboardSidebar extends LitElement {
     }
     this._openCategory = null;
     this._footerOpen = true;
+    this._tooltip = null;
     this._popoverAnchor = (ev.currentTarget as HTMLElement).getBoundingClientRect();
   }
 
@@ -429,6 +430,7 @@ export class DashboardSidebar extends LitElement {
     }
     this._footerOpen = false;
     this._openCategory = key;
+    this._tooltip = null;
     this._popoverAnchor = (ev.currentTarget as HTMLElement).getBoundingClientRect();
   }
 
@@ -485,8 +487,7 @@ export class DashboardSidebar extends LitElement {
    * Renders the hover tooltip for a collapsed row, fixed to the viewport.
    */
   private _renderTooltip(): TemplateResult | typeof nothing {
-    // Never cover an open popover; the dots tooltip would otherwise sit on top.
-    if (!this._tooltip || this._footerOpen || this._openCategory !== null) {
+    if (!this._tooltip) {
       return nothing;
     }
     return html`<div
@@ -760,7 +761,11 @@ export class DashboardSidebar extends LitElement {
         <button
           class="row item collapsed-row dashboard-sidebar-item ${open ? 'active' : ''}"
           aria-label=${title}
-          @mouseenter=${(ev: MouseEvent) => this._showTip(ev, title)}
+          @mouseenter=${(ev: MouseEvent) => {
+            if (!open) {
+              this._showTip(ev, title);
+            }
+          }}
           @mouseleave=${this._hideTip}
           @click=${(ev: Event) => {
             ev.stopPropagation();
@@ -868,7 +873,11 @@ export class DashboardSidebar extends LitElement {
       <button
         class="${cls} ${this._footerOpen ? 'active' : ''}"
         aria-label="More"
-        @mouseenter=${(ev: MouseEvent) => this._showTip(ev, 'More')}
+        @mouseenter=${(ev: MouseEvent) => {
+          if (!this._footerOpen) {
+            this._showTip(ev, 'More');
+          }
+        }}
         @mouseleave=${this._hideTip}
         @click=${(ev: Event) => {
           ev.stopPropagation();

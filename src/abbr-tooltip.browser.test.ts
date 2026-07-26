@@ -112,4 +112,23 @@ describe('collapsed abbr and tooltip', () => {
     expect(root(el).querySelector('.dashboard-sidebar-footer-popover')).to.exist;
     expect(root(el).querySelector('.dashboard-sidebar-tooltip')).to.not.exist;
   });
+
+  it('shows tooltips for buttons inside the open footer popover', async () => {
+    const el = await mount({
+      start_collapsed: true,
+      body: [{ type: 'item', title: 'A', tap_action: TAP }],
+      footer: { buttons: [{ icon: 'mdi:cog', title: 'Settings', tap_action: TAP }] },
+    });
+    const dots = root(el).querySelector('.dashboard-sidebar-footer-more') as HTMLElement;
+    dots.click();
+    await el.updateComplete;
+    const popBtn = root(el).querySelector(
+      '.dashboard-sidebar-footer-popover .dashboard-sidebar-footer-btn',
+    ) as HTMLElement;
+    popBtn.dispatchEvent(new MouseEvent('mouseenter'));
+    await el.updateComplete;
+    expect(root(el).querySelector('.dashboard-sidebar-tooltip')?.textContent?.trim()).to.equal(
+      'Settings',
+    );
+  });
 });

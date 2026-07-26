@@ -700,12 +700,12 @@ export class DashboardSidebarEditor extends LitElement {
       display: flex;
       flex-direction: column;
       /* Composite the (often translucent) card color over an opaque base so the
-         dashboard never shows through the modal. */
+         dashboard never shows through the modal, plus the surface tint on top so
+         the modal is the tinted colour and the tab/content area is the base. */
       background-color: var(--primary-background-color, #fff);
-      background-image: linear-gradient(
-        var(--card-background-color, #fff),
-        var(--card-background-color, #fff)
-      );
+      background-image:
+        linear-gradient(var(--dsb-surface), var(--dsb-surface)),
+        linear-gradient(var(--card-background-color, #fff), var(--card-background-color, #fff));
       border-radius: 12px;
       box-shadow: 0 8px 40px rgb(0 0 0 / 40%);
       overflow: hidden;
@@ -726,7 +726,11 @@ export class DashboardSidebarEditor extends LitElement {
     .content {
       padding: 12px;
       overflow-y: auto;
-      background: var(--dsb-surface);
+      background-color: var(--primary-background-color, #fff);
+      background-image: linear-gradient(
+        var(--card-background-color, #fff),
+        var(--card-background-color, #fff)
+      );
     }
 
     .tabs {
@@ -748,7 +752,11 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     .tab.active {
-      background: var(--dsb-surface);
+      background-color: var(--primary-background-color, #fff);
+      background-image: linear-gradient(
+        var(--card-background-color, #fff),
+        var(--card-background-color, #fff)
+      );
       opacity: 1;
       font-weight: 600;
     }
@@ -960,7 +968,6 @@ export class DashboardSidebarEditor extends LitElement {
       justify-content: flex-end;
       gap: 8px;
       padding: 10px 12px;
-      border-top: 1px solid var(--divider-color, rgb(0 0 0 / 12%));
     }
 
     footer button {

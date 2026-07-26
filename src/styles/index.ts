@@ -1,6 +1,5 @@
 import { baseStyles } from './base';
 import { contentStyles } from './content';
-import { editStyles } from './edit';
 import { errorStyles } from './errors';
 import { footerStyles } from './footer';
 import { headerStyles } from './header';
@@ -20,5 +19,4 @@ export const sidebarStyles = [
   menuStyles,
   footerStyles,
   errorStyles,
-  editStyles,
 ];

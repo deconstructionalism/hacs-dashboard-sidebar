@@ -23,13 +23,6 @@ const ADD_BUTTON_ID = 'dashboard-sidebar-add';
 /** A starter sidebar seeded when the user adds one to a bare dashboard. */
 const STARTER: DashboardSidebarConfig = { position: 'left', body: [] };
 
-/**
- * Until this timestamp, skip reconciling the sidebar from lovelace.config: an
- * in-place edit we just saved is still round-tripping, and the element already
- * shows the new config.
- */
-let suppressReconcileUntil = 0;
-
 /** An element that may expose a shadow root, or null. */
 type AnyEl = (Element & { shadowRoot?: ShadowRoot | null }) | null;
 
@@ -300,9 +293,6 @@ function ensureSidebar(): void {
     const element = wrapper.querySelector('dashboard-sidebar') as DashboardSidebar | null;
 
     if (wrapper.dataset.cfg !== JSON.stringify(config ?? null)) {
-      if (Date.now() < suppressReconcileUntil) {
-        return;
-      }
       const sameStructure = Boolean(
         config && element && wrapper.dataset.struct === structureKey(config),
       );
@@ -342,11 +332,6 @@ export function startSidebar(): void {
     const huiRoot = getHuiRoot();
     if (huiRoot && config) {
       saveConfig(huiRoot, config);
-      const wrapper = huiRoot.shadowRoot.getElementById(WRAPPER_ID);
-      if (wrapper) {
-        wrapper.dataset.cfg = JSON.stringify(config);
-      }
-      suppressReconcileUntil = Date.now() + 1500;
     }
   });
   window.setInterval(ensureSidebar, 1000);

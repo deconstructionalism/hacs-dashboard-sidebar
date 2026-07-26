@@ -4,6 +4,9 @@ import { css } from 'lit';
 export const headerStyles = css`
   .header {
     margin-bottom: 16px;
+    /* Match the horizontal inset of the menu rows so the title, clock, and
+       date line up with the item icons rather than the sidebar edge. */
+    padding: 0 12px;
     text-align: center;
   }
 

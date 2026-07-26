@@ -372,11 +372,13 @@ export class DashboardSidebar extends LitElement {
   }
 
   /**
-   * Shows the hover tooltip for a collapsed row, anchored to the row. HA tends
-   * to suppress native title tooltips, so this provides a reliable one.
+   * Shows the hover tooltip for an icon-only control, anchored to it. HA tends
+   * to suppress native title tooltips, so this provides a reliable one. Only
+   * controls that attach the handler (collapsed rows and footer buttons) use
+   * it; labelled expanded rows do not.
    */
   private _showTip(ev: MouseEvent, text: string): void {
-    if (!this._collapsed || !text) {
+    if (!text) {
       return;
     }
     this._tooltip = { text, rect: (ev.currentTarget as HTMLElement).getBoundingClientRect() };
@@ -463,7 +465,7 @@ export class DashboardSidebar extends LitElement {
         </button>
         ${this._renderRegion('header', cfg.header, collapsed, 'region-header dashboard-sidebar-header')}
         ${this._renderRegion('body', cfg.body, collapsed, 'region-body dashboard-sidebar-body')}
-        ${this._renderFooter(collapsed)} ${collapsed ? this._renderTooltip() : nothing}
+        ${this._renderFooter(collapsed)} ${this._renderTooltip()}
       </div>
     `;
   }
@@ -823,7 +825,9 @@ export class DashboardSidebar extends LitElement {
     return html`
       <button
         class="${cls} ${this._footerOpen ? 'active' : ''}"
-        title="More"
+        aria-label="More"
+        @mouseenter=${(ev: MouseEvent) => this._showTip(ev, 'More')}
+        @mouseleave=${this._hideTip}
         @click=${(ev: Event) => {
           ev.stopPropagation();
           this._toggleFooter(ev);
@@ -860,7 +864,9 @@ export class DashboardSidebar extends LitElement {
     return html`
       <button
         class="footer-btn dashboard-sidebar-footer-btn"
-        title=${title}
+        aria-label=${title}
+        @mouseenter=${(ev: MouseEvent) => this._showTip(ev, title)}
+        @mouseleave=${this._hideTip}
         @click=${() => this._runAction(btn)}
       >
         <ha-icon

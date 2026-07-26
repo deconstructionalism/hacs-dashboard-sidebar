@@ -63,11 +63,38 @@ describe('collapsed abbr and tooltip', () => {
     expect(root(el).querySelector('.dashboard-sidebar-tooltip')).to.not.exist;
   });
 
-  it('shows no tooltip when the sidebar is expanded', async () => {
+  it('shows no tooltip when hovering a labelled expanded item', async () => {
     const el = await mount({ body: [{ type: 'item', title: 'Kitchen', tap_action: TAP }] });
     const btn = root(el).querySelector('.dashboard-sidebar-item') as HTMLElement;
     btn.dispatchEvent(new MouseEvent('mouseenter'));
     await el.updateComplete;
     expect(root(el).querySelector('.dashboard-sidebar-tooltip')).to.not.exist;
+  });
+
+  it('shows a tooltip on a footer button in the expanded state', async () => {
+    const el = await mount({
+      body: [{ type: 'item', title: 'A', tap_action: TAP }],
+      footer: { buttons: [{ icon: 'mdi:cog', title: 'Settings', tap_action: TAP }] },
+    });
+    const btn = root(el).querySelector('.dashboard-sidebar-footer-btn') as HTMLElement;
+    btn.dispatchEvent(new MouseEvent('mouseenter'));
+    await el.updateComplete;
+    expect(root(el).querySelector('.dashboard-sidebar-tooltip')?.textContent?.trim()).to.equal(
+      'Settings',
+    );
+  });
+
+  it('shows a tooltip on the footer ellipsis in the collapsed state', async () => {
+    const el = await mount({
+      start_collapsed: true,
+      body: [{ type: 'item', title: 'A', tap_action: TAP }],
+      footer: { buttons: [{ icon: 'mdi:cog', tap_action: TAP }] },
+    });
+    const dots = root(el).querySelector('.dashboard-sidebar-footer-more') as HTMLElement;
+    dots.dispatchEvent(new MouseEvent('mouseenter'));
+    await el.updateComplete;
+    expect(root(el).querySelector('.dashboard-sidebar-tooltip')?.textContent?.trim()).to.equal(
+      'More',
+    );
   });
 });

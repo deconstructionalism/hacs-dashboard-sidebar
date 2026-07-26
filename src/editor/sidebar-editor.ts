@@ -678,6 +678,10 @@ export class DashboardSidebarEditor extends LitElement {
       z-index: 100;
       font-family: var(--ha-font-family-body, sans-serif);
       color: var(--primary-text-color, #212121);
+
+      /* A subtly distinct surface shared by the active tab and the content
+         area, so the two read as one region against the modal background. */
+      --dsb-surface: color-mix(in srgb, var(--primary-text-color, #212121) 6%, transparent);
     }
 
     .backdrop {
@@ -722,6 +726,7 @@ export class DashboardSidebarEditor extends LitElement {
     .content {
       padding: 12px;
       overflow-y: auto;
+      background: var(--dsb-surface);
     }
 
     .tabs {
@@ -729,14 +734,12 @@ export class DashboardSidebarEditor extends LitElement {
       gap: 4px;
       padding: 8px 12px 0;
       flex-wrap: wrap;
-      border-bottom: 1px solid var(--divider-color, rgb(0 0 0 / 12%));
     }
 
     .tab {
-      position: relative;
       font: inherit;
       padding: 6px 12px;
-      border: 1px solid transparent;
+      border: none;
       border-radius: 8px 8px 0 0;
       background: transparent;
       color: inherit;
@@ -745,21 +748,9 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     .tab.active {
-      border-color: var(--divider-color, rgb(0 0 0 / 12%)) var(--divider-color, rgb(0 0 0 / 12%))
-        transparent var(--divider-color, rgb(0 0 0 / 12%));
+      background: var(--dsb-surface);
       opacity: 1;
       font-weight: 600;
-    }
-
-    /* Cover the bar line only under the active tab so it connects to content. */
-    .tab.active::after {
-      content: '';
-      position: absolute;
-      right: 0;
-      bottom: -1px;
-      left: 0;
-      height: 2px;
-      background: var(--card-background-color, #fff);
     }
 
     .settings {

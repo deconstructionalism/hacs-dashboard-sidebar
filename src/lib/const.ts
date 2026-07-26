@@ -18,3 +18,9 @@ export const STORAGE_PREFIX = 'dashboard-sidebar-collapsed';
  * collapsed state flips, so the injected chrome can resize the wrapper.
  */
 export const TOGGLE_EVENT = 'dashboard-sidebar-toggle';
+
+/**
+ * Name of the bubbling, composed event the element fires when its edit button
+ * is pressed, so the bootstrap can open the editor for that side.
+ */
+export const EDIT_EVENT = 'dashboard-sidebar-edit';

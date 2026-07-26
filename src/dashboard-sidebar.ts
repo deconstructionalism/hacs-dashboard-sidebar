@@ -5,7 +5,7 @@ import { classMap } from 'lit/directives/class-map.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import { applyCardMod } from './lib/card-mod';
-import { STORAGE_PREFIX, TOGGLE_EVENT } from './lib/const';
+import { EDIT_EVENT, STORAGE_PREFIX, TOGGLE_EVENT } from './lib/const';
 import {
   formatClock,
   formatCollapsedClock,
@@ -58,6 +58,9 @@ export class DashboardSidebar extends LitElement {
 
   /** Which side this sidebar docks to, set by the bootstrap. */
   @property({ attribute: false }) public side: SidebarPosition = 'left';
+
+  /** Whether the dashboard is in edit mode, which reveals the edit button. */
+  @property({ attribute: false }) public editMode = false;
 
   /** The validated configuration, or undefined before setConfig runs. */
   @state() private _config?: SidebarConfig;
@@ -320,6 +323,19 @@ export class DashboardSidebar extends LitElement {
   }
 
   /**
+   * Fires the edit event so the bootstrap opens the editor for this side.
+   */
+  private _openEditor(): void {
+    this.dispatchEvent(
+      new CustomEvent(EDIT_EVENT, {
+        detail: { side: this.side },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  /**
    * Toggles the collapsed state, closes popovers, and persists the choice.
    */
   private _toggleCollapse(): void {
@@ -468,6 +484,17 @@ export class DashboardSidebar extends LitElement {
         >
           <ha-icon icon="mdi:chevron-left"></ha-icon>
         </button>
+        ${
+          this.editMode
+            ? html`<button
+                class="edit-btn dashboard-sidebar-edit"
+                title="Edit sidebar"
+                @click=${this._openEditor}
+              >
+                <ha-icon icon="mdi:pencil"></ha-icon>
+              </button>`
+            : nothing
+        }
         ${this._renderRegion('header', cfg.header, collapsed, 'region-header dashboard-sidebar-header')}
         ${this._renderRegion('body', cfg.body, collapsed, 'region-body dashboard-sidebar-body')}
         ${this._renderFooter(collapsed)} ${this._renderTooltip()}

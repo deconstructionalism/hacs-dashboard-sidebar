@@ -136,6 +136,9 @@ export interface CardBlock extends BlockCommon {
 export type SidebarBlock =
   TitleBlock | ClockBlock | DateBlock | DividerBlock | ItemBlock | CategoryBlock | CardBlock;
 
+/** The discriminator value of every block kind. */
+export type BlockType = 'title' | 'clock' | 'date' | 'divider' | 'item' | 'category' | 'card';
+
 /** An icon button in the footer's button bar. */
 export interface FooterButtonConfig extends BlockCommon {
   /** mdi icon shown in the button. Templatable. */

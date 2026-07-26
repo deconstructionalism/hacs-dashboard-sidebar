@@ -74,6 +74,35 @@ export const baseStyles = css`
     transform: rotate(0deg);
   }
 
+  .edit-btn {
+    position: absolute;
+    top: 16px;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid var(--divider-color, rgb(0 0 0 / 12%));
+    border-radius: 50%;
+    background: var(--card-background-color, var(--primary-background-color, #fff));
+    color: var(--primary-text-color, #000);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 6;
+  }
+
+  .pos-left .edit-btn {
+    left: 8px;
+  }
+
+  .pos-right .edit-btn {
+    right: 8px;
+  }
+
+  .edit-btn ha-icon {
+    --mdc-icon-size: 16px;
+  }
+
   ha-icon {
     color: var(--paper-item-icon-color, var(--primary-text-color, #000));
   }

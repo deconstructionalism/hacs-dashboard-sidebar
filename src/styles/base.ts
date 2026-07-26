@@ -41,6 +41,11 @@ export const baseStyles = css`
     pointer-events: none;
   }
 
+  /* Collapsed preview sits in a narrow icon-strip frame, so drop the inset. */
+  :host([preview]) .sidebar.collapsed {
+    padding: 0;
+  }
+
   :host([preview]) .region-header {
     margin-bottom: 0;
   }

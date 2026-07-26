@@ -199,4 +199,27 @@ describe('<dashboard-sidebar-editor>', () => {
     (root(el).querySelector('.danger-btn') as HTMLButtonElement).click();
     expect(closed).to.equal(true);
   });
+
+  it('shows a Preview header and toggles the collapsed look', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Content');
+    expect(root(el).querySelector('.preview-title')?.textContent?.trim()).to.equal('Preview');
+    expect(root(el).querySelector('.pv-frame.collapsed')).to.not.exist;
+    (root(el).querySelector('.pv-toggle') as HTMLButtonElement).click();
+    await el.updateComplete;
+    expect(root(el).querySelector('.pv-frame.collapsed')).to.exist;
+  });
+
+  it('toggles the footer top divider bar', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Footer');
+    let saved: DashboardSidebarConfig | undefined;
+    el.onSave = (c) => {
+      saved = c;
+    };
+    (root(el).querySelector('.editor input[type="checkbox"]') as HTMLInputElement).click();
+    await el.updateComplete;
+    (root(el).querySelector('footer .primary') as HTMLButtonElement).click();
+    expect(saved?.footer?.divider).to.equal(false);
+  });
 });

@@ -65,6 +65,9 @@ export class DashboardSidebar extends LitElement {
    */
   @property({ type: Boolean, reflect: true }) public preview = false;
 
+  /** In preview mode, whether to render the collapsed (icon-strip) look. */
+  @property({ attribute: false }) public previewCollapsed = false;
+
   /** The validated configuration, or undefined before setConfig runs. */
   @state() private _config?: DashboardSidebarConfig;
 
@@ -477,7 +480,7 @@ export class DashboardSidebar extends LitElement {
     if (!this._config) {
       return html``;
     }
-    const collapsed = this.preview ? false : this._collapsed;
+    const collapsed = this.preview ? this.previewCollapsed : this._collapsed;
     const cfg = this._config;
     const classes = {
       sidebar: true,

@@ -79,6 +79,9 @@ export class DashboardSidebarEditor extends LitElement {
   /** Whether the unsaved-changes exit confirmation is showing. */
   @state() private _confirmingClose = false;
 
+  /** Whether the preview shows the collapsed (icon-strip) look. */
+  @state() private _previewCollapsed = false;
+
   /** Validation errors from the last save attempt. */
   @state() private _errors: string[] = [];
 
@@ -349,10 +352,21 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Switches the footer between button and custom-component mode.
+   * Switches the footer between button and custom-component mode, keeping the
+   * divider setting.
    */
   private _setFooterMode(card: boolean): void {
-    this._working.footer = card ? { card: '' } : { buttons: [] };
+    const divider = this._working.footer?.divider;
+    this._working.footer = card ? { card: '', divider } : { buttons: [], divider };
+    this._touch();
+  }
+
+  /**
+   * Toggles the footer's top divider bar.
+   */
+  private _setFooterDivider(show: boolean): void {
+    const footer = this._working.footer ?? (this._working.footer = {});
+    footer.divider = show;
     this._touch();
   }
 
@@ -399,7 +413,7 @@ export class DashboardSidebarEditor extends LitElement {
         card = value;
       }
     }
-    this._working.footer = { card };
+    this._working.footer = { card, divider: this._working.footer?.divider };
     this._touch();
   }
 
@@ -564,9 +578,39 @@ export class DashboardSidebarEditor extends LitElement {
           ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
           ${this._renderSelectedForm()}
         </div>
-        <div class="preview">
-          <div class="pv-frame">${this._renderRegionPreview(region)}</div>
+        ${this._renderPreview(this._renderRegionPreview(region))}
+      </div>
+    `;
+  }
+
+  /**
+   * Wraps preview content in the preview column: a "Preview" heading with an
+   * expand/collapse toggle, and the sidebar frame (narrowed when collapsed) so
+   * the user can see both the expanded and collapsed looks.
+   */
+  private _renderPreview(content: TemplateResult): TemplateResult {
+    return html`
+      <div class="preview">
+        <div class="preview-head">
+          <span class="preview-title">Preview</span>
+          <button
+            class="pv-toggle"
+            title=${this._previewCollapsed ? 'Show expanded' : 'Show collapsed'}
+            aria-label=${this._previewCollapsed ? 'Show expanded' : 'Show collapsed'}
+            @click=${() => {
+              this._previewCollapsed = !this._previewCollapsed;
+            }}
+          >
+            <ha-icon
+              icon=${
+                this._previewCollapsed
+                  ? 'mdi:arrow-expand-horizontal'
+                  : 'mdi:arrow-collapse-horizontal'
+              }
+            ></ha-icon>
+          </button>
         </div>
+        <div class="pv-frame ${this._previewCollapsed ? 'collapsed' : ''}">${content}</div>
       </div>
     `;
   }
@@ -659,7 +703,7 @@ export class DashboardSidebarEditor extends LitElement {
   private _renderFooterTab(): TemplateResult {
     const footer = this._working.footer;
     const cardMode = footer?.card !== undefined;
-    const modes = html`
+    const controls = html`
       <div class="modes">
         <button class="mode ${cardMode ? '' : 'sel'}" @click=${() => this._setFooterMode(false)}>
           Buttons
@@ -668,12 +712,13 @@ export class DashboardSidebarEditor extends LitElement {
           Component
         </button>
       </div>
+      ${checkboxField('Top divider bar', footer?.divider ?? true, (v) => this._setFooterDivider(v))}
     `;
     if (cardMode) {
       return html`
         <div class="split">
           <div class="editor">
-            ${modes}
+            ${controls}
             ${areaField(
               'Card (markdown or JSON)',
               typeof footer?.card === 'string'
@@ -682,13 +727,11 @@ export class DashboardSidebarEditor extends LitElement {
               (v) => this._setFooterCard(v),
             )}
           </div>
-          <div class="preview">
-            <div class="pv-frame">
-              ${this._previewEl('footer-card', {
-                footer: { card: footer?.card ?? '', divider: false },
-              })}
-            </div>
-          </div>
+          ${this._renderPreview(
+            this._previewEl('footer-card', {
+              footer: { card: footer?.card ?? '', divider: false },
+            }),
+          )}
         </div>
       `;
     }
@@ -696,22 +739,20 @@ export class DashboardSidebarEditor extends LitElement {
     return html`
       <div class="split">
         <div class="editor">
-          ${modes}
+          ${controls}
           <button class="add-btn" @click=${() => this._addFooterButton()}>＋ Add button</button>
           ${this._renderSelectedForm()}
         </div>
-        <div class="preview">
-          <div class="pv-frame">
-            <div class="pv-list" data-sort="footer">
-              ${repeat(
-                buttons,
-                (btn) => this._idFor(btn),
-                (btn) => this._renderFooterNode(btn),
-              )}
-            </div>
-            ${buttons.length === 0 ? html`<p class="hint">No buttons yet.</p>` : nothing}
+        ${this._renderPreview(html`
+          <div class="pv-list" data-sort="footer">
+            ${repeat(
+              buttons,
+              (btn) => this._idFor(btn),
+              (btn) => this._renderFooterNode(btn),
+            )}
           </div>
-        </div>
+          ${buttons.length === 0 ? html`<p class="hint">No buttons yet.</p>` : nothing}
+        `)}
       </div>
     `;
   }
@@ -820,6 +861,7 @@ export class DashboardSidebarEditor extends LitElement {
       this._previews.set(id, el);
     }
     el.hass = this.hass;
+    el.previewCollapsed = this._previewCollapsed;
     const key = JSON.stringify(config);
     if (this._previewCfg.get(el) !== key) {
       el.setConfig(config);
@@ -1030,12 +1072,54 @@ export class DashboardSidebarEditor extends LitElement {
       min-width: 0;
     }
 
+    .preview-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .preview-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.6;
+    }
+
+    .pv-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+
+    .pv-toggle:hover {
+      opacity: 1;
+      background: var(--secondary-background-color, rgb(0 0 0 / 6%));
+    }
+
+    .pv-toggle ha-icon {
+      --mdc-icon-size: 18px;
+    }
+
     .pv-frame {
       box-sizing: border-box;
       padding: 8px 0;
       border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
       border-radius: 10px;
       background: var(--card-background-color, #fff);
+    }
+
+    /* Collapsed preview: narrow to the icon-strip width so it reads like the
+       real collapsed sidebar. */
+    .pv-frame.collapsed {
+      width: 76px;
     }
 
     /* Each block preview renders at its natural height so previews stack tightly

@@ -4,10 +4,10 @@ import type { DashboardSidebarConfig } from './types';
 import { validateConfig } from './validate';
 
 /**
- * A minimal valid config the individual cases mutate into invalid shapes.
+ * A minimal valid config the cases mutate into invalid shapes.
  */
 const valid = (): DashboardSidebarConfig => ({
-  items: [{ title: 'Home', icon: 'mdi:home', tap_action: { action: 'toggle' } }],
+  body: [{ type: 'item', title: 'Home', tap_action: { action: 'toggle' } }],
 });
 
 describe('validateConfig', () => {
@@ -21,75 +21,106 @@ describe('validateConfig', () => {
     ]);
   });
 
-  it('flags unknown top-level and item keys', () => {
+  it('requires a header or body', () => {
+    expect(validateConfig({})).toContain(
+      'dashboard_sidebar: needs a header or body with at least one block',
+    );
+  });
+
+  it('flags unknown top-level keys and non-list regions', () => {
     expect(validateConfig({ ...valid(), bogus: 1 } as DashboardSidebarConfig)).toContain(
       'dashboard_sidebar: unknown option "bogus"',
     );
-    const badItem = {
-      items: [{ title: 'A', tap_action: { action: 'toggle' }, foo: 1 }],
-    } as unknown as DashboardSidebarConfig;
-    expect(validateConfig(badItem)).toContain('items[0]: unknown option "foo"');
+    expect(validateConfig({ body: 'nope' } as unknown as DashboardSidebarConfig)).toContain(
+      'body: must be a list',
+    );
   });
 
-  it('checks enums and numeric types', () => {
+  it('checks global enums and types', () => {
     expect(
       validateConfig({ ...valid(), position: 'up' } as unknown as DashboardSidebarConfig),
     ).toContain('position: must be "left" or "right"');
     expect(
       validateConfig({ ...valid(), width: '240' } as unknown as DashboardSidebarConfig),
     ).toContain('width: must be a number');
+  });
+
+  it('requires a valid block type and flags unknown block keys', () => {
     expect(
-      validateConfig({ ...valid(), header_align: 'middle' } as unknown as DashboardSidebarConfig),
-    ).toContain('header_align: must be left, center, or right');
+      validateConfig({ body: [{ text: 'x' }] } as unknown as DashboardSidebarConfig),
+    ).toContain('body[0]: needs a valid type (title, clock, date, divider, item, category, card)');
     expect(
       validateConfig({
-        ...valid(),
-        collapsed_clock_format: '48h',
+        header: [{ type: 'title', text: 'x', foo: 1 }],
       } as unknown as DashboardSidebarConfig),
-    ).toContain('collapsed_clock_format: must be "12h" or "24h"');
+    ).toContain('header[0]: unknown option "foo"');
   });
 
-  it('enforces the token domain per format field', () => {
-    expect(validateConfig({ ...valid(), clock_format: '%Y' })).toContain(
-      'clock_format: only allows time tokens, not %Y',
-    );
-    expect(validateConfig({ ...valid(), date_format: '%H' })).toContain(
-      'date_format: only allows date tokens, not %H',
-    );
-    expect(validateConfig({ ...valid(), clock_format: '%H:%M:%S' })).toHaveLength(0);
-    expect(validateConfig({ ...valid(), date_format: '%A, %B %-d' })).toHaveLength(0);
+  it('validates title, clock, and date blocks', () => {
+    expect(
+      validateConfig({ header: [{ type: 'title' }] } as unknown as DashboardSidebarConfig),
+    ).toContain('header[0]: title needs text');
+    expect(
+      validateConfig({
+        header: [{ type: 'title', text: 'x', align: 'middle' }],
+      } as unknown as DashboardSidebarConfig),
+    ).toContain('header[0].align: must be left, center, or right');
+    expect(
+      validateConfig({ header: [{ type: 'clock', format: '%Y' }] } as DashboardSidebarConfig),
+    ).toContain('header[0].format: only allows time tokens, not %Y');
+    expect(
+      validateConfig({
+        header: [{ type: 'clock', collapsed_format: '48h' }],
+      } as unknown as DashboardSidebarConfig),
+    ).toContain('header[0].collapsed_format: must be "12h" or "24h"');
+    expect(
+      validateConfig({ header: [{ type: 'date', format: '%H' }] } as DashboardSidebarConfig),
+    ).toContain('header[0].format: only allows date tokens, not %H');
   });
 
-  it('validates items, categories, and nesting depth', () => {
-    expect(validateConfig({ items: 'nope' } as unknown as DashboardSidebarConfig)).toContain(
-      'items: must be a list',
-    );
+  it('validates items and category nesting', () => {
     expect(
-      validateConfig({ items: [{ tap_action: { action: 'toggle' } }] } as DashboardSidebarConfig),
-    ).toContain('items[0]: needs a title');
-    expect(validateConfig({ items: [{ title: 'A' }] } as DashboardSidebarConfig)).toContain(
-      'items[0]: needs a tap_action',
-    );
+      validateConfig({
+        body: [{ type: 'item', tap_action: { action: 'toggle' } }],
+      } as DashboardSidebarConfig),
+    ).toContain('body[0]: needs a title');
     expect(
-      validateConfig({ items: [{ title: 'C', items: [] }] } as DashboardSidebarConfig),
-    ).toContain('items[0]: category needs a non-empty items list');
+      validateConfig({ body: [{ type: 'item', title: 'A' }] } as DashboardSidebarConfig),
+    ).toContain('body[0]: needs a tap_action');
+    expect(
+      validateConfig({
+        body: [{ type: 'category', title: 'C', items: [] }],
+      } as DashboardSidebarConfig),
+    ).toContain('body[0]: category needs a non-empty items list');
     const nested = {
-      items: [{ title: 'C', items: [{ title: 'Sub', items: [{ title: 'x', tap_action: {} }] }] }],
+      body: [
+        { type: 'category', title: 'C', items: [{ type: 'category', title: 'S', items: [] }] },
+      ],
     } as unknown as DashboardSidebarConfig;
-    expect(validateConfig(nested)).toContain(
-      'items[0].items[0]: a category can only contain items',
-    );
+    expect(validateConfig(nested)).toContain('body[0].items[0]: a category can only contain items');
   });
 
-  it('validates footer buttons', () => {
+  it('validates card blocks', () => {
     expect(
-      validateConfig({ ...valid(), footer_buttons: {} } as unknown as DashboardSidebarConfig),
-    ).toContain('footer_buttons: must be a list');
+      validateConfig({ body: [{ type: 'card' }] } as unknown as DashboardSidebarConfig),
+    ).toContain('body[0]: card needs a card (markdown string or card config)');
+  });
+
+  it('validates the footer', () => {
     expect(
       validateConfig({
         ...valid(),
-        footer_buttons: [{ tap_action: { action: 'toggle' } }],
+        footer: { buttons: [{ icon: 'mdi:cog', tap_action: { action: 'toggle' } }], card: 'x' },
       } as DashboardSidebarConfig),
-    ).toContain('footer_buttons[0]: needs an icon');
+    ).toContain('footer: set either buttons or card, not both');
+    expect(
+      validateConfig({ ...valid(), footer: { buttons: {} } } as unknown as DashboardSidebarConfig),
+    ).toContain('footer.buttons: must be a list');
+    expect(
+      validateConfig({
+        ...valid(),
+        footer: { buttons: [{ tap_action: { action: 'toggle' } }] },
+      } as DashboardSidebarConfig),
+    ).toContain('footer.buttons[0]: needs an icon');
   });
 });

@@ -9,7 +9,7 @@ export type MaybeTemplate = string;
 /** Which edge of the dashboard view the sidebar docks to. */
 export type SidebarPosition = 'left' | 'right';
 
-/** Horizontal alignment applied to header or content blocks. */
+/** Horizontal alignment applied to a text or card block. */
 export type Align = 'left' | 'center' | 'right';
 
 /**
@@ -27,11 +27,49 @@ export type DateFormat = string;
 /** Collapsed-clock rendering: 24-hour, or 12-hour with no AM/PM suffix. */
 export type CollapsedClockFormat = '12h' | '24h';
 
-/** A single tappable row in the sidebar menu. */
-export interface SidebarItemConfig {
-  /** Entry discriminator; optional because a bare item is the default kind. */
+/** A heading block showing templatable text. Hidden while collapsed. */
+export interface TitleBlock {
+  /** Block discriminator. */
+  type: 'title';
+  /** The heading text. Templatable. */
+  text: MaybeTemplate;
+  /** Horizontal alignment. Default center. */
+  align?: Align;
+}
+
+/** A digital clock block. */
+export interface ClockBlock {
+  /** Block discriminator. */
+  type: 'clock';
+  /** Expanded clock format. See {@link TimeFormat}. */
+  format?: TimeFormat;
+  /** Clock style used while collapsed. Default 24h. */
+  collapsed_format?: CollapsedClockFormat;
+  /** Horizontal alignment. Default center. */
+  align?: Align;
+}
+
+/** A date block. */
+export interface DateBlock {
+  /** Block discriminator. */
+  type: 'date';
+  /** Expanded date format. See {@link DateFormat}. */
+  format?: DateFormat;
+  /** Horizontal alignment. Default center. */
+  align?: Align;
+}
+
+/** A horizontal rule block. */
+export interface DividerBlock {
+  /** Block discriminator. */
+  type: 'divider';
+}
+
+/** A single tappable row. Standalone in a region, or nested in a category. */
+export interface ItemBlock {
+  /** Block discriminator. Optional inside a category's item list. */
   type?: 'item';
-  /** Text label shown for the row. Templatable. */
+  /** Row label. Templatable. */
   title: MaybeTemplate;
   /** Optional mdi icon shown before the label. Templatable. */
   icon?: MaybeTemplate;
@@ -45,10 +83,10 @@ export interface SidebarItemConfig {
   tap_action: ActionConfig;
 }
 
-/** A collapsible group of items, nested one level below the top menu. */
-export interface SidebarCategoryConfig {
-  /** Entry discriminator; optional when the entry carries an `items` list. */
-  type?: 'category';
+/** A collapsible group of items, nested one level deep. */
+export interface CategoryBlock {
+  /** Block discriminator. */
+  type: 'category';
   /** Group heading text. Templatable. */
   title: MaybeTemplate;
   /** Optional mdi icon shown before the heading. Templatable. */
@@ -57,21 +95,28 @@ export interface SidebarCategoryConfig {
   start_collapsed?: boolean;
   /** Whether to draw the vertical guide line beside the items. Default true. */
   guide_line?: boolean;
-  /** The rows contained in this group. Categories cannot nest further. */
-  items: SidebarItemConfig[];
+  /** The rows in this group. Categories cannot nest further. */
+  items: ItemBlock[];
 }
 
-/** A horizontal rule drawn between entries. */
-export interface SidebarDividerConfig {
-  /** Entry discriminator identifying this entry as a divider. */
-  type: 'divider';
+/** A manual component: a markdown string or any Lovelace card. */
+export interface CardBlock {
+  /** Block discriminator. */
+  type: 'card';
+  /** A markdown string, or any Lovelace card config. */
+  card: string | LovelaceCardConfig;
+  /** Horizontal alignment of the card. Default left. */
+  align?: Align;
+  /** Card background, any CSS color. */
+  background?: string;
 }
 
-/** Any single entry that can appear in the top-level menu list. */
-export type SidebarEntry = SidebarItemConfig | SidebarCategoryConfig | SidebarDividerConfig;
+/** Any block that can appear in the header or body region. */
+export type SidebarBlock =
+  TitleBlock | ClockBlock | DateBlock | DividerBlock | ItemBlock | CategoryBlock | CardBlock;
 
-/** An icon button anchored to the bottom of the sidebar. */
-export interface SidebarFooterButtonConfig {
+/** An icon button in the footer's button bar. */
+export interface FooterButtonConfig {
   /** mdi icon shown in the button. Templatable. */
   icon: MaybeTemplate;
   /** Optional icon color, any CSS color. Templatable. */
@@ -84,47 +129,44 @@ export interface SidebarFooterButtonConfig {
   tap_action: ActionConfig;
 }
 
-/** The full configuration object read from the Lovelace `dashboard_sidebar` key. */
+/**
+ * The bottom bar. Either an ordered set of icon buttons (with overflow into a
+ * dots menu) or a single custom card. The two are mutually exclusive; a card
+ * footer shows no dots menu and is hidden while collapsed.
+ */
+export interface FooterConfig {
+  /** Whether the footer shows its top divider bar. Default true. */
+  divider?: boolean;
+  /** Ordered icon buttons. Mutually exclusive with `card`. */
+  buttons?: FooterButtonConfig[];
+  /** A markdown string or any card, replacing the buttons. */
+  card?: string | LovelaceCardConfig;
+}
+
+/** The full configuration read from the Lovelace `dashboard_sidebar` key. */
 export interface DashboardSidebarConfig {
   /** Edge the sidebar docks to. Default left. */
   position?: SidebarPosition;
   /** Expanded width in pixels. Default {@link DEFAULT_WIDTH}. */
   width?: number;
-  /** Whether the sidebar starts collapsed, before any stored user preference. */
+  /** Whether the sidebar starts collapsed, before any stored preference. */
   start_collapsed?: boolean;
   /** Hide the sidebar on narrow (mobile) viewports. */
   hide_on_mobile?: boolean;
   /** Sidebar background: any CSS color. Defaults to the theme card background. */
   background?: string;
-  /** Whether to show the digital clock in the header. */
-  clock?: boolean;
-  /** Clock format for the expanded header. See {@link TimeFormat}. */
-  clock_format?: TimeFormat;
-  /** Clock style used while collapsed. Default 24h. */
-  collapsed_clock_format?: CollapsedClockFormat;
-  /** Whether to show the date in the header. */
-  date?: boolean;
-  /** Date format for the expanded header. See {@link DateFormat}. */
-  date_format?: DateFormat;
-  /** Header title text. Templatable. */
-  title?: MaybeTemplate;
-  /** Alignment of the title, clock, and date. Default center. */
-  header_align?: Align;
-  /** Custom content below the clock/date: a markdown string or any card. */
-  content?: string | LovelaceCardConfig;
-  /** Alignment of the custom content. Default left. */
-  content_align?: Align;
-  /** Custom content background: any CSS color. */
-  content_background?: string;
-  /** The ordered menu entries: items, categories, and dividers. */
-  items: SidebarEntry[];
-  /** Icon buttons anchored to the bottom of the sidebar. */
-  footer_buttons?: SidebarFooterButtonConfig[];
-  /** Whether the footer shows its top divider bar. Default true. */
-  footer_divider?: boolean;
+  /** Blocks pinned to the top, above the scrolling body. */
+  header?: SidebarBlock[];
+  /** Blocks in the scrolling region below the header. */
+  body?: SidebarBlock[];
+  /** The bottom bar configuration. */
+  footer?: FooterConfig;
   /**
    * Passed to the card-mod integration (when installed) to style the sidebar.
    * Target the dashboard-sidebar-* classes on the rendered elements.
    */
   card_mod?: Record<string, unknown>;
 }
+
+/** The two block regions, used as stable key prefixes for block state. */
+export type Region = 'header' | 'body';

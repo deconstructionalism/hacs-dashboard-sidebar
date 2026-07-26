@@ -1,5 +1,5 @@
 /** Semantic version stamped into the browser-console startup banner. */
-export const CARD_VERSION = '0.1.0';
+export const CARD_VERSION = '0.2.0';
 
 /** Top-level Lovelace config key the sidebar reads its configuration from. */
 export const CONFIG_KEY = 'dashboard_sidebar';

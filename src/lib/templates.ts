@@ -1,7 +1,6 @@
 import type { HomeAssistant } from 'custom-card-helpers';
 
-import { isCategory, isDivider } from './guards';
-import type { DashboardSidebarConfig, SidebarEntry } from './types';
+import type { DashboardSidebarConfig, ItemBlock, SidebarBlock } from './types';
 
 /** Matches the opening delimiter of any Jinja construct. */
 const TEMPLATE_RE = /\{\{|\{%|\{#/;
@@ -31,7 +30,8 @@ interface Subscription {
 /**
  * Subscribes to Home Assistant's `render_template` websocket for each unique
  * template string in the config and caches the latest result. Literal strings
- * are returned as-is and never subscribed.
+ * are returned as-is and never subscribed. Card blocks are skipped; the cards
+ * they render handle their own templating.
  */
 export class TemplateManager {
   /** The current Home Assistant object, or undefined before first assignment. */
@@ -63,8 +63,8 @@ export class TemplateManager {
   }
 
   /**
-   * Registers every templatable string in the config for subscription,
-   * clearing any previously collected templates first.
+   * Registers every templatable string across the header, body, and footer for
+   * subscription, clearing any previously collected templates first.
    */
   public collect(config: DashboardSidebarConfig): void {
     this.clear();
@@ -77,29 +77,37 @@ export class TemplateManager {
       }
     };
     /**
-     * Registers every templatable field on one entry, recursing into items.
+     * Registers every templatable field on one item.
      */
-    const addEntry = (entry: SidebarEntry): void => {
-      if (isDivider(entry)) {
-        return;
-      }
-      add(entry.title);
-      add(entry.icon);
-      if (isCategory(entry)) {
-        entry.items.forEach((item) => {
-          add(item.title);
-          add(item.icon);
-          add(item.text_color);
-          add(item.icon_color);
-        });
-      } else {
-        add(entry.text_color);
-        add(entry.icon_color);
+    const addItem = (item: ItemBlock): void => {
+      add(item.title);
+      add(item.icon);
+      add(item.text_color);
+      add(item.icon_color);
+    };
+    /**
+     * Registers the templatable fields of one header/body block.
+     */
+    const addBlock = (block: SidebarBlock): void => {
+      switch (block.type) {
+        case 'title':
+          add(block.text);
+          break;
+        case 'item':
+          addItem(block);
+          break;
+        case 'category':
+          add(block.title);
+          add(block.icon);
+          block.items.forEach(addItem);
+          break;
+        default:
+          break;
       }
     };
-    add(config.title);
-    config.items.forEach(addEntry);
-    (config.footer_buttons ?? []).forEach((btn) => {
+    (config.header ?? []).forEach(addBlock);
+    (config.body ?? []).forEach(addBlock);
+    (config.footer?.buttons ?? []).forEach((btn) => {
       add(btn.icon);
       add(btn.icon_color);
       add(btn.title);

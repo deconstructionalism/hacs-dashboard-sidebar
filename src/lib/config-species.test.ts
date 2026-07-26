@@ -3,26 +3,24 @@ import { describe, expect, it } from 'vitest';
 import type { DashboardSidebarConfig } from './types';
 import { validateConfig } from './validate';
 
-describe('validateConfig — every option together', () => {
-  it('accepts a config that exercises every top-level and nested option', () => {
+describe('validateConfig — every block and option together', () => {
+  it('accepts a config exercising every block type and option', () => {
     const config: DashboardSidebarConfig = {
       position: 'right',
       width: 300,
       start_collapsed: false,
       hide_on_mobile: true,
       background: '#111',
-      clock: true,
-      clock_format: '%-I:%M:%S %p',
-      collapsed_clock_format: '12h',
-      date: true,
-      date_format: '%A, %B %-d',
-      title: '{{ states("sun.sun") }}',
-      header_align: 'left',
-      content: '**hi**',
-      content_align: 'center',
-      content_background: 'rgba(0,0,0,0.1)',
-      items: [
+      header: [
+        { type: 'title', text: '{{ states("sun.sun") }}', align: 'left' },
+        { type: 'clock', format: '%-I:%M:%S %p', collapsed_format: '12h', align: 'left' },
+        { type: 'date', format: '%A, %B %-d', align: 'left' },
+        { type: 'divider' },
+        { type: 'card', card: '**hi**', align: 'center', background: 'rgba(0,0,0,0.1)' },
+      ],
+      body: [
         {
+          type: 'item',
           title: 'Home',
           icon: 'mdi:home',
           tap_action: { action: 'navigate', navigation_path: '/' },
@@ -36,16 +34,27 @@ describe('validateConfig — every option together', () => {
           guide_line: false,
           items: [{ title: 'Kitchen', entity: 'light.k', tap_action: { action: 'toggle' } }],
         },
+        { type: 'card', card: { type: 'entities', entities: ['light.k'] } },
       ],
-      footer_buttons: [
-        {
-          icon: 'mdi:cog',
-          title: 'Settings',
-          tap_action: { action: 'navigate', navigation_path: '/config' },
-        },
-      ],
-      footer_divider: false,
+      footer: {
+        divider: false,
+        buttons: [
+          {
+            icon: 'mdi:cog',
+            title: 'Settings',
+            tap_action: { action: 'navigate', navigation_path: '/config' },
+          },
+        ],
+      },
       card_mod: { style: '.x {}' },
+    };
+    expect(validateConfig(config)).toHaveLength(0);
+  });
+
+  it('accepts a footer card in place of buttons', () => {
+    const config: DashboardSidebarConfig = {
+      body: [{ type: 'item', title: 'A', tap_action: { action: 'toggle' } }],
+      footer: { card: { type: 'gauge', entity: 'sensor.x' } },
     };
     expect(validateConfig(config)).toHaveLength(0);
   });

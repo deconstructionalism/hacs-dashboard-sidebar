@@ -1,24 +1,10 @@
 import { css } from 'lit';
 
 /**
- * Scrollable menu: item rows, collapsed icon rows, categories with their guide
+ * Menu blocks: item rows, collapsed icon rows, categories with their guide
  * line and chevron, the fixed-position popover, and the entry divider.
  */
 export const menuStyles = css`
-  .menu {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    gap: 2px;
-    width: 100%;
-    min-height: 0;
-    overflow-y: auto;
-  }
-
-  .collapsed .menu {
-    align-items: center;
-  }
-
   .row {
     display: flex;
     align-items: center;

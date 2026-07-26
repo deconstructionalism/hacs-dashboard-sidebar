@@ -41,9 +41,9 @@ describe('<dashboard-sidebar> card-mod delegation', () => {
   it('forwards the card_mod config to card-mod applyToElement', async () => {
     const cardMod = { style: '.dashboard-sidebar-title { color: red; }' };
     const el = await mount({
-      title: 'Home',
+      header: [{ type: 'title', text: 'Home' }],
       card_mod: cardMod,
-      items: [{ title: 'A', tap_action: { action: 'toggle' } }],
+      body: [{ type: 'item', title: 'A', tap_action: { action: 'toggle' } }],
     });
 
     expect(StubCardMod.calls.length).to.be.greaterThan(0);
@@ -54,12 +54,12 @@ describe('<dashboard-sidebar> card-mod delegation', () => {
   });
 
   it('does not call card-mod when no card_mod config is present', async () => {
-    await mount({ items: [{ title: 'A', tap_action: { action: 'toggle' } }] });
+    await mount({ body: [{ type: 'item', title: 'A', tap_action: { action: 'toggle' } }] });
     expect(StubCardMod.calls.length).to.equal(0);
   });
 
   it('does not call card-mod for an invalid config', async () => {
-    await mount({ card_mod: { style: 'x' }, items: 'nope' } as unknown as Parameters<
+    await mount({ card_mod: { style: 'x' }, body: 'nope' } as unknown as Parameters<
       DashboardSidebar['setConfig']
     >[0]);
     expect(StubCardMod.calls.length).to.equal(0);
@@ -68,7 +68,7 @@ describe('<dashboard-sidebar> card-mod delegation', () => {
   it('applies card-mod only once across re-renders', async () => {
     const el = await mount({
       card_mod: { style: 'x' },
-      items: [{ title: 'A', tap_action: { action: 'toggle' } }],
+      body: [{ type: 'item', title: 'A', tap_action: { action: 'toggle' } }],
     });
     const rerender = el as unknown as { requestUpdate: () => void };
     rerender.requestUpdate();

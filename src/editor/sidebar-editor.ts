@@ -1122,7 +1122,8 @@ export class DashboardSidebarEditor extends LitElement {
 
     .pv-frame {
       box-sizing: border-box;
-      padding: 8px 0;
+      /* Left gutter so the drag handles aren't flush against the frame edge. */
+      padding: 8px 0 8px 16px;
       border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
       border-radius: 10px;
       background: var(--card-background-color, #fff);

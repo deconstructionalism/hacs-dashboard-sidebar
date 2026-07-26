@@ -5,7 +5,7 @@ import { classMap } from 'lit/directives/class-map.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import { applyCardMod } from './lib/card-mod';
-import { STORAGE_PREFIX, TOGGLE_EVENT } from './lib/const';
+import { CONFIG_CHANGED_EVENT, STORAGE_PREFIX, TOGGLE_EVENT } from './lib/const';
 import {
   formatClock,
   formatCollapsedClock,
@@ -16,6 +16,7 @@ import {
 import { TemplateManager } from './lib/templates';
 import type {
   Align,
+  BlockType,
   CardBlock,
   CategoryBlock,
   ClockBlock,
@@ -28,7 +29,18 @@ import type {
   TitleBlock,
 } from './lib/types';
 import { validateConfig } from './lib/validate';
+import { defaultBlock, defaultFooterButton } from './editor/arrange';
 import { sidebarStyles } from './styles';
+
+/** Every block type, offered when adding to the header. */
+const ADD_TYPES: BlockType[] = ['title', 'clock', 'date', 'divider', 'item', 'category', 'card'];
+
+/** What the settings modal is currently editing, or null when closed. */
+type EditTarget =
+  | { kind: 'block'; region: Region; index: number }
+  | { kind: 'item'; region: Region; index: number; itemIndex: number }
+  | { kind: 'footer'; index: number }
+  | { kind: 'footer-card' };
 
 /** Maps a config alignment to its flexbox `align-items` value. */
 const FLEX_ALIGN: Record<Align, string> = {
@@ -84,6 +96,15 @@ export class DashboardSidebar extends LitElement {
 
   /** Config validation problems; non-empty switches render to the error panel. */
   @state() private _errors: string[] = [];
+
+  /** What the in-place settings modal is editing, or null when closed. */
+  @state() private _editing: EditTarget | null = null;
+
+  /** Stable ids per block object, for keyed edit rendering and drag-and-drop. */
+  private readonly _blockIds = new WeakMap<object, string>();
+
+  /** Monotonic counter backing the block id map. */
+  private _idSeq = 0;
 
   /** Manager that subscribes to and caches templated field values. */
   private readonly _templates = new TemplateManager(() => this.requestUpdate());
@@ -156,6 +177,155 @@ export class DashboardSidebar extends LitElement {
    */
   private _hookClass(block: { class?: string }): string {
     return block.class ? ` ${block.class}` : '';
+  }
+
+  /**
+   * Returns a stable id for a block or button object, minting one on first use.
+   */
+  private _idFor(obj: object): string {
+    let id = this._blockIds.get(obj);
+    if (!id) {
+      this._idSeq += 1;
+      id = `dsb-${this._idSeq}`;
+      this._blockIds.set(obj, id);
+    }
+    return id;
+  }
+
+  /**
+   * Re-collects templates and cards, re-renders, and reports the edited config
+   * so the bootstrap can persist it.
+   */
+  private _commit(): void {
+    if (!this._config) {
+      return;
+    }
+    this._errors = validateConfig(this._config);
+    this._templates.collect(this._config);
+    this._restartTick();
+    void this._buildCards();
+    this.requestUpdate();
+    this.dispatchEvent(
+      new CustomEvent(CONFIG_CHANGED_EVENT, {
+        detail: this._config,
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  /**
+   * Appends a new block of the given type to a region and opens its editor.
+   */
+  private _addBlock(region: Region, type: BlockType): void {
+    const cfg = this._config;
+    if (!cfg) {
+      return;
+    }
+    const list = cfg[region] ?? (cfg[region] = []);
+    list.push(defaultBlock(type));
+    this._commit();
+    this._editing = { kind: 'block', region, index: list.length - 1 };
+  }
+
+  /**
+   * Removes the block at a region index.
+   */
+  private _deleteBlock(region: Region, index: number): void {
+    this._config?.[region]?.splice(index, 1);
+    this._editing = null;
+    this._commit();
+  }
+
+  /**
+   * Appends a new item to a category and opens its editor.
+   */
+  private _addCatItem(region: Region, index: number): void {
+    const cat = this._config?.[region]?.[index];
+    if (cat?.type !== 'category') {
+      return;
+    }
+    cat.items.push(defaultBlock('item') as ItemBlock);
+    this._commit();
+    this._editing = { kind: 'item', region, index, itemIndex: cat.items.length - 1 };
+  }
+
+  /**
+   * Removes an item from a category.
+   */
+  private _deleteCatItem(region: Region, index: number, itemIndex: number): void {
+    const cat = this._config?.[region]?.[index];
+    if (cat?.type === 'category') {
+      cat.items.splice(itemIndex, 1);
+      this._commit();
+    }
+  }
+
+  /**
+   * Appends a new footer button and opens its editor.
+   */
+  private _addFooterButton(): void {
+    const cfg = this._config;
+    if (!cfg) {
+      return;
+    }
+    const footer = cfg.footer ?? (cfg.footer = {});
+    const buttons = footer.buttons ?? (footer.buttons = []);
+    buttons.push(defaultFooterButton());
+    this._commit();
+    this._editing = { kind: 'footer', index: buttons.length - 1 };
+  }
+
+  /**
+   * Removes the footer button at an index.
+   */
+  private _deleteFooterButton(index: number): void {
+    this._config?.footer?.buttons?.splice(index, 1);
+    this._commit();
+  }
+
+  /**
+   * Switches the footer between button and custom-component mode.
+   */
+  private _setFooterMode(card: boolean): void {
+    const cfg = this._config;
+    if (!cfg) {
+      return;
+    }
+    cfg.footer = card ? { card: '' } : { buttons: [] };
+    this._commit();
+    this._editing = card ? { kind: 'footer-card' } : null;
+  }
+
+  /**
+   * Writes the modal's edited value back into the config at the edit target.
+   */
+  private _saveEdit(value: Record<string, unknown>): void {
+    const t = this._editing;
+    const cfg = this._config;
+    if (!t || !cfg) {
+      return;
+    }
+    if (t.kind === 'block') {
+      const list = cfg[t.region];
+      if (list) {
+        list[t.index] = value as unknown as SidebarBlock;
+      }
+    } else if (t.kind === 'item') {
+      const cat = cfg[t.region]?.[t.index];
+      if (cat?.type === 'category') {
+        cat.items[t.itemIndex] = value as unknown as ItemBlock;
+      }
+    } else if (t.kind === 'footer') {
+      const buttons = cfg.footer?.buttons;
+      if (buttons) {
+        buttons[t.index] = value as unknown as FooterButtonConfig;
+      }
+    } else {
+      const card = (value as { card?: string | LovelaceCardConfig }).card;
+      cfg.footer = { card: card ?? '' };
+    }
+    this._commit();
   }
 
   /**
@@ -457,7 +627,7 @@ export class DashboardSidebar extends LitElement {
     if (!this._config) {
       return html``;
     }
-    const collapsed = this._collapsed;
+    const collapsed = this.editMode ? false : this._collapsed;
     const cfg = this._config;
     const classes = {
       sidebar: true,
@@ -478,7 +648,7 @@ export class DashboardSidebar extends LitElement {
         </button>
         ${this._renderRegion('header', cfg.header, collapsed, 'region-header dashboard-sidebar-header')}
         ${this._renderRegion('body', cfg.body, collapsed, 'region-body dashboard-sidebar-body')}
-        ${this._renderFooter(collapsed)} ${this._renderTooltip()}
+        ${this._renderFooter(collapsed)} ${this._renderTooltip()} ${this._renderBlockModal()}
       </div>
     `;
   }
@@ -507,6 +677,9 @@ export class DashboardSidebar extends LitElement {
     collapsed: boolean,
     cls: string,
   ): TemplateResult | typeof nothing {
+    if (this.editMode) {
+      return this._renderEditRegion(region, blocks ?? [], cls);
+    }
     if (!blocks?.length) {
       return nothing;
     }
@@ -515,6 +688,224 @@ export class DashboardSidebar extends LitElement {
         ${blocks.map((block, i) => this._renderBlock(block, region, i, collapsed))}
       </div>
     `;
+  }
+
+  /**
+   * Renders a region's blocks with edit controls, plus an add menu, for edit
+   * mode.
+   */
+  private _renderEditRegion(region: Region, blocks: SidebarBlock[], cls: string): TemplateResult {
+    const types = region === 'header' ? ADD_TYPES : ADD_TYPES.filter((t) => t !== 'title');
+    return html`
+      <div class="region ${cls}" data-region=${region}>
+        ${blocks.map((block, i) => this._renderEditBlock(region, i, block))}
+        ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
+      </div>
+    `;
+  }
+
+  /**
+   * Renders one block wrapped with its edit controls; categories are special.
+   */
+  private _renderEditBlock(region: Region, index: number, block: SidebarBlock): TemplateResult {
+    if (block.type === 'category') {
+      return this._renderEditCategory(region, index, block);
+    }
+    return html`
+      <div
+        class="edit-block dashboard-sidebar-edit-block"
+        data-region=${region}
+        data-index=${index}
+        data-id=${this._idFor(block)}
+        data-type=${block.type}
+      >
+        <div class="edit-body">${this._renderBlockDisplay(region, index, block)}</div>
+        ${this._renderControls(
+          () => {
+            this._editing = { kind: 'block', region, index };
+          },
+          () => this._deleteBlock(region, index),
+        )}
+      </div>
+    `;
+  }
+
+  /**
+   * Renders a category with header controls, per-item controls, and add-item.
+   */
+  private _renderEditCategory(
+    region: Region,
+    index: number,
+    category: CategoryBlock,
+  ): TemplateResult {
+    const title = this._templates.resolve(category.title);
+    const icon = category.icon ? this._templates.resolve(category.icon) : '';
+    return html`
+      <div
+        class="edit-block dashboard-sidebar-edit-block edit-category"
+        data-region=${region}
+        data-index=${index}
+        data-id=${this._idFor(category)}
+        data-type="category"
+      >
+        <div class="edit-row">
+          <div class="edit-body">
+            <div class="row category-header">
+              ${icon ? html`<ha-icon icon=${icon}></ha-icon>` : nothing}
+              <span class="label">${title}</span>
+            </div>
+          </div>
+          ${this._renderControls(
+            () => {
+              this._editing = { kind: 'block', region, index };
+            },
+            () => this._deleteBlock(region, index),
+          )}
+        </div>
+        <div class="edit-cat-items" data-cat=${`${region}-${index}`}>
+          ${category.items.map((item, j) => this._renderEditItem(region, index, j, item))}
+          <button class="edit-add-btn" @click=${() => this._addCatItem(region, index)}>
+            ＋ Add item
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Renders one category item row with its edit controls.
+   */
+  private _renderEditItem(
+    region: Region,
+    index: number,
+    itemIndex: number,
+    item: ItemBlock,
+  ): TemplateResult {
+    return html`
+      <div
+        class="edit-block edit-item"
+        data-region=${region}
+        data-index=${index}
+        data-item=${itemIndex}
+        data-id=${this._idFor(item)}
+        data-type="item"
+      >
+        <div class="edit-body">${this._renderItemRow(item, false)}</div>
+        ${this._renderControls(
+          () => {
+            this._editing = { kind: 'item', region, index, itemIndex };
+          },
+          () => this._deleteCatItem(region, index, itemIndex),
+        )}
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the display content of a non-category block for edit mode.
+   */
+  private _renderBlockDisplay(
+    region: Region,
+    index: number,
+    block: SidebarBlock,
+  ): TemplateResult | typeof nothing {
+    switch (block.type) {
+      case 'title':
+        return this._renderTitle(block, false);
+      case 'clock':
+        return this._renderClock(block, false);
+      case 'date':
+        return this._renderDate(block, false);
+      case 'divider':
+        return html`<div class="entry-divider dashboard-sidebar-divider"></div>`;
+      case 'item':
+        return this._renderItemRow(block, false);
+      case 'card':
+        return this._renderCardBlock(block, `${region}-${index}`, false);
+      default:
+        return nothing;
+    }
+  }
+
+  /**
+   * Renders the drag handle, edit, and delete controls for an editable row.
+   */
+  private _renderControls(onEdit: () => void, onDelete: () => void): TemplateResult {
+    return html`
+      <span class="edit-controls">
+        <span class="edit-handle" title="Drag to reorder"><ha-icon icon="mdi:drag"></ha-icon></span>
+        <button class="edit-ctl" title="Edit" @click=${onEdit}>
+          <ha-icon icon="mdi:pencil"></ha-icon>
+        </button>
+        <button class="edit-ctl edit-del" title="Delete" @click=${onDelete}>
+          <ha-icon icon="mdi:delete"></ha-icon>
+        </button>
+      </span>
+    `;
+  }
+
+  /**
+   * Renders an "+ Add" dropdown that inserts a block of the chosen type.
+   */
+  private _renderAddMenu(types: BlockType[], onPick: (type: BlockType) => void): TemplateResult {
+    return html`
+      <select
+        class="edit-add"
+        @change=${(e: Event) => {
+          const sel = e.target as HTMLSelectElement;
+          if (sel.value) {
+            onPick(sel.value as BlockType);
+            sel.value = '';
+          }
+        }}
+      >
+        <option value="">＋ Add…</option>
+        ${types.map((t) => html`<option value=${t}>${t}</option>`)}
+      </select>
+    `;
+  }
+
+  /**
+   * Renders the in-place settings modal for the current edit target.
+   */
+  private _renderBlockModal(): TemplateResult | typeof nothing {
+    const t = this._editing;
+    const cfg = this._config;
+    if (!t || !cfg) {
+      return nothing;
+    }
+    let value: Record<string, unknown> | undefined;
+    let mode: 'block' | 'footer' = 'block';
+    let heading = 'Edit';
+    if (t.kind === 'block') {
+      value = cfg[t.region]?.[t.index] as unknown as Record<string, unknown> | undefined;
+      heading = `Edit ${String((value as { type?: string })?.type ?? 'block')}`;
+    } else if (t.kind === 'item') {
+      const cat = cfg[t.region]?.[t.index];
+      if (cat?.type === 'category') {
+        value = cat.items[t.itemIndex] as unknown as Record<string, unknown>;
+      }
+      heading = 'Edit item';
+    } else if (t.kind === 'footer') {
+      value = cfg.footer?.buttons?.[t.index] as unknown as Record<string, unknown> | undefined;
+      mode = 'footer';
+      heading = 'Edit footer button';
+    } else {
+      value = { type: 'card', card: cfg.footer?.card ?? '' };
+      heading = 'Edit footer card';
+    }
+    if (!value) {
+      return nothing;
+    }
+    return html`<dashboard-sidebar-block-modal
+      .value=${value}
+      .mode=${mode}
+      .heading=${heading}
+      .onSave=${(v: Record<string, unknown>) => this._saveEdit(v)}
+      .onClose=${() => {
+        this._editing = null;
+      }}
+    ></dashboard-sidebar-block-modal>`;
   }
 
   /**
@@ -809,6 +1200,9 @@ export class DashboardSidebar extends LitElement {
    * A card footer shows no dots menu and is hidden while collapsed.
    */
   private _renderFooter(collapsed: boolean): TemplateResult | typeof nothing {
+    if (this.editMode) {
+      return this._renderEditFooter();
+    }
     const footer = this._config?.footer;
     if (!footer) {
       return nothing;
@@ -861,6 +1255,77 @@ export class DashboardSidebar extends LitElement {
         ${inline.map((btn) => this._renderFooterButton(btn))}
         ${this._renderDots('footer-btn dashboard-sidebar-footer-btn dashboard-sidebar-footer-more')}
         ${this._footerOpen && anchor ? this._renderFooterPopover(overflow, anchor) : nothing}
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the footer editor: a mode toggle, then button rows with controls
+   * or the custom-component display.
+   */
+  private _renderEditFooter(): TemplateResult {
+    const footer = this._config?.footer;
+    const cardMode = footer?.card !== undefined;
+    return html`
+      <div class="footer dashboard-sidebar-footer edit-footer">
+        <div class="edit-footer-modes">
+          <button
+            class="edit-add-btn ${cardMode ? '' : 'sel'}"
+            @click=${() => this._setFooterMode(false)}
+          >
+            Buttons
+          </button>
+          <button
+            class="edit-add-btn ${cardMode ? 'sel' : ''}"
+            @click=${() => this._setFooterMode(true)}
+          >
+            Component
+          </button>
+        </div>
+        ${
+          cardMode
+            ? html`<div class="edit-block" data-type="footer-card">
+                <div class="edit-body"><span class="rsum">Custom component</span></div>
+                <span class="edit-controls">
+                  <button
+                    class="edit-ctl"
+                    title="Edit"
+                    @click=${() => {
+                      this._editing = { kind: 'footer-card' };
+                    }}
+                  >
+                    <ha-icon icon="mdi:pencil"></ha-icon>
+                  </button>
+                </span>
+              </div>`
+            : html`
+                ${(footer?.buttons ?? []).map(
+                  (btn, i) => html`
+                    <div
+                      class="edit-block edit-footer-btn"
+                      data-index=${i}
+                      data-id=${this._idFor(btn)}
+                    >
+                      <div class="edit-body">
+                        <ha-icon icon=${this._templates.resolve(btn.icon)}></ha-icon>
+                        <span class="rsum"
+                          >${btn.title ? this._templates.resolve(btn.title) : this._templates.resolve(btn.icon)}</span
+                        >
+                      </div>
+                      ${this._renderControls(
+                        () => {
+                          this._editing = { kind: 'footer', index: i };
+                        },
+                        () => this._deleteFooterButton(i),
+                      )}
+                    </div>
+                  `,
+                )}
+                <button class="edit-add-btn" @click=${() => this._addFooterButton()}>
+                  ＋ Add button
+                </button>
+              `
+        }
       </div>
     `;
   }

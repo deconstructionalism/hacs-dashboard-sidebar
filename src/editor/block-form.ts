@@ -137,6 +137,21 @@ export function actionFields(
 }
 
 /**
+ * Renders the editable fields for one footer button, applying edits via patch.
+ */
+export function footerButtonFields(
+  btn: { icon?: string; title?: string; entity?: string; tap_action?: { action?: string } },
+  patch: Patch,
+): TemplateResult {
+  return html`
+    ${textField('Icon (mdi:...)', btn.icon, (v) => patch({ icon: v }))}
+    ${textField('Title', btn.title, (v) => patch({ title: v || undefined }))}
+    ${textField('Entity', btn.entity, (v) => patch({ entity: v || undefined }))}
+    ${actionFields(btn.tap_action ?? {}, patch)}
+  `;
+}
+
+/**
  * Renders the editable fields for one block, applying edits through `patch`.
  */
 export function blockFields(block: SidebarBlock, patch: Patch): TemplateResult {

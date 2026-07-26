@@ -690,7 +690,13 @@ export class DashboardSidebarEditor extends LitElement {
       max-height: 88vh;
       display: flex;
       flex-direction: column;
-      background: var(--card-background-color, #fff);
+      /* Composite the (often translucent) card color over an opaque base so the
+         dashboard never shows through the modal. */
+      background-color: var(--primary-background-color, #fff);
+      background-image: linear-gradient(
+        var(--card-background-color, #fff),
+        var(--card-background-color, #fff)
+      );
       border-radius: 12px;
       box-shadow: 0 8px 40px rgb(0 0 0 / 40%);
       overflow: hidden;

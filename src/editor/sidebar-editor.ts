@@ -612,7 +612,7 @@ export class DashboardSidebarEditor extends LitElement {
       `;
     }
     return html`
-      <div class="pv-node pv-cat">
+      <div class="pv-cat">
         <div
           class="pv-cat-head ${this._selected === id ? 'sel' : ''}"
           data-id=${id}
@@ -968,8 +968,6 @@ export class DashboardSidebarEditor extends LitElement {
       display: flex;
       flex-direction: column;
       gap: 10px;
-      max-width: 420px;
-      margin: 0 auto;
     }
 
     .icon-choice {

@@ -1,9 +1,120 @@
 import { html, nothing, type TemplateResult } from 'lit';
 
+import { DATE_TOKENS, TIME_TOKENS, invalidToken } from '../lib/format';
 import type { SidebarBlock } from '../lib/types';
 
 /** Merges a partial update into the object being edited, then re-renders. */
 export type Patch = (partial: Record<string, unknown>) => void;
+
+/** Optional validation wiring for a single input. */
+export interface FieldOpts {
+  /** The validation error to show beneath the input, if any. */
+  error?: string;
+  /** Called with the input's value when it loses focus, to validate it. */
+  onBlur?: (value: string) => void;
+}
+
+/** Per-field validation context threaded through the block form. */
+export interface ValidationCtx {
+  /** Returns the current error message for a field key, if any. */
+  errorFor: (key: string) => string | undefined;
+  /** Validates a field's value on blur and records the result under its key. */
+  onBlur: (key: string, value: string, validate: (value: string) => string | null) => void;
+}
+
+/** Named clock formats that are valid without being strftime patterns. */
+const CLOCK_ALIASES = new Set(['locale', 'iso', '24h', '12h']);
+
+/** Named date formats that are valid without being strftime patterns. */
+const DATE_ALIASES = new Set(['locale', 'iso']);
+
+/**
+ * Validates a clock format: empty, a known alias, or an strftime pattern using
+ * only time tokens.
+ */
+export function validateClockFormat(value: string): string | null {
+  const v = value.trim();
+  if (!v || CLOCK_ALIASES.has(v)) {
+    return null;
+  }
+  const bad = invalidToken(v, TIME_TOKENS);
+  return bad ? `Unsupported time token ${bad}` : null;
+}
+
+/**
+ * Validates a date format: empty, a known alias, or an strftime pattern using
+ * only date tokens.
+ */
+export function validateDateFormat(value: string): string | null {
+  const v = value.trim();
+  if (!v || DATE_ALIASES.has(v)) {
+    return null;
+  }
+  const bad = invalidToken(v, DATE_TOKENS);
+  return bad ? `Unsupported date token ${bad}` : null;
+}
+
+/**
+ * Validates a `domain.service` string, allowing empty.
+ */
+export function validateService(value: string): string | null {
+  const v = value.trim();
+  if (!v) {
+    return null;
+  }
+  return /^[a-z_]+\.[a-z0-9_]+$/i.test(v) ? null : 'Use the form domain.service';
+}
+
+/**
+ * Validates that a non-empty value parses as JSON, allowing empty.
+ */
+export function validateJsonField(value: string): string | null {
+  const v = value.trim();
+  if (!v) {
+    return null;
+  }
+  try {
+    JSON.parse(v);
+    return null;
+  } catch {
+    return 'Invalid JSON';
+  }
+}
+
+/**
+ * Validates a card field: markdown is always fine; a value that opens with `{`
+ * is treated as JSON and must parse.
+ */
+export function validateCardField(value: string): string | null {
+  return value.trim().startsWith('{') ? validateJsonField(value) : null;
+}
+
+/**
+ * Validates a width: empty (use default) or a positive integer.
+ */
+export function validateWidth(value: string): string | null {
+  const v = value.trim();
+  if (!v) {
+    return null;
+  }
+  const n = Number(v);
+  return Number.isInteger(n) && n > 0 ? null : 'Must be a positive number';
+}
+
+/**
+ * Builds the validation opts for a field from a context, or undefined when no
+ * context is supplied.
+ */
+export function fieldOpts(
+  ctx: ValidationCtx | undefined,
+  key: string,
+  validate: (value: string) => string | null,
+): FieldOpts | undefined {
+  if (!ctx) {
+    return undefined;
+  }
+  return { error: ctx.errorFor(key), onBlur: (value) => ctx.onBlur(key, value, validate) };
+}
 
 /** Alignment choices shared by the text and card blocks. */
 const ALIGN_OPTIONS = ['left', 'center', 'right'];
@@ -18,14 +129,17 @@ export function textField(
   label: string,
   value: string | undefined,
   onInput: (value: string) => void,
+  opts?: FieldOpts,
 ): TemplateResult {
-  return html`<label class="field">
+  return html`<label class="field ${opts?.error ? 'invalid' : ''}">
     <span>${label}</span>
     <input
       type="text"
       .value=${value ?? ''}
       @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
+      @blur=${(e: Event) => opts?.onBlur?.((e.target as HTMLInputElement).value)}
     />
+    ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
   </label>`;
 }
 
@@ -36,14 +150,17 @@ export function areaField(
   label: string,
   value: string,
   onInput: (value: string) => void,
+  opts?: FieldOpts,
 ): TemplateResult {
-  return html`<label class="field">
+  return html`<label class="field ${opts?.error ? 'invalid' : ''}">
     <span>${label}</span>
     <textarea
       rows="4"
       .value=${value}
       @input=${(e: Event) => onInput((e.target as HTMLTextAreaElement).value)}
+      @blur=${(e: Event) => opts?.onBlur?.((e.target as HTMLTextAreaElement).value)}
     ></textarea>
+    ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
   </label>`;
 }
 
@@ -97,8 +214,9 @@ export function intField(
   label: string,
   value: number | undefined,
   onInput: (value: number | undefined) => void,
+  opts?: FieldOpts,
 ): TemplateResult {
-  return html`<label class="field">
+  return html`<label class="field ${opts?.error ? 'invalid' : ''}">
     <span>${label}</span>
     <input
       type="text"
@@ -110,7 +228,9 @@ export function intField(
         el.value = digits;
         onInput(digits === '' ? undefined : Number(digits));
       }}
+      @blur=${(e: Event) => opts?.onBlur?.((e.target as HTMLInputElement).value)}
     />
+    ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
   </label>`;
 }
 
@@ -170,6 +290,7 @@ export function actionFields(
     data?: Record<string, unknown>;
   },
   patch: Patch,
+  ctx?: ValidationCtx,
 ): TemplateResult {
   const kind = action?.action ?? 'none';
   const set = (partial: Record<string, unknown>): void =>
@@ -192,12 +313,18 @@ export function actionFields(
     ${
       kind === 'call-service'
         ? html`
-            ${textField('Service (domain.service)', action.service, (v) => set({ service: v }))}
+            ${textField(
+              'Service (domain.service)',
+              action.service,
+              (v) => set({ service: v }),
+              fieldOpts(ctx, 'service', validateService),
+            )}
             ${textField('Target entity', action.entity, (v) => set({ entity: v || undefined }))}
             ${areaField(
               'Service data (JSON)',
               action.data ? JSON.stringify(action.data, null, 2) : '',
               (v) => set({ data: parseJson(v) }),
+              fieldOpts(ctx, 'data', validateJsonField),
             )}
           `
         : nothing
@@ -211,12 +338,13 @@ export function actionFields(
 export function footerButtonFields(
   btn: { icon?: string; title?: string; entity?: string; tap_action?: { action?: string } },
   patch: Patch,
+  ctx?: ValidationCtx,
 ): TemplateResult {
   return html`
     ${textField('Icon (mdi:...)', btn.icon, (v) => patch({ icon: v }))}
     ${textField('Title', btn.title, (v) => patch({ title: v || undefined }))}
     ${textField('Entity', btn.entity, (v) => patch({ entity: v || undefined }))}
-    ${actionFields(btn.tap_action ?? {}, patch)}
+    ${actionFields(btn.tap_action ?? {}, patch, ctx)}
   `;
 }
 
@@ -247,15 +375,19 @@ function advancedFields(
  * Renders the editable fields for one block: its type-specific fields plus the
  * shared Advanced (class/id/abbr) section.
  */
-export function blockFields(block: SidebarBlock, patch: Patch): TemplateResult {
+export function blockFields(
+  block: SidebarBlock,
+  patch: Patch,
+  ctx?: ValidationCtx,
+): TemplateResult {
   const withAbbr = block.type === 'item' || block.type === 'category';
-  return html`${blockTypeFields(block, patch)}${advancedFields(block, patch, withAbbr)}`;
+  return html`${blockTypeFields(block, patch, ctx)}${advancedFields(block, patch, withAbbr)}`;
 }
 
 /**
  * Renders the type-specific fields for one block.
  */
-function blockTypeFields(block: SidebarBlock, patch: Patch): TemplateResult {
+function blockTypeFields(block: SidebarBlock, patch: Patch, ctx?: ValidationCtx): TemplateResult {
   switch (block.type) {
     case 'title':
       return html`
@@ -264,7 +396,12 @@ function blockTypeFields(block: SidebarBlock, patch: Patch): TemplateResult {
       `;
     case 'clock':
       return html`
-        ${textField('Format (strftime)', block.format, (v) => patch({ format: v || undefined }))}
+        ${textField(
+          'Format (strftime)',
+          block.format,
+          (v) => patch({ format: v || undefined }),
+          fieldOpts(ctx, 'format', validateClockFormat),
+        )}
         ${selectField('Collapsed', block.collapsed_format ?? '24h', ['24h', '12h'], (v) =>
           patch({ collapsed_format: v }),
         )}
@@ -272,7 +409,12 @@ function blockTypeFields(block: SidebarBlock, patch: Patch): TemplateResult {
       `;
     case 'date':
       return html`
-        ${textField('Format (strftime)', block.format, (v) => patch({ format: v || undefined }))}
+        ${textField(
+          'Format (strftime)',
+          block.format,
+          (v) => patch({ format: v || undefined }),
+          fieldOpts(ctx, 'format', validateDateFormat),
+        )}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
       `;
     case 'divider':
@@ -282,7 +424,7 @@ function blockTypeFields(block: SidebarBlock, patch: Patch): TemplateResult {
         ${textField('Title', block.title, (v) => patch({ title: v }))}
         ${textField('Icon (mdi:...)', block.icon, (v) => patch({ icon: v || undefined }))}
         ${textField('Entity', block.entity, (v) => patch({ entity: v || undefined }))}
-        ${actionFields(block.tap_action as { action?: string }, patch)}
+        ${actionFields(block.tap_action as { action?: string }, patch, ctx)}
       `;
     case 'category':
       return html`
@@ -299,6 +441,7 @@ function blockTypeFields(block: SidebarBlock, patch: Patch): TemplateResult {
           'Card (markdown, or JSON card config)',
           typeof block.card === 'string' ? block.card : JSON.stringify(block.card, null, 2),
           (v) => patch({ card: parseCard(v) }),
+          fieldOpts(ctx, 'card', validateCardField),
         )}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
       `;

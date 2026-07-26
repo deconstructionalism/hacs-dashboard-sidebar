@@ -133,6 +133,10 @@ describe('<dashboard-sidebar-editor>', () => {
     el.onClose = () => {
       closed = true;
     };
+    // A change is required before Save is enabled.
+    await tab(el, 'Settings');
+    (root(el).querySelectorAll('.settings .choice')[1] as HTMLButtonElement).click();
+    await el.updateComplete;
     (root(el).querySelector('footer .primary') as HTMLButtonElement).click();
     expect(saved?.body?.length).to.equal(2);
     expect(closed).to.equal(true);
@@ -144,9 +148,55 @@ describe('<dashboard-sidebar-editor>', () => {
     el.onSave = () => {
       saved = true;
     };
+    // Make a change so Save is enabled, while the config stays invalid.
+    await tab(el, 'Settings');
+    (root(el).querySelector('.settings input[type="checkbox"]') as HTMLInputElement).click();
+    await el.updateComplete;
     (root(el).querySelector('footer .primary') as HTMLButtonElement).click();
     await el.updateComplete;
     expect(root(el).querySelector('.errors')).to.exist;
     expect(saved).to.equal(false);
+  });
+
+  it('disables Save until a change is made', async () => {
+    const el = await mount(cfg());
+    const save = (): HTMLButtonElement =>
+      root(el).querySelector('footer .primary') as HTMLButtonElement;
+    expect(save().disabled).to.equal(true);
+    await tab(el, 'Settings');
+    (root(el).querySelectorAll('.settings .choice')[1] as HTMLButtonElement).click();
+    await el.updateComplete;
+    expect(save().disabled).to.equal(false);
+  });
+
+  it('shows a field error on blur and disables Save', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Settings');
+    const width = root(el).querySelector('.settings input[type="text"]') as HTMLInputElement;
+    width.value = '0';
+    width.dispatchEvent(new Event('input'));
+    width.dispatchEvent(new Event('blur'));
+    await el.updateComplete;
+    expect(root(el).querySelector('.field-error')).to.exist;
+    expect((root(el).querySelector('footer .primary') as HTMLButtonElement).disabled).to.equal(
+      true,
+    );
+  });
+
+  it('confirms before closing with unsaved changes', async () => {
+    const el = await mount(cfg());
+    let closed = false;
+    el.onClose = () => {
+      closed = true;
+    };
+    await tab(el, 'Settings');
+    (root(el).querySelectorAll('.settings .choice')[1] as HTMLButtonElement).click();
+    await el.updateComplete;
+    (root(el).querySelector('footer button') as HTMLButtonElement).click();
+    await el.updateComplete;
+    expect(root(el).querySelector('.confirm')).to.exist;
+    expect(closed).to.equal(false);
+    (root(el).querySelector('.danger-btn') as HTMLButtonElement).click();
+    expect(closed).to.equal(true);
   });
 });

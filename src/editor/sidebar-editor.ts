@@ -28,6 +28,8 @@ import {
   type Patch,
   textField,
   titleCase,
+  type ValidationCtx,
+  validateWidth,
 } from './block-form';
 
 /** Every block type, offered when adding to the header. */
@@ -72,8 +74,17 @@ export class DashboardSidebarEditor extends LitElement {
   /** Stable id of the element selected for editing in the preview, or null. */
   @state() private _selected: string | null = null;
 
+  /** Per-field validation errors, keyed by field name within the current form. */
+  @state() private _fieldErrors: Record<string, string> = {};
+
+  /** Whether the unsaved-changes exit confirmation is showing. */
+  @state() private _confirmingClose = false;
+
   /** Validation errors from the last save attempt. */
   @state() private _errors: string[] = [];
+
+  /** The config as first loaded, serialized, to detect unsaved changes. */
+  private _initialJson = '{}';
 
   /** The mutable working copy of the config. */
   private _working: DashboardSidebarConfig = {};
@@ -99,7 +110,56 @@ export class DashboardSidebarEditor extends LitElement {
   protected willUpdate(changed: PropertyValues): void {
     if (changed.has('config')) {
       this._working = this.config ? (structuredClone(this.config) as DashboardSidebarConfig) : {};
+      this._initialJson = JSON.stringify(this.config ?? {});
+      this._fieldErrors = {};
+      this._selected = null;
+      this._confirmingClose = false;
     }
+  }
+
+  /**
+   * Whether the working copy differs from the config as first loaded.
+   */
+  private get _dirty(): boolean {
+    return JSON.stringify(this._working) !== this._initialJson;
+  }
+
+  /**
+   * Whether any field currently has an inline validation error.
+   */
+  private get _hasFieldErrors(): boolean {
+    return Object.keys(this._fieldErrors).length > 0;
+  }
+
+  /**
+   * Whether Save is allowed: there are unsaved changes and no field errors.
+   */
+  private get _canSave(): boolean {
+    return this._dirty && !this._hasFieldErrors;
+  }
+
+  /**
+   * Validates one field's value on blur and records or clears its error.
+   */
+  private _validateField(key: string, value: string, validate: (v: string) => string | null): void {
+    const error = validate(value);
+    const next = { ...this._fieldErrors };
+    if (error) {
+      next[key] = error;
+    } else {
+      delete next[key];
+    }
+    this._fieldErrors = next;
+  }
+
+  /**
+   * The validation context passed to the block form's fields.
+   */
+  private _ctx(): ValidationCtx {
+    return {
+      errorFor: (key) => this._fieldErrors[key],
+      onBlur: (key, value, validate) => this._validateField(key, value, validate),
+    };
   }
 
   /**
@@ -169,6 +229,9 @@ export class DashboardSidebarEditor extends LitElement {
    */
   private _select(ev: Event, id: string): void {
     ev.stopPropagation();
+    if (id !== this._selected) {
+      this._fieldErrors = {};
+    }
     this._selected = id;
   }
 
@@ -354,9 +417,13 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Closes without saving.
+   * Requests a close: confirms first when there are unsaved changes.
    */
   private _close(): void {
+    if (this._dirty) {
+      this._confirmingClose = true;
+      return;
+    }
     this.onClose?.();
   }
 
@@ -379,6 +446,7 @@ export class DashboardSidebarEditor extends LitElement {
                 @click=${() => {
                   this._tab = t.id;
                   this._selected = null;
+                  this._fieldErrors = {};
                 }}
               >
                 ${t.label}
@@ -396,8 +464,40 @@ export class DashboardSidebarEditor extends LitElement {
         }
         <footer>
           <button @click=${this._close}>Cancel</button>
-          <button class="primary" @click=${this._save}>Save</button>
+          <button class="primary" ?disabled=${!this._canSave} @click=${this._save}>Save</button>
         </footer>
+        ${this._confirmingClose ? this._renderConfirmClose() : nothing}
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the unsaved-changes exit confirmation over the panel.
+   */
+  private _renderConfirmClose(): TemplateResult {
+    return html`
+      <div class="confirm-scrim">
+        <div class="confirm" role="alertdialog" aria-label="Unsaved changes">
+          <p>You have unsaved changes. Exit without saving?</p>
+          <div class="confirm-actions">
+            <button
+              @click=${() => {
+              this._confirmingClose = false;
+            }}
+            >
+              Keep editing
+            </button>
+            <button
+              class="danger-btn"
+              @click=${() => {
+              this._confirmingClose = false;
+              this.onClose?.();
+            }}
+            >
+              Discard changes
+            </button>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -436,7 +536,10 @@ export class DashboardSidebarEditor extends LitElement {
           ],
           (v) => this._patchConfig({ position: v }),
         )}
-        ${intField('Width (px)', c.width, (v) => this._patchConfig({ width: v }))}
+        ${intField('Width (px)', c.width, (v) => this._patchConfig({ width: v }), {
+          error: this._fieldErrors['width'],
+          onBlur: (v) => this._validateField('width', v, validateWidth),
+        })}
         ${checkboxField('Start collapsed', c.start_collapsed ?? false, (v) =>
           this._patchConfig({ start_collapsed: v }),
         )}
@@ -527,7 +630,10 @@ export class DashboardSidebarEditor extends LitElement {
           <span class="drag" title="Drag to reorder">⣿</span>
           <div class="pv-body">${this._renderBlockPreview(block)}</div>
         </div>
-        <div class="pv-sublist" data-sort=${`cat:${region}:${index}`}>
+        <div
+          class="pv-sublist ${block.guide_line === false ? 'no-line' : ''}"
+          data-sort=${`cat:${region}:${index}`}
+        >
           ${repeat(
             block.items,
             (item) => this._idFor(item),
@@ -648,7 +754,11 @@ export class DashboardSidebarEditor extends LitElement {
     if (sel.kind === 'footer') {
       return html`
         <div class="form">
-          ${footerButtonFields(sel.btn, (partial) => this._patchFooterButton(sel.index, partial))}
+          ${footerButtonFields(
+            sel.btn,
+            (partial) => this._patchFooterButton(sel.index, partial),
+            this._ctx(),
+          )}
           <button
             class="add-btn danger"
             @click=${() => {
@@ -666,7 +776,7 @@ export class DashboardSidebarEditor extends LitElement {
         this._patchItem(sel.region, sel.index, sel.itemIndex, partial);
       return html`
         <div class="form">
-          ${blockFields({ ...sel.item, type: 'item' }, patch)}
+          ${blockFields({ ...sel.item, type: 'item' }, patch, this._ctx())}
           <button
             class="add-btn danger"
             @click=${() => {
@@ -682,7 +792,7 @@ export class DashboardSidebarEditor extends LitElement {
     const patch: Patch = (partial) => this._patchBlock(sel.region, sel.index, partial);
     return html`
       <div class="form">
-        ${blockFields(sel.block, patch)}
+        ${blockFields(sel.block, patch, this._ctx())}
         ${
           sel.block.type === 'category'
             ? html`<button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
@@ -797,7 +907,7 @@ export class DashboardSidebarEditor extends LitElement {
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: min(900px, 94vw);
+      width: min(760px, 94vw);
       max-height: 88vh;
       display: flex;
       flex-direction: column;
@@ -867,6 +977,7 @@ export class DashboardSidebarEditor extends LitElement {
       display: flex;
       flex-direction: column;
       gap: 10px;
+      max-width: 420px;
     }
 
     .icon-choice {
@@ -909,13 +1020,15 @@ export class DashboardSidebarEditor extends LitElement {
 
     .split {
       display: flex;
-      gap: 16px;
+      gap: 24px;
       align-items: flex-start;
+      justify-content: center;
+      flex-wrap: wrap;
     }
 
     .editor {
-      flex: 1 1 auto;
-      min-width: 240px;
+      flex: 0 1 320px;
+      min-width: 0;
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -972,8 +1085,16 @@ export class DashboardSidebarEditor extends LitElement {
       gap: 4px;
     }
 
+    /* Mirror the live sidebar's category-items guide line and indent so a
+       category preview reads the same as it will on the dashboard. */
     .pv-sublist {
-      margin-left: 16px;
+      margin-left: 18px;
+      padding-left: 8px;
+      border-left: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
+    }
+
+    .pv-sublist.no-line {
+      border-left-color: transparent;
     }
 
     .drag,
@@ -1081,6 +1202,16 @@ export class DashboardSidebarEditor extends LitElement {
       color: inherit;
     }
 
+    .field.invalid input[type='text'],
+    .field.invalid textarea {
+      border-color: var(--error-color, #db4437);
+    }
+
+    .field-error {
+      color: var(--error-color, #db4437);
+      font-size: 0.75rem;
+    }
+
     .hint {
       font-size: 0.8rem;
       opacity: 0.6;
@@ -1147,6 +1278,60 @@ export class DashboardSidebarEditor extends LitElement {
 
     .primary {
       background: var(--primary-color, #03a9f4);
+      color: var(--text-primary-color, #fff);
+      border-color: transparent;
+    }
+
+    .primary[disabled] {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    .confirm-scrim {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgb(0 0 0 / 45%);
+      border-radius: 12px;
+    }
+
+    .confirm {
+      max-width: 320px;
+      margin: 16px;
+      padding: 16px;
+      border-radius: 12px;
+      background-color: var(--primary-background-color, #fff);
+      background-image: linear-gradient(
+        var(--card-background-color, #fff),
+        var(--card-background-color, #fff)
+      );
+      box-shadow: 0 8px 40px rgb(0 0 0 / 40%);
+    }
+
+    .confirm p {
+      margin: 0 0 14px;
+    }
+
+    .confirm-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .confirm-actions button {
+      font: inherit;
+      padding: 8px 14px;
+      border: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
+      border-radius: 8px;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .danger-btn {
+      background: var(--error-color, #db4437);
       color: var(--text-primary-color, #fff);
       border-color: transparent;
     }

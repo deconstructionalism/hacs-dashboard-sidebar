@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  lint-and-build:
+  lint-build-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,8 +22,24 @@ jobs:
         run: npm run lint:css
       - name: Check formatting
         run: npm run format
+      - name: Unit tests
+        run: npm run test:unit
       - name: Build
         run: npm run build
+
+  browser-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Browser render tests
+        run: npm run test:browser
 
   hacs-validate:
     runs-on: ubuntu-latest

@@ -62,4 +62,19 @@ export default tseslint.config(
       'jsdoc/no-blank-blocks': 'error',
     },
   },
+  {
+    // Browser render tests run under Mocha (web-test-runner) and use chai's
+    // property-style assertions (`expect(x).to.exist`), which read as unused
+    // expressions.
+    files: ['src/**/*.browser.test.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.mocha,
+      },
+    },
+    rules: {
+      'no-unused-expressions': 'off',
+      '@typescript-eslint/no-unused-expressions': 'off',
+    },
+  },
 );

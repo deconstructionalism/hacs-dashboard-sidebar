@@ -85,10 +85,12 @@ function getHeaderHeight(shadow: ShadowRoot): number {
 }
 
 /**
- * Pushes a sidebar host down by the current header height.
+ * Records the current header height as a CSS variable so the host can sit
+ * entirely below the header. Using margin (not padding) keeps the host box —
+ * which is stacked above the view — from overlapping the header's controls.
  */
 function applyHeaderOffset(shadow: ShadowRoot, host: HTMLElement): void {
-  host.style.paddingTop = `${getHeaderHeight(shadow)}px`;
+  host.style.setProperty('--dsb-header', `${getHeaderHeight(shadow)}px`);
 }
 
 /**
@@ -134,8 +136,9 @@ function sideHostCss(side: SidebarPosition, config: SidebarConfig): string {
       overflow: visible;
       align-self: flex-start;
       position: sticky;
-      top: 0;
-      height: 100vh;
+      top: var(--dsb-header, 0px);
+      margin-top: var(--dsb-header, 0px);
+      height: calc(100vh - var(--dsb-header, 0px));
       z-index: 5;
       transition: width 0.25s ease;
     }

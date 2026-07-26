@@ -1,6 +1,7 @@
 import type { HomeAssistant, LovelaceCardConfig } from 'custom-card-helpers';
 import { LitElement, css, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { repeat } from 'lit/directives/repeat.js';
 
 import type {
   BlockType,
@@ -12,6 +13,7 @@ import type {
 } from '../lib/types';
 import { validateConfig } from '../lib/validate';
 import { defaultBlock, defaultFooterButton, moveBlock } from './arrange';
+import { makeSortable } from './sortable';
 import {
   areaField,
   blockFields,
@@ -66,6 +68,15 @@ export class DashboardSidebarEditor extends LitElement {
   /** The mutable working copy of the config. */
   private _working: DashboardSidebarConfig = {};
 
+  /** Stable ids per row object, for keyed rendering under drag-and-drop. */
+  private readonly _ids = new WeakMap<object, string>();
+
+  /** Monotonic counter backing the id map. */
+  private _idSeq = 0;
+
+  /** Row containers already wired for drag-and-drop. */
+  private readonly _sorted = new WeakSet<HTMLElement>();
+
   /**
    * Clones the incoming config into the working copy.
    */
@@ -76,10 +87,63 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
+   * Wires drag-and-drop on any row list not already handled.
+   */
+  protected updated(): void {
+    this.renderRoot.querySelectorAll<HTMLElement>('.rows[data-sort]').forEach((el) => {
+      if (!this._sorted.has(el)) {
+        this._sorted.add(el);
+        makeSortable(el, (from, to) => this._onSort(el.dataset.sort ?? '', from, to));
+      }
+    });
+  }
+
+  /**
    * Re-renders after an in-place mutation of the working copy.
    */
   private _touch(): void {
     this.requestUpdate();
+  }
+
+  /**
+   * Returns a stable id for a row object, minting one on first use.
+   */
+  private _idFor(obj: object): string {
+    let id = this._ids.get(obj);
+    if (!id) {
+      this._idSeq += 1;
+      id = `r${this._idSeq}`;
+      this._ids.set(obj, id);
+    }
+    return id;
+  }
+
+  /**
+   * Moves an element within an array from one index to another.
+   */
+  private _reorder(arr: unknown[] | undefined, from: number, to: number): void {
+    if (arr && from >= 0 && from < arr.length && to >= 0 && to < arr.length) {
+      const [moved] = arr.splice(from, 1);
+      arr.splice(to, 0, moved);
+    }
+  }
+
+  /**
+   * Handles a drag-drop reorder for the identified list.
+   */
+  private _onSort(key: string, from?: number, to?: number): void {
+    if (from === undefined || to === undefined || from === to) {
+      return;
+    }
+    if (key === 'header' || key === 'body') {
+      this._reorder(this._working[key], from, to);
+    } else if (key === 'footer') {
+      this._reorder(this._working.footer?.buttons, from, to);
+    } else if (key.startsWith('cat:')) {
+      const [, region, index] = key.split(':');
+      this._reorder(this._category(region as Region, Number(index))?.items, from, to);
+    }
+    this._touch();
   }
 
   /**
@@ -373,8 +437,12 @@ export class DashboardSidebarEditor extends LitElement {
           <h3>${region}</h3>
           ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
         </div>
-        <div class="rows">
-          ${blocks.map((block, i) => this._renderRow(region, i, block, blocks.length))}
+        <div class="rows" data-sort=${region}>
+          ${repeat(
+            blocks,
+            (block) => this._idFor(block),
+            (block, i) => this._renderRow(region, i, block, blocks.length),
+          )}
         </div>
       </section>
     `;
@@ -393,6 +461,7 @@ export class DashboardSidebarEditor extends LitElement {
     const expanded = this._expanded.has(key);
     return html`
       <div class="row">
+        <span class="drag" title="Drag to reorder">⣿</span>
         <span class="rtype">${block.type}</span>
         <span class="rsum">${blockSummary(block)}</span>
         ${this._renderControls(
@@ -429,8 +498,12 @@ export class DashboardSidebarEditor extends LitElement {
     return html`
       ${blockFields(category, (partial) => this._patchBlock(region, index, partial))}
       <div class="subhead">Items</div>
-      <div class="rows">
-        ${category.items.map((item, j) => this._renderItemRow(region, index, j, item, category.items.length))}
+      <div class="rows" data-sort=${`cat:${region}:${index}`}>
+        ${repeat(
+          category.items,
+          (item) => this._idFor(item),
+          (item, j) => this._renderItemRow(region, index, j, item, category.items.length),
+        )}
       </div>
       <button class="add-btn" @click=${() => this._addItem(region, index)}>＋ Add item</button>
     `;
@@ -451,6 +524,7 @@ export class DashboardSidebarEditor extends LitElement {
     const patch: Patch = (partial) => this._patchItem(region, index, itemIndex, partial);
     return html`
       <div class="row">
+        <span class="drag" title="Drag to reorder">⣿</span>
         <span class="rsum">${item.title || '(item)'}</span>
         ${this._renderControls(
           () => this._toggleExpand(key),
@@ -502,8 +576,12 @@ export class DashboardSidebarEditor extends LitElement {
                 (v) => this._setFooterCard(v),
               )
             : html`
-                <div class="rows">
-                  ${buttons.map((btn, i) => this._renderFooterButtonRow(i, btn, buttons.length))}
+                <div class="rows" data-sort="footer">
+                  ${repeat(
+                    buttons,
+                    (btn) => this._idFor(btn),
+                    (btn, i) => this._renderFooterButtonRow(i, btn, buttons.length),
+                  )}
                 </div>
                 <button class="add-btn" @click=${() => this._addFooterButton()}>
                   ＋ Add button
@@ -526,6 +604,7 @@ export class DashboardSidebarEditor extends LitElement {
     const expanded = this._expanded.has(key);
     return html`
       <div class="row">
+        <span class="drag" title="Drag to reorder">⣿</span>
         <span class="rsum">${btn.icon}${btn.title ? ` · ${btn.title}` : ''}</span>
         ${this._renderControls(
           () => this._toggleExpand(key),
@@ -716,6 +795,12 @@ export class DashboardSidebarEditor extends LitElement {
       padding: 6px 8px;
       border-radius: 8px;
       background: var(--secondary-background-color, rgb(0 0 0 / 4%));
+    }
+
+    .drag {
+      cursor: grab;
+      opacity: 0.4;
+      user-select: none;
     }
 
     .rtype {

@@ -48,6 +48,13 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(labels).to.deep.equal(['Sidebar Settings', 'Header', 'Content', 'Footer']);
   });
 
+  it('renders sortable lists with drag handles', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Content');
+    expect(root(el).querySelector('.rows[data-sort="body"]')).to.exist;
+    expect(root(el).querySelectorAll('.row .drag').length).to.be.greaterThan(0);
+  });
+
   it('edits sidebar settings', async () => {
     const el = await mount(cfg());
     await tab(el, 'Sidebar Settings');

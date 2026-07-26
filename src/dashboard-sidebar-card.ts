@@ -5,6 +5,7 @@
 // ---------------------------------------------------------------------------
 
 import './dashboard-sidebar';
+import './editor/sidebar-editor';
 import { startSidebar } from './lib/bootstrap';
 import { CARD_VERSION } from './lib/const';
 

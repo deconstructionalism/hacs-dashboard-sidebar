@@ -1,12 +1,13 @@
 import {
-  CONFIG_CHANGED_EVENT,
   CONFIG_KEY,
   DEFAULT_COLLAPSED_WIDTH,
   DEFAULT_WIDTH,
+  EDIT_EVENT,
   TOGGLE_EVENT,
 } from './const';
 import type { DashboardSidebarConfig } from './types';
 import type { DashboardSidebar } from '../dashboard-sidebar';
+import type { DashboardSidebarEditor } from '../editor/sidebar-editor';
 
 /** DOM id of the flex wrapper that holds the sidebar host and the view. */
 const WRAPPER_ID = 'dashboard-sidebar-wrapper';
@@ -263,6 +264,22 @@ function removeAddButton(shadow: ShadowRoot): void {
 }
 
 /**
+ * Opens the editor modal for the current config, unless it is already open.
+ */
+function openEditor(huiRoot: { shadowRoot: ShadowRoot; lovelace?: any }): void {
+  const shadow = huiRoot.shadowRoot;
+  if (shadow.querySelector('dashboard-sidebar-editor')) {
+    return;
+  }
+  const editor = document.createElement('dashboard-sidebar-editor') as DashboardSidebarEditor;
+  editor.hass = getHass();
+  editor.config = readConfig(huiRoot) ?? {};
+  editor.onSave = (config) => saveConfig(huiRoot, config);
+  editor.onClose = () => editor.remove();
+  shadow.appendChild(editor);
+}
+
+/**
  * Rebuilds the sidebar after the frontend swaps the view or the config changes,
  * keeps hass and edit mode fresh, and manages the add-sidebar affordance.
  * A content-only change updates the element in place to avoid flicker.
@@ -327,11 +344,10 @@ function ensureSidebar(): void {
  */
 export function startSidebar(): void {
   window.addEventListener('location-changed', () => ensureSidebar());
-  window.addEventListener(CONFIG_CHANGED_EVENT, (ev: Event) => {
-    const config = (ev as CustomEvent).detail as DashboardSidebarConfig | undefined;
+  window.addEventListener(EDIT_EVENT, () => {
     const huiRoot = getHuiRoot();
-    if (huiRoot && config) {
-      saveConfig(huiRoot, config);
+    if (huiRoot) {
+      openEditor(huiRoot);
     }
   });
   window.setInterval(ensureSidebar, 1000);

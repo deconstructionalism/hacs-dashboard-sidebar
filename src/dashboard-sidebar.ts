@@ -482,7 +482,8 @@ export class DashboardSidebar extends LitElement {
    * Renders the hover tooltip for a collapsed row, fixed to the viewport.
    */
   private _renderTooltip(): TemplateResult | typeof nothing {
-    if (!this._tooltip) {
+    // Never cover an open popover; the dots tooltip would otherwise sit on top.
+    if (!this._tooltip || this._footerOpen || this._openCategory !== null) {
       return nothing;
     }
     return html`<div

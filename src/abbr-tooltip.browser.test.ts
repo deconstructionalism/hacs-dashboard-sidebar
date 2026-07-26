@@ -97,4 +97,19 @@ describe('collapsed abbr and tooltip', () => {
       'More',
     );
   });
+
+  it('suppresses the tooltip while the footer popover is open', async () => {
+    const el = await mount({
+      start_collapsed: true,
+      body: [{ type: 'item', title: 'A', tap_action: TAP }],
+      footer: { buttons: [{ icon: 'mdi:cog', tap_action: TAP }] },
+    });
+    const dots = root(el).querySelector('.dashboard-sidebar-footer-more') as HTMLElement;
+    dots.click();
+    await el.updateComplete;
+    dots.dispatchEvent(new MouseEvent('mouseenter'));
+    await el.updateComplete;
+    expect(root(el).querySelector('.dashboard-sidebar-footer-popover')).to.exist;
+    expect(root(el).querySelector('.dashboard-sidebar-tooltip')).to.not.exist;
+  });
 });

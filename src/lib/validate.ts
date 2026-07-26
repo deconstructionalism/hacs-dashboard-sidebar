@@ -23,12 +23,15 @@ const TOP_KEYS = new Set([
   'card_mod',
 ]);
 
+/** CSS targeting hooks accepted on every block and footer button. */
+const COMMON = ['class', 'id'];
+
 /** Recognized block types, and the keys each one accepts. */
 const BLOCK_KEYS: Record<string, Set<string>> = {
-  title: new Set(['type', 'text', 'align']),
-  clock: new Set(['type', 'format', 'collapsed_format', 'align']),
-  date: new Set(['type', 'format', 'align']),
-  divider: new Set(['type']),
+  title: new Set(['type', 'text', 'align', ...COMMON]),
+  clock: new Set(['type', 'format', 'collapsed_format', 'align', ...COMMON]),
+  date: new Set(['type', 'format', 'align', ...COMMON]),
+  divider: new Set(['type', ...COMMON]),
   item: new Set([
     'type',
     'title',
@@ -38,16 +41,33 @@ const BLOCK_KEYS: Record<string, Set<string>> = {
     'icon_color',
     'entity',
     'tap_action',
+    ...COMMON,
   ]),
-  category: new Set(['type', 'title', 'icon', 'abbr', 'start_collapsed', 'guide_line', 'items']),
-  card: new Set(['type', 'card', 'align', 'background']),
+  category: new Set([
+    'type',
+    'title',
+    'icon',
+    'abbr',
+    'start_collapsed',
+    'guide_line',
+    'items',
+    ...COMMON,
+  ]),
+  card: new Set(['type', 'card', 'align', 'background', ...COMMON]),
 };
 
 /** Recognized keys on the footer. */
 const FOOTER_KEYS = new Set(['divider', 'buttons', 'card']);
 
 /** Recognized keys on a footer button. */
-const FOOTER_BUTTON_KEYS = new Set(['icon', 'icon_color', 'title', 'entity', 'tap_action']);
+const FOOTER_BUTTON_KEYS = new Set([
+  'icon',
+  'icon_color',
+  'title',
+  'entity',
+  'tap_action',
+  ...COMMON,
+]);
 
 /**
  * Reports any keys on `obj` that are not in the `allowed` set, prefixing each
@@ -100,6 +120,15 @@ function checkAbbr(abbr: unknown, icon: unknown, ctx: string, errors: string[]):
 }
 
 /**
+ * Validates the optional card-mod targeting hooks (`class` and `id`).
+ */
+function checkHooks(block: unknown, ctx: string, errors: string[]): void {
+  const b = block as { class?: unknown; id?: unknown };
+  checkString(b.class, `${ctx}.class`, errors);
+  checkString(b.id, `${ctx}.id`, errors);
+}
+
+/**
  * Records an error when a clock or date format uses a token outside its domain.
  */
 function checkFormat(
@@ -141,6 +170,7 @@ function validateItem(item: ItemBlock, ctx: string, errors: string[]): void {
     errors.push(`${ctx}: needs a tap_action`);
   }
   checkAbbr(item.abbr, item.icon, ctx, errors);
+  checkHooks(item, ctx, errors);
 }
 
 /**
@@ -157,6 +187,9 @@ function validateBlock(block: SidebarBlock, ctx: string, errors: string[]): void
     return;
   }
   unknownKeys(block, BLOCK_KEYS[type], ctx, errors);
+  if (type !== 'item') {
+    checkHooks(block, ctx, errors);
+  }
 
   switch (type) {
     case 'title':
@@ -289,6 +322,7 @@ function validateFooter(footer: unknown, errors: string[]): void {
         if (!(btn as { tap_action?: unknown }).tap_action) {
           errors.push(`${ctx}: needs a tap_action`);
         }
+        checkHooks(btn, ctx, errors);
       });
     }
   }

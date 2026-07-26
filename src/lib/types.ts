@@ -27,8 +27,19 @@ export type DateFormat = string;
 /** Collapsed-clock rendering: 24-hour, or 12-hour with no AM/PM suffix. */
 export type CollapsedClockFormat = '12h' | '24h';
 
+/** CSS targeting hooks shared by every block and footer button. */
+export interface BlockCommon {
+  /**
+   * Extra CSS class(es) added to the rendered root, alongside the built-in
+   * dashboard-sidebar-* classes, so card-mod can target this one element.
+   */
+  class?: string;
+  /** CSS id set on the rendered root, so card-mod can target this one element. */
+  id?: string;
+}
+
 /** A heading block showing templatable text. Hidden while collapsed. */
-export interface TitleBlock {
+export interface TitleBlock extends BlockCommon {
   /** Block discriminator. */
   type: 'title';
   /** The heading text. Templatable. */
@@ -38,7 +49,7 @@ export interface TitleBlock {
 }
 
 /** A digital clock block. */
-export interface ClockBlock {
+export interface ClockBlock extends BlockCommon {
   /** Block discriminator. */
   type: 'clock';
   /** Expanded clock format. See {@link TimeFormat}. */
@@ -50,7 +61,7 @@ export interface ClockBlock {
 }
 
 /** A date block. */
-export interface DateBlock {
+export interface DateBlock extends BlockCommon {
   /** Block discriminator. */
   type: 'date';
   /** Expanded date format. See {@link DateFormat}. */
@@ -60,13 +71,13 @@ export interface DateBlock {
 }
 
 /** A horizontal rule block. */
-export interface DividerBlock {
+export interface DividerBlock extends BlockCommon {
   /** Block discriminator. */
   type: 'divider';
 }
 
 /** A single tappable row. Standalone in a region, or nested in a category. */
-export interface ItemBlock {
+export interface ItemBlock extends BlockCommon {
   /** Block discriminator. Optional inside a category's item list. */
   type?: 'item';
   /** Row label. Templatable. */
@@ -89,7 +100,7 @@ export interface ItemBlock {
 }
 
 /** A collapsible group of items, nested one level deep. */
-export interface CategoryBlock {
+export interface CategoryBlock extends BlockCommon {
   /** Block discriminator. */
   type: 'category';
   /** Group heading text. Templatable. */
@@ -110,7 +121,7 @@ export interface CategoryBlock {
 }
 
 /** A manual component: a markdown string or any Lovelace card. */
-export interface CardBlock {
+export interface CardBlock extends BlockCommon {
   /** Block discriminator. */
   type: 'card';
   /** A markdown string, or any Lovelace card config. */
@@ -126,7 +137,7 @@ export type SidebarBlock =
   TitleBlock | ClockBlock | DateBlock | DividerBlock | ItemBlock | CategoryBlock | CardBlock;
 
 /** An icon button in the footer's button bar. */
-export interface FooterButtonConfig {
+export interface FooterButtonConfig extends BlockCommon {
   /** mdi icon shown in the button. Templatable. */
   icon: MaybeTemplate;
   /** Optional icon color, any CSS color. Templatable. */

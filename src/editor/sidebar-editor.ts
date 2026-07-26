@@ -12,10 +12,28 @@ import type {
 } from '../lib/types';
 import { validateConfig } from '../lib/validate';
 import { defaultBlock, defaultFooterButton, moveBlock } from './arrange';
-import { areaField, blockFields, blockSummary, footerButtonFields, type Patch } from './block-form';
+import {
+  areaField,
+  blockFields,
+  blockSummary,
+  checkboxField,
+  footerButtonFields,
+  numberField,
+  type Patch,
+  selectField,
+  textField,
+} from './block-form';
 
 /** Every block type, offered when adding to the header. */
 const ALL_TYPES: BlockType[] = ['title', 'clock', 'date', 'divider', 'item', 'category', 'card'];
+
+/** The modal tabs, in order. `body` is labelled "Content". */
+const TABS: Array<{ id: 'settings' | 'header' | 'body' | 'footer'; label: string }> = [
+  { id: 'settings', label: 'Sidebar Settings' },
+  { id: 'header', label: 'Header' },
+  { id: 'body', label: 'Content' },
+  { id: 'footer', label: 'Footer' },
+];
 
 /**
  * The visual editor for one dashboard_sidebar. Opened by the bootstrap in
@@ -35,6 +53,9 @@ export class DashboardSidebarEditor extends LitElement {
 
   /** Called when the editor should close (cancel or after save). */
   @property({ attribute: false }) public onClose?: () => void;
+
+  /** The active tab. */
+  @state() private _tab: 'settings' | 'header' | 'body' | 'footer' = 'header';
 
   /** Keys of rows expanded for field editing. */
   @state() private _expanded = new Set<string>();
@@ -72,6 +93,14 @@ export class DashboardSidebarEditor extends LitElement {
       next.add(key);
     }
     this._expanded = next;
+  }
+
+  /**
+   * Merges a partial update into the top-level sidebar settings.
+   */
+  private _patchConfig(partial: Record<string, unknown>): void {
+    Object.assign(this._working, partial);
+    this._touch();
   }
 
   /**
@@ -260,9 +289,21 @@ export class DashboardSidebarEditor extends LitElement {
           <h2>Edit sidebar</h2>
           <button class="icon" title="Close" @click=${this._close}>✕</button>
         </header>
-        <div class="content">
-          ${this._renderSection('header')} ${this._renderSection('body')} ${this._renderFooter()}
+        <div class="tabs">
+          ${TABS.map(
+            (t) => html`
+              <button
+                class="tab ${this._tab === t.id ? 'active' : ''}"
+                @click=${() => {
+                  this._tab = t.id;
+                }}
+              >
+                ${t.label}
+              </button>
+            `,
+          )}
         </div>
+        <div class="content">${this._renderTab()}</div>
         ${
           this._errors.length > 0
             ? html`<ul class="errors">
@@ -275,6 +316,48 @@ export class DashboardSidebarEditor extends LitElement {
           <button class="primary" @click=${this._save}>Save</button>
         </footer>
       </div>
+    `;
+  }
+
+  /**
+   * Renders the active tab's content.
+   */
+  private _renderTab(): TemplateResult {
+    switch (this._tab) {
+      case 'settings':
+        return this._renderSettings();
+      case 'header':
+        return this._renderSection('header');
+      case 'body':
+        return this._renderSection('body');
+      case 'footer':
+        return this._renderFooter();
+      default:
+        return html``;
+    }
+  }
+
+  /**
+   * Renders the sidebar-level settings form.
+   */
+  private _renderSettings(): TemplateResult {
+    const c = this._working;
+    return html`
+      <section class="region settings">
+        ${selectField('Position', c.position ?? 'left', ['left', 'right'], (v) =>
+          this._patchConfig({ position: v }),
+        )}
+        ${numberField('Width (px)', c.width, (v) => this._patchConfig({ width: v }))}
+        ${checkboxField('Start collapsed', c.start_collapsed ?? false, (v) =>
+          this._patchConfig({ start_collapsed: v }),
+        )}
+        ${checkboxField('Hide on mobile', c.hide_on_mobile ?? false, (v) =>
+          this._patchConfig({ hide_on_mobile: v }),
+        )}
+        ${textField('Background (CSS color)', c.background, (v) =>
+          this._patchConfig({ background: v || undefined }),
+        )}
+      </section>
     `;
   }
 
@@ -550,6 +633,48 @@ export class DashboardSidebarEditor extends LitElement {
     .content {
       padding: 12px;
       overflow-y: auto;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      padding: 8px 12px 0;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--divider-color, rgb(0 0 0 / 12%));
+    }
+
+    .tab {
+      font: inherit;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 8px 8px 0 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+
+    .tab.active {
+      background: var(--secondary-background-color, rgb(0 0 0 / 6%));
+      opacity: 1;
+      font-weight: 600;
+    }
+
+    .settings {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .advanced {
+      margin-top: 4px;
+    }
+
+    .advanced summary {
+      cursor: pointer;
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-bottom: 4px;
     }
 
     .region {

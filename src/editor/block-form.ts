@@ -16,8 +16,8 @@ export type Patch = (partial: Record<string, unknown>) => void;
 /** Alignment choices shared by the text and card blocks. */
 const ALIGN_OPTIONS = ['left', 'center', 'right'];
 
-/** Tap-action kinds offered by the minimal action editor. */
-const ACTION_OPTIONS = ['none', 'toggle', 'more-info', 'navigate', 'call-service'];
+/** Tap-action kinds offered by the action editor. */
+const ACTION_OPTIONS = ['none', 'toggle', 'more-info', 'navigate', 'url', 'call-service'];
 
 /**
  * Renders a labelled single-line text input.
@@ -91,6 +91,42 @@ export function checkboxField(
 }
 
 /**
+ * Renders a labelled numeric input, reporting undefined when cleared.
+ */
+export function numberField(
+  label: string,
+  value: number | undefined,
+  onInput: (value: number | undefined) => void,
+): TemplateResult {
+  return html`<label class="field">
+    <span>${label}</span>
+    <input
+      type="number"
+      .value=${value != null ? String(value) : ''}
+      @input=${(e: Event) => {
+        const s = (e.target as HTMLInputElement).value;
+        onInput(s === '' ? undefined : Number(s));
+      }}
+    />
+  </label>`;
+}
+
+/**
+ * Parses a JSON object from a textarea, or undefined when empty/invalid.
+ */
+function parseJson(value: string): Record<string, unknown> | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(trimmed) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Returns a one-line human summary of a block for its collapsed row.
  */
 export function blockSummary(block: SidebarBlock): string {
@@ -118,19 +154,45 @@ export function blockSummary(block: SidebarBlock): string {
  * Renders the minimal tap-action editor for an item or footer button.
  */
 export function actionFields(
-  action: { action?: string; navigation_path?: string; entity?: string },
+  action: {
+    action?: string;
+    navigation_path?: string;
+    url_path?: string;
+    entity?: string;
+    service?: string;
+    data?: Record<string, unknown>;
+  },
   patch: Patch,
 ): TemplateResult {
   const kind = action?.action ?? 'none';
+  const set = (partial: Record<string, unknown>): void =>
+    patch({ tap_action: { ...action, action: kind, ...partial } });
   return html`
     ${selectField('Tap action', kind, ACTION_OPTIONS, (v) =>
       patch({ tap_action: { ...action, action: v } }),
     )}
     ${
       kind === 'navigate'
-        ? textField('Navigation path', action?.navigation_path, (v) =>
-            patch({ tap_action: { ...action, action: kind, navigation_path: v } }),
-          )
+        ? textField('Navigation path', action.navigation_path, (v) => set({ navigation_path: v }))
+        : nothing
+    }
+    ${kind === 'url' ? textField('URL', action.url_path, (v) => set({ url_path: v })) : nothing}
+    ${
+      kind === 'toggle' || kind === 'more-info'
+        ? textField('Entity', action.entity, (v) => set({ entity: v || undefined }))
+        : nothing
+    }
+    ${
+      kind === 'call-service'
+        ? html`
+            ${textField('Service (domain.service)', action.service, (v) => set({ service: v }))}
+            ${textField('Target entity', action.entity, (v) => set({ entity: v || undefined }))}
+            ${areaField(
+              'Service data (JSON)',
+              action.data ? JSON.stringify(action.data, null, 2) : '',
+              (v) => set({ data: parseJson(v) }),
+            )}
+          `
         : nothing
     }
   `;
@@ -152,9 +214,41 @@ export function footerButtonFields(
 }
 
 /**
- * Renders the editable fields for one block, applying edits through `patch`.
+ * Renders the class/id (and, for items/categories, abbr) hooks under a native
+ * collapsible Advanced section.
+ */
+function advancedFields(
+  block: { class?: string; id?: string; abbr?: string; icon?: unknown },
+  patch: Patch,
+  withAbbr: boolean,
+): TemplateResult {
+  return html`<details class="advanced">
+    <summary>Advanced</summary>
+    ${textField('CSS class', block.class, (v) => patch({ class: v || undefined }))}
+    ${textField('CSS id', block.id, (v) => patch({ id: v || undefined }))}
+    ${
+      withAbbr
+        ? textField('Abbr (collapsed glyph, icon-less only)', block.abbr, (v) =>
+            patch({ abbr: v || undefined }),
+          )
+        : nothing
+    }
+  </details>`;
+}
+
+/**
+ * Renders the editable fields for one block: its type-specific fields plus the
+ * shared Advanced (class/id/abbr) section.
  */
 export function blockFields(block: SidebarBlock, patch: Patch): TemplateResult {
+  const withAbbr = block.type === 'item' || block.type === 'category';
+  return html`${blockTypeFields(block, patch)}${advancedFields(block, patch, withAbbr)}`;
+}
+
+/**
+ * Renders the type-specific fields for one block.
+ */
+function blockTypeFields(block: SidebarBlock, patch: Patch): TemplateResult {
   switch (block.type) {
     case 'title':
       return html`

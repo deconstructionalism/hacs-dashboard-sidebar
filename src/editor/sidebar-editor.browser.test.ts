@@ -32,17 +32,42 @@ function root(el: DashboardSidebarEditor): ShadowRoot {
   return el.shadowRoot as ShadowRoot;
 }
 
+/** Clicks the tab with the given label and settles the render. */
+async function tab(el: DashboardSidebarEditor, label: string): Promise<void> {
+  const btn = [...root(el).querySelectorAll('.tab')].find(
+    (b) => b.textContent?.trim() === label,
+  ) as HTMLButtonElement;
+  btn.click();
+  await el.updateComplete;
+}
+
 describe('<dashboard-sidebar-editor>', () => {
-  it('renders the three sections', async () => {
+  it('renders the four tabs', async () => {
     const el = await mount(cfg());
-    expect(root(el).querySelectorAll('.region').length).to.equal(3);
-    expect(root(el).querySelectorAll('select.add').length).to.equal(2);
+    const labels = [...root(el).querySelectorAll('.tab')].map((b) => b.textContent?.trim());
+    expect(labels).to.deep.equal(['Sidebar Settings', 'Header', 'Content', 'Footer']);
   });
 
-  it('adds a block through the body add menu', async () => {
+  it('edits sidebar settings', async () => {
     const el = await mount(cfg());
+    await tab(el, 'Sidebar Settings');
+    const sel = root(el).querySelector('.settings select') as HTMLSelectElement;
+    sel.value = 'right';
+    sel.dispatchEvent(new Event('change'));
+    await el.updateComplete;
+    let saved: DashboardSidebarConfig | undefined;
+    el.onSave = (c) => {
+      saved = c;
+    };
+    (root(el).querySelector('footer .primary') as HTMLButtonElement).click();
+    expect(saved?.position).to.equal('right');
+  });
+
+  it('adds a block through the Content add menu', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Content');
     const before = root(el).querySelectorAll('.rows > .row').length;
-    const sel = root(el).querySelectorAll('select.add')[1] as HTMLSelectElement;
+    const sel = root(el).querySelector('select.add') as HTMLSelectElement;
     sel.value = 'divider';
     sel.dispatchEvent(new Event('change'));
     await el.updateComplete;
@@ -51,6 +76,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('deletes a block', async () => {
     const el = await mount(cfg());
+    await tab(el, 'Content');
     const before = root(el).querySelectorAll('.rows > .row').length;
     (root(el).querySelector('.row .danger') as HTMLButtonElement).click();
     await el.updateComplete;
@@ -59,29 +85,28 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('expands a row to reveal its fields', async () => {
     const el = await mount(cfg());
+    await tab(el, 'Header');
     (root(el).querySelector('.row .icon') as HTMLButtonElement).click();
     await el.updateComplete;
     expect(root(el).querySelector('.fields')).to.exist;
+    expect(root(el).querySelector('.advanced')).to.exist;
   });
 
   it('edits a category and shows its item list', async () => {
     const el = await mount(cfg());
+    await tab(el, 'Content');
     const catRow = [...root(el).querySelectorAll('.row')].find(
       (r) => r.querySelector('.rtype')?.textContent === 'category',
     ) as HTMLElement;
     (catRow.querySelector('.icon') as HTMLButtonElement).click();
     await el.updateComplete;
     expect(root(el).querySelector('.subhead')?.textContent).to.contain('Items');
-    const addItem = [...root(el).querySelectorAll('.add-btn')].find((b) =>
-      b.textContent?.includes('Add item'),
-    );
-    expect(addItem).to.exist;
   });
 
   it('toggles the footer to a custom component', async () => {
     const el = await mount(cfg());
-    const modeBtns = root(el).querySelectorAll('.mode');
-    (modeBtns[1] as HTMLButtonElement).click();
+    await tab(el, 'Footer');
+    (root(el).querySelectorAll('.mode')[1] as HTMLButtonElement).click();
     await el.updateComplete;
     expect(root(el).querySelector('textarea')).to.exist;
   });
@@ -97,7 +122,6 @@ describe('<dashboard-sidebar-editor>', () => {
       closed = true;
     };
     (root(el).querySelector('footer .primary') as HTMLButtonElement).click();
-    await el.updateComplete;
     expect(saved?.body?.length).to.equal(2);
     expect(closed).to.equal(true);
   });

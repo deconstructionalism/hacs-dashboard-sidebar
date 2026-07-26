@@ -123,25 +123,6 @@ export function intField(
 }
 
 /**
- * Renders a labelled monospace text input, for values like CSS colors.
- */
-export function codeField(
-  label: string,
-  value: string | undefined,
-  onInput: (value: string) => void,
-): TemplateResult {
-  return html`<label class="field">
-    <span>${label}</span>
-    <input
-      type="text"
-      class="mono"
-      .value=${value ?? ''}
-      @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
-    />
-  </label>`;
-}
-
-/**
  * Renders a labelled single-choice group of icon buttons.
  */
 export function iconChoiceField(

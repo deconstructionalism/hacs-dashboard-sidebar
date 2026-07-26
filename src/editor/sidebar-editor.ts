@@ -19,11 +19,11 @@ import {
   blockFields,
   blockSummary,
   checkboxField,
-  codeField,
   footerButtonFields,
   iconChoiceField,
   intField,
   type Patch,
+  textField,
   titleCase,
 } from './block-form';
 
@@ -425,7 +425,7 @@ export class DashboardSidebarEditor extends LitElement {
         ${checkboxField('Hide on mobile', c.hide_on_mobile ?? false, (v) =>
           this._patchConfig({ hide_on_mobile: v }),
         )}
-        ${codeField('Background (CSS color)', c.background, (v) =>
+        ${textField('Background (CSS color)', c.background, (v) =>
           this._patchConfig({ background: v || undefined }),
         )}
       </section>
@@ -712,7 +712,6 @@ export class DashboardSidebarEditor extends LitElement {
       align-items: center;
       justify-content: space-between;
       padding: 10px 12px;
-      border-bottom: 1px solid var(--divider-color, rgb(0 0 0 / 12%));
     }
 
     header h2 {
@@ -745,7 +744,8 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     .tab.active {
-      background: var(--secondary-background-color, rgb(0 0 0 / 6%));
+      background: var(--primary-text-color, #212121);
+      color: var(--card-background-color, #fff);
       opacity: 1;
       font-weight: 600;
     }
@@ -777,10 +777,6 @@ export class DashboardSidebarEditor extends LitElement {
       background: var(--primary-color, #03a9f4);
       color: var(--text-primary-color, #fff);
       border-color: transparent;
-    }
-
-    .mono {
-      font-family: var(--code-font-family, ui-monospace, monospace);
     }
 
     .advanced {

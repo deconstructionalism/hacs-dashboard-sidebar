@@ -14,7 +14,6 @@ import type {
 } from '../lib/types';
 import type { DashboardSidebar } from '../dashboard-sidebar';
 import '../dashboard-sidebar';
-import { DEFAULT_WIDTH } from '../lib/const';
 import { validateConfig } from '../lib/validate';
 import { defaultBlock, defaultFooterButton } from './arrange';
 import { makeSortable } from './sortable';
@@ -482,17 +481,17 @@ export class DashboardSidebarEditor extends LitElement {
           <div class="confirm-actions">
             <button
               @click=${() => {
-              this._confirmingClose = false;
-            }}
+                this._confirmingClose = false;
+              }}
             >
               Keep editing
             </button>
             <button
               class="danger-btn"
               @click=${() => {
-              this._confirmingClose = false;
-              this.onClose?.();
-            }}
+                this._confirmingClose = false;
+                this.onClose?.();
+              }}
             >
               Discard changes
             </button>
@@ -565,19 +564,11 @@ export class DashboardSidebarEditor extends LitElement {
           ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
           ${this._renderSelectedForm()}
         </div>
-        <div class="preview" style="--dsb-w: ${this._previewWidth}px">
+        <div class="preview">
           <div class="pv-frame">${this._renderRegionPreview(region)}</div>
         </div>
       </div>
     `;
-  }
-
-  /**
-   * The width, in px, at which to render the preview column so it mirrors the
-   * configured (or default) sidebar width.
-   */
-  private get _previewWidth(): number {
-    return this._working.width ?? DEFAULT_WIDTH;
   }
 
   /**
@@ -691,7 +682,7 @@ export class DashboardSidebarEditor extends LitElement {
               (v) => this._setFooterCard(v),
             )}
           </div>
-          <div class="preview" style="--dsb-w: ${this._previewWidth}px">
+          <div class="preview">
             <div class="pv-frame">
               ${this._previewEl('footer-card', {
                 footer: { card: footer?.card ?? '', divider: false },
@@ -709,7 +700,7 @@ export class DashboardSidebarEditor extends LitElement {
           <button class="add-btn" @click=${() => this._addFooterButton()}>＋ Add button</button>
           ${this._renderSelectedForm()}
         </div>
-        <div class="preview" style="--dsb-w: ${this._previewWidth}px">
+        <div class="preview">
           <div class="pv-frame">
             <div class="pv-list" data-sort="footer">
               ${repeat(
@@ -907,7 +898,7 @@ export class DashboardSidebarEditor extends LitElement {
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: min(760px, 94vw);
+      width: min(640px, 94vw);
       max-height: 88vh;
       display: flex;
       flex-direction: column;
@@ -978,6 +969,7 @@ export class DashboardSidebarEditor extends LitElement {
       flex-direction: column;
       gap: 10px;
       max-width: 420px;
+      margin: 0 auto;
     }
 
     .icon-choice {
@@ -1020,32 +1012,27 @@ export class DashboardSidebarEditor extends LitElement {
 
     .split {
       display: flex;
-      gap: 24px;
+      gap: 20px;
       align-items: flex-start;
-      justify-content: center;
       flex-wrap: wrap;
     }
 
     .editor {
-      flex: 0 1 320px;
+      flex: 0 0 300px;
       min-width: 0;
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
 
-    /* The preview column shrinks to the frame width so no dead space trails it;
-       it scrolls if the configured width outgrows the space. */
+    /* The preview fills the rest of the modal; its content renders at whatever
+       width the column allows, not a fixed configured width. */
     .preview {
-      flex: 0 0 auto;
-      max-width: 100%;
-      overflow-x: auto;
+      flex: 1 1 220px;
+      min-width: 0;
     }
 
-    /* Renders the region at the configured sidebar width so content wraps and
-       truncates exactly as it will in the real sidebar. */
     .pv-frame {
-      width: var(--dsb-w, 240px);
       box-sizing: border-box;
       padding: 8px 0;
       border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));

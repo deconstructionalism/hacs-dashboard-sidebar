@@ -733,11 +733,11 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     .tab {
+      position: relative;
       font: inherit;
       padding: 6px 12px;
       border: 1px solid transparent;
       border-radius: 8px 8px 0 0;
-      margin-bottom: -1px;
       background: transparent;
       color: inherit;
       cursor: pointer;
@@ -745,12 +745,21 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     .tab.active {
-      /* top / right / left = the bar color; bottom = the content color, which
-         covers the bar line only under this tab so it connects to the content. */
       border-color: var(--divider-color, rgb(0 0 0 / 12%)) var(--divider-color, rgb(0 0 0 / 12%))
-        var(--card-background-color, #fff) var(--divider-color, rgb(0 0 0 / 12%));
+        transparent var(--divider-color, rgb(0 0 0 / 12%));
       opacity: 1;
       font-weight: 600;
+    }
+
+    /* Cover the bar line only under the active tab so it connects to content. */
+    .tab.active::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      bottom: -1px;
+      left: 0;
+      height: 2px;
+      background: var(--card-background-color, #fff);
     }
 
     .settings {

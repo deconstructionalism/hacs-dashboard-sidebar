@@ -100,8 +100,8 @@ describe('<dashboard-sidebar-editor>', () => {
   it('edits a category and shows its item list', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');
-    const catRow = [...root(el).querySelectorAll('.row')].find(
-      (r) => r.querySelector('.rtype')?.textContent === 'category',
+    const catRow = [...root(el).querySelectorAll('.row')].find((r) =>
+      r.querySelector('.pv-chevron'),
     ) as HTMLElement;
     (catRow.querySelector('.icon') as HTMLButtonElement).click();
     await el.updateComplete;

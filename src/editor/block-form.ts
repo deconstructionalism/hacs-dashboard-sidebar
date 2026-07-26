@@ -1,14 +1,6 @@
 import { html, nothing, type TemplateResult } from 'lit';
 
-import type {
-  CardBlock,
-  CategoryBlock,
-  ClockBlock,
-  DateBlock,
-  ItemBlock,
-  SidebarBlock,
-  TitleBlock,
-} from '../lib/types';
+import type { SidebarBlock } from '../lib/types';
 
 /** Merges a partial update into the object being edited, then re-renders. */
 export type Patch = (partial: Record<string, unknown>) => void;
@@ -162,30 +154,6 @@ function parseJson(value: string): Record<string, unknown> | undefined {
     return JSON.parse(trimmed) as Record<string, unknown>;
   } catch {
     return undefined;
-  }
-}
-
-/**
- * Returns a one-line human summary of a block for its collapsed row.
- */
-export function blockSummary(block: SidebarBlock): string {
-  switch (block.type) {
-    case 'title':
-      return (block as TitleBlock).text || '(title)';
-    case 'clock':
-      return (block as ClockBlock).format ?? 'clock';
-    case 'date':
-      return (block as DateBlock).format ?? 'date';
-    case 'divider':
-      return '──';
-    case 'item':
-      return (block as ItemBlock).title || '(item)';
-    case 'category':
-      return `${(block as CategoryBlock).title || '(category)'} (${(block as CategoryBlock).items?.length ?? 0})`;
-    case 'card':
-      return typeof (block as CardBlock).card === 'string' ? 'markdown' : 'card';
-    default:
-      return '';
   }
 }
 

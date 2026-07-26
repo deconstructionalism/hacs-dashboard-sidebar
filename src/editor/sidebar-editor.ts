@@ -11,13 +11,13 @@ import type {
   Region,
   SidebarBlock,
 } from '../lib/types';
+import { formatClock, formatDate, initials } from '../lib/format';
 import { validateConfig } from '../lib/validate';
-import { defaultBlock, defaultFooterButton, moveBlock } from './arrange';
+import { defaultBlock, defaultFooterButton } from './arrange';
 import { makeSortable } from './sortable';
 import {
   areaField,
   blockFields,
-  blockSummary,
   checkboxField,
   footerButtonFields,
   iconChoiceField,
@@ -186,17 +186,6 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Reorders a block within its region by the given step.
-   */
-  private _moveBlock(region: Region, index: number, delta: number): void {
-    Object.assign(
-      this._working,
-      moveBlock(this._working, { region, index }, { region, index: index + delta }),
-    );
-    this._touch();
-  }
-
-  /**
    * Merges a partial update into the block at a region index.
    */
   private _patchBlock(region: Region, index: number, partial: Record<string, unknown>): void {
@@ -229,18 +218,6 @@ export class DashboardSidebarEditor extends LitElement {
   private _removeItem(region: Region, index: number, itemIndex: number): void {
     this._category(region, index)?.items.splice(itemIndex, 1);
     this._touch();
-  }
-
-  /**
-   * Reorders an item within a category by the given step.
-   */
-  private _moveItem(region: Region, index: number, itemIndex: number, delta: number): void {
-    const items = this._category(region, index)?.items;
-    const to = itemIndex + delta;
-    if (items && to >= 0 && to < items.length) {
-      [items[itemIndex], items[to]] = [items[to], items[itemIndex]];
-      this._touch();
-    }
   }
 
   /**
@@ -282,18 +259,6 @@ export class DashboardSidebarEditor extends LitElement {
   private _removeFooterButton(index: number): void {
     this._working.footer?.buttons?.splice(index, 1);
     this._touch();
-  }
-
-  /**
-   * Reorders a footer button by the given step.
-   */
-  private _moveFooterButton(index: number, delta: number): void {
-    const buttons = this._working.footer?.buttons;
-    const to = index + delta;
-    if (buttons && to >= 0 && to < buttons.length) {
-      [buttons[index], buttons[to]] = [buttons[to], buttons[index]];
-      this._touch();
-    }
   }
 
   /**
@@ -447,7 +412,7 @@ export class DashboardSidebarEditor extends LitElement {
           ${repeat(
             blocks,
             (block) => this._idFor(block),
-            (block, i) => this._renderRow(region, i, block, blocks.length),
+            (block, i) => this._renderRow(region, i, block),
           )}
         </div>
       </section>
@@ -457,26 +422,16 @@ export class DashboardSidebarEditor extends LitElement {
   /**
    * Renders one block row: summary, controls, and expandable fields.
    */
-  private _renderRow(
-    region: Region,
-    index: number,
-    block: SidebarBlock,
-    count: number,
-  ): TemplateResult {
+  private _renderRow(region: Region, index: number, block: SidebarBlock): TemplateResult {
     const key = `${region}-${index}`;
     const expanded = this._expanded.has(key);
     return html`
       <div class="row">
         <span class="drag" title="Drag to reorder">⣿</span>
-        <span class="rtype">${block.type}</span>
-        <span class="rsum">${blockSummary(block)}</span>
+        <div class="rpreview">${this._renderBlockPreview(block)}</div>
         ${this._renderControls(
           () => this._toggleExpand(key),
-          () => this._moveBlock(region, index, -1),
-          () => this._moveBlock(region, index, 1),
           () => this._removeBlock(region, index),
-          index === 0,
-          index === count - 1,
         )}
       </div>
       ${
@@ -508,7 +463,7 @@ export class DashboardSidebarEditor extends LitElement {
         ${repeat(
           category.items,
           (item) => this._idFor(item),
-          (item, j) => this._renderItemRow(region, index, j, item, category.items.length),
+          (item, j) => this._renderItemRow(region, index, j, item),
         )}
       </div>
       <button class="add-btn" @click=${() => this._addItem(region, index)}>＋ Add item</button>
@@ -523,7 +478,6 @@ export class DashboardSidebarEditor extends LitElement {
     index: number,
     itemIndex: number,
     item: ItemBlock,
-    count: number,
   ): TemplateResult {
     const key = `${region}-${index}-i${itemIndex}`;
     const expanded = this._expanded.has(key);
@@ -531,14 +485,10 @@ export class DashboardSidebarEditor extends LitElement {
     return html`
       <div class="row">
         <span class="drag" title="Drag to reorder">⣿</span>
-        <span class="rsum">${item.title || '(item)'}</span>
+        <div class="rpreview">${this._renderItemPreview(item)}</div>
         ${this._renderControls(
           () => this._toggleExpand(key),
-          () => this._moveItem(region, index, itemIndex, -1),
-          () => this._moveItem(region, index, itemIndex, 1),
           () => this._removeItem(region, index, itemIndex),
-          itemIndex === 0,
-          itemIndex === count - 1,
         )}
       </div>
       ${
@@ -585,7 +535,7 @@ export class DashboardSidebarEditor extends LitElement {
                   ${repeat(
                     buttons,
                     (btn) => this._idFor(btn),
-                    (btn, i) => this._renderFooterButtonRow(i, btn, buttons.length),
+                    (btn, i) => this._renderFooterButtonRow(i, btn),
                   )}
                 </div>
                 <button class="add-btn" @click=${() => this._addFooterButton()}>
@@ -603,21 +553,16 @@ export class DashboardSidebarEditor extends LitElement {
   private _renderFooterButtonRow(
     index: number,
     btn: { icon?: string; title?: string },
-    count: number,
   ): TemplateResult {
     const key = `footer-${index}`;
     const expanded = this._expanded.has(key);
     return html`
       <div class="row">
         <span class="drag" title="Drag to reorder">⣿</span>
-        <span class="rsum">${btn.icon}${btn.title ? ` · ${btn.title}` : ''}</span>
+        <div class="rpreview">${this._renderFooterButtonPreview(btn)}</div>
         ${this._renderControls(
           () => this._toggleExpand(key),
-          () => this._moveFooterButton(index, -1),
-          () => this._moveFooterButton(index, 1),
           () => this._removeFooterButton(index),
-          index === 0,
-          index === count - 1,
         )}
       </div>
       ${
@@ -631,20 +576,88 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Renders the edit / up / down / delete controls for a row.
+   * The active locale, from hass or the browser, used for date/time previews.
    */
-  private _renderControls(
-    onEdit: () => void,
-    onUp: () => void,
-    onDown: () => void,
-    onDelete: () => void,
-    upDisabled: boolean,
-    downDisabled: boolean,
-  ): TemplateResult {
+  private get _locale(): string {
+    return this.hass?.locale?.language ?? navigator.language;
+  }
+
+  /**
+   * Renders a faithful, non-interactive preview of a block as currently set,
+   * shown in its collapsed row in place of a raw config summary.
+   */
+  private _renderBlockPreview(block: SidebarBlock): TemplateResult {
+    switch (block.type) {
+      case 'title':
+        return html`<div class="pv-line pv-title" style="text-align: ${block.align ?? 'center'}">
+          ${block.text || '(title)'}
+        </div>`;
+      case 'clock':
+        return html`<div class="pv-line pv-time" style="text-align: ${block.align ?? 'center'}">
+          ${formatClock(new Date(), block.format ?? 'locale', this._locale)}
+        </div>`;
+      case 'date':
+        return html`<div class="pv-line pv-time" style="text-align: ${block.align ?? 'center'}">
+          ${formatDate(new Date(), block.format ?? 'locale', this._locale)}
+        </div>`;
+      case 'divider':
+        return html`<hr class="pv-divider" />`;
+      case 'item':
+        return this._renderItemPreview(block);
+      case 'category':
+        return html`<div class="pv-row">
+          ${
+            block.icon
+              ? html`<ha-icon icon=${block.icon}></ha-icon>`
+              : html`<span class="pv-initials">${initials(block.title || '')}</span>`
+          }
+          <span class="pv-label">${block.title || '(category)'}</span>
+          <ha-icon class="pv-chevron" icon="mdi:chevron-down"></ha-icon>
+        </div>`;
+      case 'card':
+        return html`<div class="pv-line pv-card">
+          ${
+            typeof block.card === 'string'
+              ? block.card || '(markdown)'
+              : `card: ${(block.card as LovelaceCardConfig)?.type ?? '?'}`
+          }
+        </div>`;
+      default:
+        return html``;
+    }
+  }
+
+  /**
+   * Renders a preview of an item row: its icon (or initials) and title.
+   */
+  private _renderItemPreview(item: ItemBlock): TemplateResult {
+    const title = item.title || '(item)';
+    return html`<div class="pv-row">
+      ${
+        item.icon
+          ? html`<ha-icon icon=${item.icon}></ha-icon>`
+          : html`<span class="pv-initials">${item.abbr ?? initials(title)}</span>`
+      }
+      <span class="pv-label">${title}</span>
+    </div>`;
+  }
+
+  /**
+   * Renders a preview of a footer button: its icon and optional title.
+   */
+  private _renderFooterButtonPreview(btn: { icon?: string; title?: string }): TemplateResult {
+    return html`<div class="pv-row">
+      ${btn.icon ? html`<ha-icon icon=${btn.icon}></ha-icon>` : nothing}
+      ${btn.title ? html`<span class="pv-label">${btn.title}</span>` : nothing}
+    </div>`;
+  }
+
+  /**
+   * Renders the edit and delete controls for a row; reordering is by drag.
+   */
+  private _renderControls(onEdit: () => void, onDelete: () => void): TemplateResult {
     return html`
       <button class="icon" title="Edit" @click=${onEdit}>✎</button>
-      <button class="icon" title="Move up" ?disabled=${upDisabled} @click=${onUp}>↑</button>
-      <button class="icon" title="Move down" ?disabled=${downDisabled} @click=${onDown}>↓</button>
       <button class="icon danger" title="Delete" @click=${onDelete}>✕</button>
     `;
   }
@@ -848,18 +861,73 @@ export class DashboardSidebarEditor extends LitElement {
       user-select: none;
     }
 
-    .rtype {
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      opacity: 0.6;
-      min-width: 52px;
+    .rpreview {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
     }
 
-    .rsum {
-      flex: 1;
+    .pv-line,
+    .pv-label {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .pv-line {
+      font-size: 0.9rem;
+    }
+
+    .pv-title {
+      font-weight: 600;
+    }
+
+    .pv-time {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pv-card {
+      opacity: 0.75;
+      font-style: italic;
+    }
+
+    .pv-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      font-size: 0.9rem;
+    }
+
+    .pv-row ha-icon {
+      --mdc-icon-size: 18px;
+
+      flex: 0 0 auto;
+    }
+
+    .pv-chevron {
+      --mdc-icon-size: 16px;
+
+      margin-left: auto;
+      opacity: 0.5;
+    }
+
+    .pv-initials {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      flex: 0 0 auto;
+      font-size: 0.7rem;
+      opacity: 0.7;
+    }
+
+    .pv-divider {
+      width: 100%;
+      margin: 4px 0;
+      border: none;
+      border-top: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
     }
 
     .icon {

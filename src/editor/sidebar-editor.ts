@@ -1216,9 +1216,22 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Wraps preview content in the preview column: a "Preview" heading with an
-   * expand/collapse toggle, and the sidebar frame (narrowed when collapsed) so
-   * the user can see both the expanded and collapsed looks.
+   * The preview frame's inline style. In the expanded view the frame is capped
+   * to the configured sidebar width (so it matches the live width instead of
+   * stretching with the modal), and never past a fraction under half the modal.
+   */
+  private _previewFrameStyle(): string {
+    const bg = `background: ${this._working.background ?? ''};`;
+    if (this._tabCollapsed) {
+      return bg;
+    }
+    const width = this._working.width ?? DEFAULT_WIDTH;
+    return `${bg} width: min(${width}px, 380px, 42vw);`;
+  }
+
+  /**
+   * Renders the preview column: a heading with the collapse toggle above the
+   * framed live preview content.
    */
   private _renderPreview(content: TemplateResult, column = false): TemplateResult {
     return html`
@@ -1254,7 +1267,7 @@ export class DashboardSidebarEditor extends LitElement {
         </div>
         <div
           class="pv-frame ${this._tabCollapsed ? 'collapsed' : ''} ${column ? 'pv-col' : ''}"
-          style="background: ${this._working.background ?? ''}"
+          style=${this._previewFrameStyle()}
         >
           ${content}
         </div>

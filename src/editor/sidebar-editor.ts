@@ -2016,6 +2016,26 @@ export class DashboardSidebarEditor extends LitElement {
       border-color: var(--error-color, #db4437);
     }
 
+    /* Theme HA's icon picker to the modal: its mwc text field otherwise renders
+       as a light filled box because the HA input theme vars are not in scope
+       here. */
+    .icon-field ha-icon-picker {
+      display: block;
+      --mdc-text-field-fill-color: transparent;
+      --mdc-text-field-ink-color: var(--primary-text-color, #fff);
+      --mdc-text-field-label-ink-color: var(--secondary-text-color, rgb(255 255 255 / 60%));
+      --mdc-text-field-idle-line-color: var(--divider-color, rgb(255 255 255 / 25%));
+      --mdc-text-field-hover-line-color: var(--primary-text-color, #fff);
+      --mdc-select-fill-color: transparent;
+      --mdc-theme-primary: var(--primary-color, #03a9f4);
+      --input-fill-color: transparent;
+      --input-ink-color: var(--primary-text-color, #fff);
+      --input-label-ink-color: var(--secondary-text-color, rgb(255 255 255 / 60%));
+      --input-idle-line-color: var(--divider-color, rgb(255 255 255 / 25%));
+      --input-hover-line-color: var(--primary-text-color, #fff);
+      --input-dropdown-icon-color: var(--secondary-text-color, rgb(255 255 255 / 60%));
+    }
+
     .field-error {
       color: var(--error-color, #db4437);
       font-size: 0.75rem;

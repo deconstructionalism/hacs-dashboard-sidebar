@@ -1444,9 +1444,9 @@ export class DashboardSidebarEditor extends LitElement {
       margin: 0 0 4px;
       padding: 10px 12px;
       border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
-      border-left: 3px solid var(--primary-color, #03a9f4);
+      border-left: 3px solid var(--info-color, #2196f3);
       border-radius: 8px;
-      background: color-mix(in srgb, var(--primary-color, #03a9f4) 8%, transparent);
+      background: color-mix(in srgb, var(--info-color, #2196f3) 8%, transparent);
       font-size: 0.95rem;
       line-height: 1.4;
     }
@@ -1455,7 +1455,7 @@ export class DashboardSidebarEditor extends LitElement {
       --mdc-icon-size: 22px;
 
       flex: 0 0 auto;
-      color: var(--primary-color, #03a9f4);
+      color: var(--info-color, #2196f3);
     }
 
     .add,

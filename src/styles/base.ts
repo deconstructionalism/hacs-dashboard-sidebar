@@ -57,9 +57,17 @@ export const baseStyles = css`
     cursor: pointer;
   }
 
+  /* Give the divider a taller hit area so it can be selected and dragged, while
+     the visible line stays 1px like live: the vertical margin becomes padding
+     (same footprint) and the background paints only the 1px content strip. */
   :host([preview]) .entry-divider {
-    /* Give the divider a hit area so it can be selected and dragged. */
-    min-height: 10px;
+    box-sizing: content-box;
+    min-height: 1px;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    background-clip: content-box;
   }
 
   :host([preview]) .sb-selected {

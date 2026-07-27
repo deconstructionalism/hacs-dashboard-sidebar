@@ -1358,8 +1358,25 @@ export class DashboardSidebarEditor extends LitElement {
 
     .editor {
       gap: 10px;
-      /* Scrolls independently of the preview. */
+      /* Scrolls independently of the preview, with a thin overlaid scrollbar so
+         it does not take width from the form controls. */
       overflow-y: auto;
+      padding-right: 2px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--divider-color, rgb(0 0 0 / 30%)) transparent;
+    }
+
+    .editor::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .editor::-webkit-scrollbar-thumb {
+      border-radius: 3px;
+      background: var(--divider-color, rgb(0 0 0 / 30%));
+    }
+
+    .editor::-webkit-scrollbar-track {
+      background: transparent;
     }
 
     /* Collapsed (non-mobile): the editor grows to fill and the preview shrinks

@@ -20,6 +20,7 @@ import {
   formatCollapsedDate,
   formatDate,
   initials,
+  zonedDate,
 } from './lib/format';
 import { TemplateManager } from './lib/templates';
 import type {
@@ -815,22 +816,32 @@ export class DashboardSidebar extends LitElement {
    */
   private _renderClock(block: ClockBlock, collapsed: boolean, loc: string): TemplateResult {
     const style = { 'text-align': block.align ?? 'center' };
-    // hour_format drives both views; read the old collapsed_format as a fallback
-    // for configs saved before the rename. An explicit strftime `format` still
-    // overrides the expanded view.
-    const hourFormat =
-      block.hour_format ?? (block as { collapsed_format?: string }).collapsed_format ?? '24h';
+    // `format` is the 12/24-hour convention; `custom_format` overrides it. Read
+    // legacy keys (an strftime in `format`, `hour_format`, `collapsed_format`)
+    // for configs saved before the rename.
+    const legacy = block as ClockBlock & { hour_format?: string; collapsed_format?: string };
+    const raw = typeof legacy.format === 'string' ? legacy.format : '';
+    const custom = (block.custom_format || (raw.includes('%') ? raw : '')).trim();
+    const hour =
+      raw === '12h' || raw === '24h'
+        ? raw
+        : (legacy.hour_format ?? legacy.collapsed_format ?? '24h');
+    const twelve = hour === '12h';
+    const builtin = twelve
+      ? block.show_seconds
+        ? '%-I:%M:%S %p'
+        : '%-I:%M %p'
+      : block.show_seconds
+        ? '%H:%M:%S'
+        : '%H:%M';
+    const now = zonedDate(this._now, block.timezone ?? '');
     return html`<div
       class="clock dashboard-sidebar-clock${this._hookClass(block)}${this._selClass(loc)}"
       id=${block.id ?? nothing}
       data-loc=${loc}
       style=${styleMap(style)}
     >
-      ${
-        collapsed
-          ? formatCollapsedClock(this._now, hourFormat === '12h')
-          : formatClock(this._now, block.format || hourFormat, this._locale)
-      }
+      ${collapsed ? formatCollapsedClock(now, twelve) : formatClock(now, custom || builtin, this._locale)}
     </div>`;
   }
 
@@ -839,17 +850,15 @@ export class DashboardSidebar extends LitElement {
    */
   private _renderDate(block: DateBlock, collapsed: boolean, loc: string): TemplateResult {
     const style = { 'text-align': block.align ?? 'center' };
+    const format = (block.custom_format || block.format || 'locale').trim() || 'locale';
+    const now = zonedDate(this._now, block.timezone ?? '');
     return html`<div
       class="date dashboard-sidebar-date${this._hookClass(block)}${this._selClass(loc)}"
       id=${block.id ?? nothing}
       data-loc=${loc}
       style=${styleMap(style)}
     >
-      ${
-        collapsed
-          ? formatCollapsedDate(this._now)
-          : formatDate(this._now, block.format ?? 'locale', this._locale)
-      }
+      ${collapsed ? formatCollapsedDate(now) : formatDate(now, format, this._locale)}
     </div>`;
   }
 

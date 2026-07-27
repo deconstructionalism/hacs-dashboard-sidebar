@@ -10,7 +10,6 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type {
   BlockType,
   CategoryBlock,
-  ClockHourFormat,
   DashboardSidebarConfig,
   FooterButtonConfig,
   ItemBlock,
@@ -27,6 +26,7 @@ import {
   blockFields,
   checkboxField,
   colorField,
+  DATE_PRESET_VALUES,
   footerButtonFields,
   iconChoiceField,
   intField,
@@ -156,20 +156,48 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Migrates deprecated config shapes in place: renames a clock's old
-   * `collapsed_format` to `hour_format`.
+   * Migrates deprecated clock/date shapes in place: `format` now holds the
+   * built-in dropdown value and `custom_format` the strftime override. A legacy
+   * strftime in `format` (and the old `hour_format`/`collapsed_format` keys) is
+   * folded into the new fields.
    */
   private _migrateConfig(config: DashboardSidebarConfig): void {
+    const fixClock = (rec: Record<string, unknown>): void => {
+      const old = typeof rec.format === 'string' ? rec.format : '';
+      const legacyHour = rec.hour_format ?? rec.collapsed_format;
+      if (old.includes('%')) {
+        if (rec.custom_format === undefined) {
+          rec.custom_format = old;
+        }
+        if (rec.show_seconds === undefined && /%S/.test(old)) {
+          rec.show_seconds = true;
+        }
+        rec.format = legacyHour ?? (/%-?[Il]|%p|%P/.test(old) ? '12h' : '24h');
+      } else if (old !== '12h' && old !== '24h') {
+        if (legacyHour !== undefined) {
+          rec.format = legacyHour;
+        } else {
+          delete rec.format;
+        }
+      }
+      delete rec.hour_format;
+      delete rec.collapsed_format;
+    };
+    const fixDate = (rec: Record<string, unknown>): void => {
+      const old = typeof rec.format === 'string' ? rec.format : '';
+      if (old && rec.custom_format === undefined && !DATE_PRESET_VALUES.has(old)) {
+        rec.custom_format = old;
+        delete rec.format;
+      }
+    };
     const fix = (blocks?: SidebarBlock[]): void => {
       blocks?.forEach((block) => {
-        if (block.type !== 'clock') {
-          return;
-        }
         const rec = block as unknown as Record<string, unknown>;
-        if (block.hour_format === undefined && rec.collapsed_format !== undefined) {
-          block.hour_format = rec.collapsed_format as ClockHourFormat;
+        if (block.type === 'clock') {
+          fixClock(rec);
+        } else if (block.type === 'date') {
+          fixDate(rec);
         }
-        delete rec.collapsed_format;
       });
     };
     fix(config.header);

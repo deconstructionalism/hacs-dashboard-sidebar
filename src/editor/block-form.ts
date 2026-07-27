@@ -144,7 +144,7 @@ export function textField(
   </label>`;
 }
 
-/** strftime tokens supported in a clock format, for the format field's help. */
+/** strftime tokens supported in a clock format, for the custom-format help. */
 export const TIME_HELP: Array<{ code: string; desc: string }> = [
   { code: '%H', desc: 'Hour, 24-hour (00-23)' },
   { code: '%I', desc: 'Hour, 12-hour (01-12)' },
@@ -157,6 +157,37 @@ export const TIME_HELP: Array<{ code: string; desc: string }> = [
   { code: '%-', desc: 'Prefix to drop leading zero (%-I)' },
   { code: '%%', desc: 'A literal percent sign' },
 ];
+
+/** Built-in date formats offered in the date Format dropdown (value = pattern). */
+export const DATE_PRESETS: Array<{ label: string; value: string }> = [
+  { label: 'Locale default', value: '' },
+  { label: 'Weekday, Month Day', value: '%A, %B %-d' },
+  { label: 'Weekday, Month Day, Year', value: '%A, %B %-d, %Y' },
+  { label: 'Month Day, Year', value: '%B %-d, %Y' },
+  { label: 'Short (Jul 27)', value: '%b %-d' },
+  { label: 'Numeric (7/27/2026)', value: '%-m/%-d/%Y' },
+  { label: 'ISO (2026-07-27)', value: '%Y-%m-%d' },
+];
+
+/** Pattern values that map to a date preset, for detecting a custom pattern. */
+export const DATE_PRESET_VALUES = new Set(DATE_PRESETS.map((p) => p.value).filter(Boolean));
+
+/**
+ * Renders an optional time-zone dropdown listing every available IANA zone, with
+ * a system-zone default.
+ */
+export function timezoneField(
+  value: string | undefined,
+  onChange: (value: string) => void,
+): TemplateResult {
+  const supported = (Intl as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf;
+  const zones = typeof supported === 'function' ? supported('timeZone') : [];
+  const options: SelectOption[] = [
+    { label: 'System Timezone', value: '' },
+    ...zones.map((z) => ({ label: z, value: z })),
+  ];
+  return selectField('Timezone', value ?? '', options, onChange);
+}
 
 /** strftime tokens supported in a date format, for the format field's help. */
 export const DATE_HELP: Array<{ code: string; desc: string }> = [
@@ -277,38 +308,51 @@ export function areaField(
   </label>`;
 }
 
+/** A dropdown option: a raw string (shown title-cased) or an explicit label. */
+export type SelectOption = string | { label: string; value: string };
+
 /**
- * Renders a labelled dropdown for a fixed set of options.
+ * Renders a labelled dropdown. String options are shown title-cased; object
+ * options carry their own display label. Can be disabled.
  */
 export function selectField(
   label: string,
   value: string | undefined,
-  options: string[],
+  options: SelectOption[],
   onChange: (value: string) => void,
+  opts?: { disabled?: boolean },
 ): TemplateResult {
+  const norm = (o: SelectOption): { label: string; value: string } =>
+    typeof o === 'string' ? { label: titleCase(o), value: o } : o;
   return html`<label class="field">
     <span>${label}</span>
-    <select @change=${(e: Event) => onChange((e.target as HTMLSelectElement).value)}>
-      ${options.map(
-        (opt) => html`<option value=${opt} ?selected=${opt === value}>${titleCase(opt)}</option>`,
-      )}
+    <select
+      ?disabled=${opts?.disabled ?? false}
+      @change=${(e: Event) => onChange((e.target as HTMLSelectElement).value)}
+    >
+      ${options.map((o) => {
+        const n = norm(o);
+        return html`<option value=${n.value} ?selected=${n.value === value}>${n.label}</option>`;
+      })}
     </select>
   </label>`;
 }
 
 /**
- * Renders a labelled checkbox.
+ * Renders a labelled checkbox. Can be disabled.
  */
 export function checkboxField(
   label: string,
   checked: boolean,
   onChange: (checked: boolean) => void,
   description?: string,
+  disabled?: boolean,
 ): TemplateResult {
   return html`<label class="field field-inline">
     <input
       type="checkbox"
       .checked=${checked}
+      ?disabled=${disabled ?? false}
       @change=${(e: Event) => onChange((e.target as HTMLInputElement).checked)}
     />
     <span class="check-label">
@@ -583,33 +627,51 @@ function blockTypeFields(
         })}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
       `;
-    case 'clock':
+    case 'clock': {
+      const custom = (block.custom_format ?? '').trim() !== '';
       return html`
-        ${formatField(
+        ${selectField(
           'Format',
-          block.format,
-          (v) => patch({ format: v || undefined }),
-          fieldOpts(ctx, 'format', validateClockFormat),
+          block.format ?? '24h',
+          ['24h', '12h'],
+          (v) => patch({ format: v }),
+          { disabled: custom },
+        )}
+        ${checkboxField(
+          'Show seconds',
+          block.show_seconds ?? false,
+          (v) => patch({ show_seconds: v || undefined }),
+          'Show seconds in the clock.',
+          custom,
+        )}
+        ${timezoneField(block.timezone, (v) => patch({ timezone: v || undefined }))}
+        ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
+        ${formatField(
+          'Custom Format',
+          block.custom_format,
+          (v) => patch({ custom_format: v || undefined }),
+          fieldOpts(ctx, 'custom_format', validateClockFormat),
           TIME_HELP,
-          'Optional strftime pattern for the clock, e.g. %-I:%M %p. Leave blank to use the hour format below.',
+          'Optional strftime pattern; overrides Format above, e.g. %-I:%M:%S %p.',
         )}
-        ${selectField('Hour format', block.hour_format ?? '24h', ['24h', '12h'], (v) =>
-          patch({ hour_format: v }),
-        )}
-        ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
       `;
-    case 'date':
+    }
+    case 'date': {
+      const custom = (block.custom_format ?? '').trim() !== '';
       return html`
-        ${formatField(
-          'Format',
-          block.format,
-          (v) => patch({ format: v || undefined }),
-          fieldOpts(ctx, 'format', validateDateFormat),
-          DATE_HELP,
-          'Optional strftime pattern for the date, e.g. %A, %B %-d. Leave blank for the locale default.',
-        )}
+        ${selectField('Format', block.format ?? '', DATE_PRESETS, (v) => patch({ format: v || undefined }), { disabled: custom })}
+        ${timezoneField(block.timezone, (v) => patch({ timezone: v || undefined }))}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
+        ${formatField(
+          'Custom Format',
+          block.custom_format,
+          (v) => patch({ custom_format: v || undefined }),
+          fieldOpts(ctx, 'custom_format', validateDateFormat),
+          DATE_HELP,
+          'Optional strftime pattern; overrides Format above, e.g. %A, %B %-d.',
+        )}
       `;
+    }
     case 'divider':
       return html`<p class="hint">A horizontal rule. No options.</p>`;
     case 'item':

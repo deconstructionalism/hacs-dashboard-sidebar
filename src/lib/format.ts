@@ -40,6 +40,41 @@ function dayOfYear(date: Date): number {
 }
 
 /**
+ * Returns a Date whose local fields equal the wall-clock time in `timeZone`, so
+ * the existing local-field formatters render that zone. Falls back to the input
+ * date if the zone is unknown. Time-zone name/offset tokens still reflect the
+ * system zone.
+ */
+export function zonedDate(date: Date, timeZone: string): Date {
+  if (!timeZone) {
+    return date;
+  }
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).formatToParts(date);
+    const get = (t: string): number => Number(parts.find((p) => p.type === t)?.value);
+    return new Date(
+      get('year'),
+      get('month') - 1,
+      get('day'),
+      get('hour'),
+      get('minute'),
+      get('second'),
+    );
+  } catch {
+    return date;
+  }
+}
+
+/**
  * Formats a date with a strftime pattern, as used by Home Assistant's
  * `now().strftime`. A leading `-` on a numeric token drops zero padding
  * (`%-d`). Month and weekday names localize; unknown tokens pass through.

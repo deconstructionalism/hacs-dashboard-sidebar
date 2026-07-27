@@ -29,8 +29,18 @@ const COMMON = ['class', 'id'];
 /** Recognized block types, and the keys each one accepts. */
 const BLOCK_KEYS: Record<string, Set<string>> = {
   title: new Set(['type', 'text', 'align', ...COMMON]),
-  clock: new Set(['type', 'format', 'hour_format', 'collapsed_format', 'align', ...COMMON]),
-  date: new Set(['type', 'format', 'align', ...COMMON]),
+  clock: new Set([
+    'type',
+    'format',
+    'custom_format',
+    'show_seconds',
+    'timezone',
+    'hour_format',
+    'collapsed_format',
+    'align',
+    ...COMMON,
+  ]),
+  date: new Set(['type', 'format', 'custom_format', 'timezone', 'align', ...COMMON]),
   divider: new Set(['type', ...COMMON]),
   item: new Set([
     'type',
@@ -198,34 +208,40 @@ function validateBlock(block: SidebarBlock, ctx: string, errors: string[]): void
       }
       checkAlign((block as { align?: unknown }).align, `${ctx}.align`, errors);
       break;
-    case 'clock':
+    case 'clock': {
+      const rec = block as unknown as Record<string, unknown>;
+      checkFormat(rec.format, CLOCK_ALIASES, TIME_TOKENS, 'time', `${ctx}.format`, errors);
       checkFormat(
-        (block as { format?: unknown }).format,
+        rec.custom_format,
         CLOCK_ALIASES,
         TIME_TOKENS,
         'time',
-        `${ctx}.format`,
+        `${ctx}.custom_format`,
         errors,
       );
       for (const key of ['hour_format', 'collapsed_format'] as const) {
-        const val = (block as unknown as Record<string, unknown>)[key];
+        const val = rec[key];
         if (val !== undefined && !['12h', '24h'].includes(String(val))) {
           errors.push(`${ctx}.${key}: must be "12h" or "24h"`);
         }
       }
-      checkAlign((block as { align?: unknown }).align, `${ctx}.align`, errors);
+      checkAlign(rec.align, `${ctx}.align`, errors);
       break;
-    case 'date':
+    }
+    case 'date': {
+      const rec = block as unknown as Record<string, unknown>;
+      checkFormat(rec.format, DATE_ALIASES, DATE_TOKENS, 'date', `${ctx}.format`, errors);
       checkFormat(
-        (block as { format?: unknown }).format,
+        rec.custom_format,
         DATE_ALIASES,
         DATE_TOKENS,
         'date',
-        `${ctx}.format`,
+        `${ctx}.custom_format`,
         errors,
       );
-      checkAlign((block as { align?: unknown }).align, `${ctx}.align`, errors);
+      checkAlign(rec.align, `${ctx}.align`, errors);
       break;
+    }
     case 'divider':
       break;
     case 'item':

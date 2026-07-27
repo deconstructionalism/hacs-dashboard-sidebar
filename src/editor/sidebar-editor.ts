@@ -190,14 +190,15 @@ export class DashboardSidebarEditor extends LitElement {
         this._compactedEditors.add(ed);
         const style = document.createElement('style');
         // Hide the line-number gutter and the action toolbar (which sits in the
-        // editor's top padding), then shift that top padding to the code so the
-        // text keeps its breathing room without the toolbar.
+        // editor's top padding), drop the padding and the toolbar's separator
+        // border so the code sits flush like a plain input.
         style.textContent =
           '.cm-gutters{display:none!important}' +
           '.cm-panels{display:none!important}' +
           '.code-editor-toolbar{display:none!important}' +
           '.cm-editor{padding-top:0!important}' +
-          '.cm-scroller{padding-top:8px!important}';
+          '.cm-scroller{padding-top:0!important}' +
+          '.cm-content{border-top-style:none!important}';
         ed.shadowRoot.appendChild(style);
       });
     if (retry && !this._compactScheduled) {

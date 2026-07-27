@@ -616,11 +616,15 @@ function blockTypeFields(
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
       `;
     case 'clock': {
-      const custom = (block.custom_format ?? '').trim() !== '';
+      // Both the Format dropdown and Custom Format write the single `format`
+      // key. A value that is not a 12h/24h preset is treated as custom, which
+      // disables the dropdown and shows in the Custom Format field.
+      const raw = (block.format ?? '').trim();
+      const custom = raw !== '' && raw !== '12h' && raw !== '24h';
       return html`
         ${selectField(
           'Format',
-          block.format ?? '24h',
+          custom ? '24h' : raw || '24h',
           clockFormatOptions(),
           (v) => patch({ format: v }),
           { disabled: custom },
@@ -636,8 +640,8 @@ function blockTypeFields(
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
         ${formatField(
           'Custom Format',
-          block.custom_format,
-          (v) => patch({ custom_format: v || undefined }),
+          custom ? raw : '',
+          (v) => patch({ format: v.trim() || undefined }),
           undefined,
           TIME_HELP,
           'Optional strftime pattern; overrides Format above, e.g. %-I:%M:%S %p.',
@@ -645,11 +649,14 @@ function blockTypeFields(
       `;
     }
     case 'date': {
-      const custom = (block.custom_format ?? '').trim() !== '';
+      // Both the Format dropdown and Custom Format write the single `format`
+      // key. Any pattern that is not one of the presets is treated as custom.
+      const raw = (block.format ?? '').trim();
+      const custom = raw !== '' && !DATE_PRESET_VALUES.has(raw);
       return html`
         ${selectField(
           'Format',
-          block.format ?? '',
+          custom ? '' : raw,
           dateFormatOptions(),
           (v) => patch({ format: v || undefined }),
           { disabled: custom },
@@ -658,8 +665,8 @@ function blockTypeFields(
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
         ${formatField(
           'Custom Format',
-          block.custom_format,
-          (v) => patch({ custom_format: v || undefined }),
+          custom ? raw : '',
+          (v) => patch({ format: v.trim() || undefined }),
           undefined,
           DATE_HELP,
           'Optional strftime pattern; overrides Format above, e.g. %A, %B %-d.',

@@ -69,7 +69,7 @@ describe('<dashboard-sidebar> config species', () => {
     });
 
     it('applies a strftime clock format', async () => {
-      const el = await mount({ header: [{ type: 'clock', custom_format: '%H:%M' }] });
+      const el = await mount({ header: [{ type: 'clock', format: '%H:%M' }] });
       const text = root(el).querySelector('.dashboard-sidebar-clock')?.textContent?.trim() ?? '';
       expect(text).to.match(/^\d{2}:\d{2}$/);
     });

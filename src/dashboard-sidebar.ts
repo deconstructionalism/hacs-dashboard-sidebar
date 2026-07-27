@@ -816,13 +816,12 @@ export class DashboardSidebar extends LitElement {
    */
   private _renderClock(block: ClockBlock, collapsed: boolean, loc: string): TemplateResult {
     const style = { 'text-align': block.align ?? 'center' };
-    // `format` is the 12/24-hour convention; `custom_format` overrides it. Read
-    // legacy keys (an strftime in `format`, `hour_format`, `collapsed_format`)
-    // for configs saved before the rename.
+    // `format` is either the 12/24-hour convention or a custom strftime pattern.
+    // Read legacy keys (`hour_format`, `collapsed_format`) for configs saved
+    // before the rename.
     const legacy = block as ClockBlock & { hour_format?: string; collapsed_format?: string };
     const raw = typeof legacy.format === 'string' ? legacy.format : '';
-    const cf = typeof block.custom_format === 'string' ? block.custom_format : '';
-    const custom = (cf || (raw.includes('%') ? raw : '')).trim();
+    const isCustom = raw !== '' && raw !== '12h' && raw !== '24h';
     const hour =
       raw === '12h' || raw === '24h'
         ? raw
@@ -842,7 +841,7 @@ export class DashboardSidebar extends LitElement {
       data-loc=${loc}
       style=${styleMap(style)}
     >
-      ${collapsed ? formatCollapsedClock(now, twelve) : formatClock(now, custom || builtin, this._locale)}
+      ${collapsed ? formatCollapsedClock(now, twelve) : formatClock(now, isCustom ? raw : builtin, this._locale)}
     </div>`;
   }
 
@@ -851,9 +850,8 @@ export class DashboardSidebar extends LitElement {
    */
   private _renderDate(block: DateBlock, collapsed: boolean, loc: string): TemplateResult {
     const style = { 'text-align': block.align ?? 'center' };
-    const cf = typeof block.custom_format === 'string' ? block.custom_format : '';
     const bf = typeof block.format === 'string' ? block.format : '';
-    const format = (cf || bf || 'locale').trim() || 'locale';
+    const format = bf.trim() || 'locale';
     const now = zonedDate(this._now, block.timezone ?? '');
     return html`<div
       class="date dashboard-sidebar-date${this._hookClass(block)}${this._selClass(loc)}"

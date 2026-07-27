@@ -52,10 +52,8 @@ export interface TitleBlock extends BlockCommon {
 export interface ClockBlock extends BlockCommon {
   /** Block discriminator. */
   type: 'clock';
-  /** 12/24-hour convention for both views. Default 24h. */
-  format?: ClockHourFormat;
-  /** Custom strftime pattern; overrides `format` when set. */
-  custom_format?: TimeFormat;
+  /** `24h`/`12h` for the built-in clock, or any strftime pattern for a custom one. */
+  format?: ClockHourFormat | TimeFormat;
   /** Show seconds in the built-in clock format. Default false. */
   show_seconds?: boolean;
   /** IANA time zone to render in; empty uses the system zone. */
@@ -68,10 +66,8 @@ export interface ClockBlock extends BlockCommon {
 export interface DateBlock extends BlockCommon {
   /** Block discriminator. */
   type: 'date';
-  /** Built-in date format (an strftime pattern chosen from presets). */
+  /** An strftime pattern (a preset or a custom one); empty uses the locale date. */
   format?: DateFormat;
-  /** Custom strftime pattern; overrides `format` when set. */
-  custom_format?: DateFormat;
   /** IANA time zone to render in; empty uses the system zone. */
   timezone?: string;
   /** Horizontal alignment. Default center. */

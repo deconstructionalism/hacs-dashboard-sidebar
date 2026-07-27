@@ -76,7 +76,7 @@ describe('validateConfig', () => {
     // Cross-type tokens are allowed now (they render literally), not an error.
     expect(
       validateConfig({
-        header: [{ type: 'clock', custom_format: '%Y' }],
+        header: [{ type: 'clock', format: '%Y' }],
       } as DashboardSidebarConfig),
     ).toHaveLength(0);
   });

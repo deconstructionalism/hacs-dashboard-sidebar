@@ -26,7 +26,6 @@ import {
   blockFields,
   checkboxField,
   colorField,
-  DATE_PRESET_VALUES,
   footerButtonFields,
   iconChoiceField,
   intField,
@@ -156,39 +155,43 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Migrates deprecated clock/date shapes in place: `format` now holds the
-   * built-in dropdown value and `custom_format` the strftime override. A legacy
-   * strftime in `format` (and the old `hour_format`/`collapsed_format` keys) is
-   * folded into the new fields.
+   * Migrates deprecated clock/date shapes in place. A single `format` key now
+   * holds either the built-in dropdown value or a custom strftime pattern; the
+   * old `custom_format`, `hour_format`, and `collapsed_format` keys are folded
+   * into it.
    */
   private _migrateConfig(config: DashboardSidebarConfig): void {
     const fixClock = (rec: Record<string, unknown>): void => {
+      const cf = typeof rec.custom_format === 'string' ? rec.custom_format.trim() : '';
       const old = typeof rec.format === 'string' ? rec.format : '';
       const legacyHour = rec.hour_format ?? rec.collapsed_format;
-      if (old.includes('%')) {
-        if (rec.custom_format === undefined) {
-          rec.custom_format = old;
+      if (cf) {
+        rec.format = cf;
+        if (rec.show_seconds === undefined && /%S/.test(cf)) {
+          rec.show_seconds = true;
         }
+      } else if (old.includes('%')) {
+        // Already a custom strftime pattern in `format`; leave it in place.
         if (rec.show_seconds === undefined && /%S/.test(old)) {
           rec.show_seconds = true;
         }
-        rec.format = legacyHour ?? (/%-?[Il]|%p|%P/.test(old) ? '12h' : '24h');
       } else if (old !== '12h' && old !== '24h') {
-        if (legacyHour !== undefined) {
+        if (legacyHour === '12h' || legacyHour === '24h') {
           rec.format = legacyHour;
         } else {
           delete rec.format;
         }
       }
+      delete rec.custom_format;
       delete rec.hour_format;
       delete rec.collapsed_format;
     };
     const fixDate = (rec: Record<string, unknown>): void => {
-      const old = typeof rec.format === 'string' ? rec.format : '';
-      if (old && rec.custom_format === undefined && !DATE_PRESET_VALUES.has(old)) {
-        rec.custom_format = old;
-        delete rec.format;
+      const cf = typeof rec.custom_format === 'string' ? rec.custom_format.trim() : '';
+      if (cf) {
+        rec.format = cf;
       }
+      delete rec.custom_format;
     };
     const fix = (blocks?: SidebarBlock[]): void => {
       blocks?.forEach((block) => {

@@ -19,7 +19,7 @@ describe('validateConfig — every block and option together', () => {
           timezone: 'America/New_York',
           align: 'left',
         },
-        { type: 'date', format: '%A, %B %-d', custom_format: '%Y-%m-%d', align: 'left' },
+        { type: 'date', format: '%Y-%m-%d', align: 'left' },
         { type: 'divider' },
         { type: 'card', card: '**hi**', align: 'center', background: 'rgba(0,0,0,0.1)' },
       ],

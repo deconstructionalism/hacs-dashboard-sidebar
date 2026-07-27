@@ -25,7 +25,6 @@ const BLOCK_KEYS: Record<string, Set<string>> = {
   clock: new Set([
     'type',
     'format',
-    'custom_format',
     'show_seconds',
     'timezone',
     'hour_format',
@@ -33,7 +32,7 @@ const BLOCK_KEYS: Record<string, Set<string>> = {
     'align',
     ...COMMON,
   ]),
-  date: new Set(['type', 'format', 'custom_format', 'timezone', 'align', ...COMMON]),
+  date: new Set(['type', 'format', 'timezone', 'align', ...COMMON]),
   divider: new Set(['type', ...COMMON]),
   item: new Set([
     'type',
@@ -176,8 +175,8 @@ function validateBlock(block: SidebarBlock, ctx: string, errors: string[]): void
       break;
     case 'clock': {
       const rec = block as unknown as Record<string, unknown>;
-      // format/custom_format accept any strftime pattern; unknown tokens render
-      // literally, so they are not validated for token type.
+      // format accepts a 12h/24h convention or any strftime pattern; unknown
+      // tokens render literally, so they are not validated for token type.
       for (const key of ['hour_format', 'collapsed_format'] as const) {
         const val = rec[key];
         if (val !== undefined && !['12h', '24h'].includes(String(val))) {

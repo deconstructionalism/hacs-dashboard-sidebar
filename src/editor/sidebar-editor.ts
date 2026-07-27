@@ -2352,7 +2352,7 @@ export class DashboardSidebarEditor extends LitElement {
       flex: 0 0 auto;
       display: inline-flex;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-end;
       width: 20px;
       height: 20px;
       padding: 0;

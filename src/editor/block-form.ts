@@ -145,9 +145,39 @@ export function textField(
 }
 
 /**
- * Renders an icon field. Uses Home Assistant's `<ha-icon-picker>` (with
- * autocomplete and icon previews) when it and `hass` are available, falling
- * back to a plain text input otherwise (e.g. outside HA, or in tests).
+ * Renders a field backed by Home Assistant's `<ha-code-editor>` (CodeMirror)
+ * when it and `hass` are available, giving inline autocomplete for Jinja
+ * template helpers, entity ids, and/or mdi icons. Falls back to a plain text
+ * input otherwise (e.g. outside HA, or in tests).
+ */
+export function codeField(
+  label: string,
+  value: string | undefined,
+  onInput: (value: string) => void,
+  hass?: HomeAssistant,
+  opts?: { mode?: string; entities?: boolean; icons?: boolean; error?: string },
+): TemplateResult {
+  if (hass && customElements.get('ha-code-editor')) {
+    return html`<div class="field code-field ${opts?.error ? 'invalid' : ''}">
+      <span>${label}</span>
+      <ha-code-editor
+        .hass=${hass}
+        .value=${value ?? ''}
+        .mode=${opts?.mode ?? 'jinja2'}
+        .autocompleteEntities=${opts?.entities ?? false}
+        .autocompleteIcons=${opts?.icons ?? false}
+        dir="ltr"
+        @value-changed=${(e: CustomEvent<{ value: string }>) => onInput(e.detail.value)}
+      ></ha-code-editor>
+      ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
+    </div>`;
+  }
+  return textField(label, value, onInput, opts?.error ? { error: opts.error } : undefined);
+}
+
+/**
+ * Renders an icon field: a code editor with mdi-icon (and template) autocomplete
+ * when available, else a plain text input.
  */
 export function iconField(
   label: string,
@@ -155,17 +185,7 @@ export function iconField(
   onInput: (value: string) => void,
   hass?: HomeAssistant,
 ): TemplateResult {
-  if (hass && customElements.get('ha-icon-picker')) {
-    return html`<div class="field icon-field">
-      <ha-icon-picker
-        .hass=${hass}
-        .label=${label}
-        .value=${value ?? ''}
-        @value-changed=${(e: CustomEvent<{ value?: string }>) => onInput(e.detail.value ?? '')}
-      ></ha-icon-picker>
-    </div>`;
-  }
-  return textField(label, value, onInput);
+  return codeField(label, value, onInput, hass, { icons: true });
 }
 
 /**
@@ -360,6 +380,7 @@ export function actionFields(
   },
   patch: Patch,
   ctx?: ValidationCtx,
+  hass?: HomeAssistant,
 ): TemplateResult {
   const kind = action?.action ?? 'none';
   const set = (partial: Record<string, unknown>): void =>
@@ -376,7 +397,9 @@ export function actionFields(
     ${kind === 'url' ? textField('URL', action.url_path, (v) => set({ url_path: v })) : nothing}
     ${
       kind === 'toggle' || kind === 'more-info'
-        ? textField('Entity', action.entity, (v) => set({ entity: v || undefined }))
+        ? codeField('Entity', action.entity, (v) => set({ entity: v || undefined }), hass, {
+            entities: true,
+          })
         : nothing
     }
     ${
@@ -388,7 +411,15 @@ export function actionFields(
               (v) => set({ service: v }),
               fieldOpts(ctx, 'service', validateService),
             )}
-            ${textField('Target entity', action.entity, (v) => set({ entity: v || undefined }))}
+            ${codeField(
+              'Target entity',
+              action.entity,
+              (v) => set({ entity: v || undefined }),
+              hass,
+              {
+                entities: true,
+              },
+            )}
             ${areaField(
               'Service data (JSON)',
               action.data ? JSON.stringify(action.data, null, 2) : '',
@@ -412,9 +443,14 @@ export function footerButtonFields(
 ): TemplateResult {
   return html`
     ${iconField('Icon', btn.icon, (v) => patch({ icon: v }), hass)}
-    ${textField('Title', btn.title, (v) => patch({ title: v || undefined }))}
-    ${textField('Entity', btn.entity, (v) => patch({ entity: v || undefined }))}
-    ${actionFields(btn.tap_action ?? {}, patch, ctx)}
+    ${codeField('Title', btn.title, (v) => patch({ title: v || undefined }), hass, {
+      entities: true,
+      icons: true,
+    })}
+    ${codeField('Entity', btn.entity, (v) => patch({ entity: v || undefined }), hass, {
+      entities: true,
+    })}
+    ${actionFields(btn.tap_action ?? {}, patch, ctx, hass)}
   `;
 }
 
@@ -467,7 +503,10 @@ function blockTypeFields(
   switch (block.type) {
     case 'title':
       return html`
-        ${textField('Text', block.text, (v) => patch({ text: v }))}
+        ${codeField('Text', block.text, (v) => patch({ text: v }), hass, {
+          entities: true,
+          icons: true,
+        })}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
       `;
     case 'clock':
@@ -497,14 +536,22 @@ function blockTypeFields(
       return html`<p class="hint">A horizontal rule. No options.</p>`;
     case 'item':
       return html`
-        ${textField('Title', block.title, (v) => patch({ title: v }))}
+        ${codeField('Title', block.title, (v) => patch({ title: v }), hass, {
+          entities: true,
+          icons: true,
+        })}
         ${iconField('Icon', block.icon, (v) => patch({ icon: v || undefined }), hass)}
-        ${textField('Entity', block.entity, (v) => patch({ entity: v || undefined }))}
-        ${actionFields(block.tap_action as { action?: string }, patch, ctx)}
+        ${codeField('Entity', block.entity, (v) => patch({ entity: v || undefined }), hass, {
+          entities: true,
+        })}
+        ${actionFields(block.tap_action as { action?: string }, patch, ctx, hass)}
       `;
     case 'category':
       return html`
-        ${textField('Title', block.title, (v) => patch({ title: v }))}
+        ${codeField('Title', block.title, (v) => patch({ title: v }), hass, {
+          entities: true,
+          icons: true,
+        })}
         ${iconField('Icon', block.icon, (v) => patch({ icon: v || undefined }), hass)}
         ${checkboxField('Start collapsed', block.start_collapsed ?? true, (v) =>
           patch({ start_collapsed: v }),

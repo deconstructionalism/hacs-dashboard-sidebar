@@ -148,19 +148,19 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Preloads Home Assistant's icon picker so the icon fields can use it.
+   * Preloads Home Assistant's code editor so the fields can use it.
    */
   protected firstUpdated(): void {
-    void this._ensureIconPicker();
+    void this._ensureCodeEditor();
   }
 
   /**
-   * Best-effort load of `<ha-icon-picker>` (lazily registered by HA's own card
-   * editors) by pulling in the entities-card config element, then re-renders so
-   * the icon fields upgrade from the text-input fallback to the picker.
+   * Best-effort load of `<ha-code-editor>` (lazily registered by HA's own card
+   * editors) by pulling in the markdown-card config element, then re-renders so
+   * the fields upgrade from the plain-input fallback to the code editor.
    */
-  private async _ensureIconPicker(): Promise<void> {
-    if (customElements.get('ha-icon-picker')) {
+  private async _ensureCodeEditor(): Promise<void> {
+    if (customElements.get('ha-code-editor')) {
       return;
     }
     try {
@@ -169,14 +169,14 @@ export class DashboardSidebarEditor extends LitElement {
       ).loadCardHelpers?.();
       const card = (
         helpers as { createCardElement?: (c: unknown) => HTMLElement } | undefined
-      )?.createCardElement?.({ type: 'entities', entities: [] });
+      )?.createCardElement?.({ type: 'markdown', content: '' });
       await (
         card?.constructor as { getConfigElement?: () => Promise<unknown> } | undefined
       )?.getConfigElement?.();
     } catch {
-      // Could not preload the picker; icon fields keep the text-input fallback.
+      // Could not preload the editor; fields keep the text-input fallback.
     }
-    if (customElements.get('ha-icon-picker')) {
+    if (customElements.get('ha-code-editor')) {
       this.requestUpdate();
     }
   }
@@ -2016,24 +2016,19 @@ export class DashboardSidebarEditor extends LitElement {
       border-color: var(--error-color, #db4437);
     }
 
-    /* Theme HA's icon picker to the modal: its mwc text field otherwise renders
-       as a light filled box because the HA input theme vars are not in scope
-       here. */
-    .icon-field ha-icon-picker {
+    /* HA's code editor field: wrap it in the same bordered box as the other
+       inputs so its inline autocomplete matches the form. */
+    .code-field ha-code-editor {
       display: block;
-      --mdc-text-field-fill-color: transparent;
-      --mdc-text-field-ink-color: var(--primary-text-color, #fff);
-      --mdc-text-field-label-ink-color: var(--secondary-text-color, rgb(255 255 255 / 60%));
-      --mdc-text-field-idle-line-color: var(--divider-color, rgb(255 255 255 / 25%));
-      --mdc-text-field-hover-line-color: var(--primary-text-color, #fff);
-      --mdc-select-fill-color: transparent;
-      --mdc-theme-primary: var(--primary-color, #03a9f4);
-      --input-fill-color: transparent;
-      --input-ink-color: var(--primary-text-color, #fff);
-      --input-label-ink-color: var(--secondary-text-color, rgb(255 255 255 / 60%));
-      --input-idle-line-color: var(--divider-color, rgb(255 255 255 / 25%));
-      --input-hover-line-color: var(--primary-text-color, #fff);
-      --input-dropdown-icon-color: var(--secondary-text-color, rgb(255 255 255 / 60%));
+      border: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
+      border-radius: 6px;
+      overflow: hidden;
+      --code-editor-background-color: var(--card-background-color, transparent);
+      --code-mirror-max-height: 160px;
+    }
+
+    .code-field.invalid ha-code-editor {
+      border-color: var(--error-color, #db4437);
     }
 
     .field-error {

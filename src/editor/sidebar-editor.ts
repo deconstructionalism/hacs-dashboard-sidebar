@@ -21,11 +21,11 @@ import {
   areaField,
   blockFields,
   checkboxField,
+  colorField,
   footerButtonFields,
   iconChoiceField,
   intField,
   type Patch,
-  textField,
   titleCase,
   type ValidationCtx,
   validateWidth,
@@ -541,25 +541,31 @@ export class DashboardSidebarEditor extends LitElement {
     return html`
       <section class="region settings">
         ${iconChoiceField(
-          'Position',
+          'Sidebar Position',
           c.position ?? 'left',
           [
-            { value: 'left', icon: 'mdi:page-layout-sidebar-left', title: 'Left' },
-            { value: 'right', icon: 'mdi:page-layout-sidebar-right', title: 'Right' },
+            { value: 'left', icon: 'mdi:dock-left', title: 'Left' },
+            { value: 'right', icon: 'mdi:dock-right', title: 'Right' },
           ],
           (v) => this._patchConfig({ position: v }),
         )}
-        ${intField('Width (px)', c.width, (v) => this._patchConfig({ width: v }), {
+        ${intField('Expanded Width (px)', c.width, (v) => this._patchConfig({ width: v }), {
           error: this._fieldErrors['width'],
           onBlur: (v) => this._validateField('width', v, validateWidth),
         })}
-        ${checkboxField('Start collapsed', c.start_collapsed ?? false, (v) =>
-          this._patchConfig({ start_collapsed: v }),
+        ${checkboxField(
+          'Start Collapsed',
+          c.start_collapsed ?? false,
+          (v) => this._patchConfig({ start_collapsed: v }),
+          'Load the sidebar collapsed to its icon strip; it expands when you tap the toggle.',
         )}
-        ${checkboxField('Hide on mobile', c.hide_on_mobile ?? false, (v) =>
-          this._patchConfig({ hide_on_mobile: v }),
+        ${checkboxField(
+          'Hide Sidebar On Mobile',
+          c.hide_on_mobile ?? false,
+          (v) => this._patchConfig({ hide_on_mobile: v }),
+          'Hide the sidebar entirely on narrow (phone-width) screens.',
         )}
-        ${textField('Background (CSS color)', c.background, (v) =>
+        ${colorField('Background CSS Color', c.background, (v) =>
           this._patchConfig({ background: v || undefined }),
         )}
       </section>
@@ -1027,14 +1033,24 @@ export class DashboardSidebarEditor extends LitElement {
 
     .choice {
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 6px 14px;
+      gap: 4px;
+      padding: 8px 18px;
       border: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
       border-radius: 8px;
       background: transparent;
       color: inherit;
       cursor: pointer;
+    }
+
+    .choice ha-icon {
+      --mdc-icon-size: 24px;
+    }
+
+    .choice-label {
+      font-size: 0.75rem;
     }
 
     .choice.sel {
@@ -1301,8 +1317,42 @@ export class DashboardSidebarEditor extends LitElement {
 
     .field-inline {
       flex-direction: row;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .check-label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .field-desc {
+      font-size: 0.75rem;
+      opacity: 0.6;
+      line-height: 1.3;
+    }
+
+    .color-row {
+      display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
+    }
+
+    .color-row input[type='text'] {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .color-swatch {
+      width: 40px;
+      height: 34px;
+      flex: 0 0 auto;
+      padding: 2px;
+      border: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
+      border-radius: 6px;
+      background: var(--card-background-color, #fff);
+      cursor: pointer;
     }
 
     .field input[type='text'],

@@ -188,6 +188,7 @@ export function checkboxField(
   label: string,
   checked: boolean,
   onChange: (checked: boolean) => void,
+  description?: string,
 ): TemplateResult {
   return html`<label class="field field-inline">
     <input
@@ -195,7 +196,10 @@ export function checkboxField(
       .checked=${checked}
       @change=${(e: Event) => onChange((e.target as HTMLInputElement).checked)}
     />
-    <span>${label}</span>
+    <span class="check-label">
+      <span>${label}</span>
+      ${description ? html`<small class="field-desc">${description}</small>` : nothing}
+    </span>
   </label>`;
 }
 
@@ -235,6 +239,34 @@ export function intField(
 }
 
 /**
+ * Renders a labelled color field: a native color swatch alongside a free-text
+ * input, so any CSS color (hex, rgb, var(), name) can still be typed.
+ */
+export function colorField(
+  label: string,
+  value: string | undefined,
+  onInput: (value: string) => void,
+): TemplateResult {
+  const swatch = /^#[0-9a-fA-F]{6}$/.test(value ?? '') ? (value as string) : '#000000';
+  return html`<label class="field">
+    <span>${label}</span>
+    <div class="color-row">
+      <input
+        class="color-swatch"
+        type="color"
+        .value=${swatch}
+        @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
+      />
+      <input
+        type="text"
+        .value=${value ?? ''}
+        @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
+      />
+    </div>
+  </label>`;
+}
+
+/**
  * Renders a labelled single-choice group of icon buttons.
  */
 export function iconChoiceField(
@@ -256,6 +288,7 @@ export function iconChoiceField(
             @click=${() => onChange(opt.value)}
           >
             <ha-icon icon=${opt.icon}></ha-icon>
+            <span class="choice-label">${opt.title}</span>
           </button>`,
       )}
     </div>

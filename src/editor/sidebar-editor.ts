@@ -947,7 +947,7 @@ export class DashboardSidebarEditor extends LitElement {
       left: 50%;
       transform: translate(-50%, -50%);
       width: min(640px, 94vw);
-      max-height: 88vh;
+      height: 75vh;
       display: flex;
       flex-direction: column;
       /* Composite the (often translucent) card color over an opaque base so the
@@ -966,7 +966,7 @@ export class DashboardSidebarEditor extends LitElement {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 12px;
+      padding: 12px 12px 2px;
     }
 
     header h2 {
@@ -993,7 +993,7 @@ export class DashboardSidebarEditor extends LitElement {
     .tabs {
       display: flex;
       gap: 4px;
-      padding: 8px 12px 0;
+      padding: 2px 12px 0;
       flex-wrap: wrap;
     }
 
@@ -1179,6 +1179,13 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     @media (width < 640px) {
+      /* Full-screen modal on mobile. */
+      .panel {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+      }
+
       /* Stacked: scroll the whole content as one instead of per-column. */
       .content {
         overflow-y: auto;

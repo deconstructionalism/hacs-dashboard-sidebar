@@ -45,13 +45,6 @@ export const baseStyles = css`
     padding: 0;
   }
 
-  /* A footer-only preview pins the footer to the bottom with space above, so the
-     top divider bar reads as a real separator like it does live. */
-  :host([preview]) .sidebar.preview-footer {
-    min-height: 140px;
-    justify-content: flex-end;
-  }
-
   /* Every element in a preview is clickable to select and draggable to reorder,
      so show a pointer and mark the selected one with an outline. */
   :host([preview]) .row,

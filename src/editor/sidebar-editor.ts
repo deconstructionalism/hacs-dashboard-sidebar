@@ -975,7 +975,7 @@ export class DashboardSidebarEditor extends LitElement {
    * expand/collapse toggle, and the sidebar frame (narrowed when collapsed) so
    * the user can see both the expanded and collapsed looks.
    */
-  private _renderPreview(content: TemplateResult): TemplateResult {
+  private _renderPreview(content: TemplateResult, fit = false): TemplateResult {
     return html`
       <div class="preview">
         <div class="preview-head">
@@ -1008,7 +1008,7 @@ export class DashboardSidebarEditor extends LitElement {
           </button>
         </div>
         <div
-          class="pv-frame ${this._tabCollapsed ? 'collapsed' : ''}"
+          class="pv-frame ${this._tabCollapsed ? 'collapsed' : ''} ${fit ? 'fit' : ''}"
           style="background: ${this._working.background ?? ''}"
         >
           ${content}
@@ -1084,6 +1084,9 @@ export class DashboardSidebarEditor extends LitElement {
           html`${this._previewEl('footer', {
             footer: { buttons, divider: footer?.divider ?? true },
           })}`,
+          // The footer is a single row of buttons, so the frame hugs it rather
+          // than stretching and reading as a large area.
+          true,
         )}
       </div>
     `;
@@ -1218,7 +1221,7 @@ export class DashboardSidebarEditor extends LitElement {
             this._ctx(),
           )}
           <button class="add-btn" @click=${() => this._addFooterButton()}>
-            ＋ Add Button Below
+            ＋ Add Button Next
           </button>
           <button
             class="add-btn danger"
@@ -1678,6 +1681,12 @@ export class DashboardSidebarEditor extends LitElement {
     .pv-frame.collapsed {
       width: 76px;
       align-self: flex-end;
+    }
+
+    /* Fit-to-content frame (e.g. the footer's single row of buttons) so a small
+       region does not stretch into a large, misleading preview box. */
+    .pv-frame.fit {
+      flex: 0 0 auto;
     }
 
     /* The region preview renders at its natural height instead of filling the

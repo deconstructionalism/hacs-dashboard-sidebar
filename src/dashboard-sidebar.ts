@@ -670,17 +670,11 @@ export class DashboardSidebar extends LitElement {
     }
     const collapsed = this.preview ? this.previewCollapsed : this._collapsed;
     const cfg = this._config;
-    // A footer-only preview pins the footer to the bottom, like live, so its top
-    // divider bar reads as a separator with space above rather than a line at
-    // the frame's top edge.
-    const footerOnly =
-      this.preview && !cfg.header?.length && !cfg.body?.length && cfg.footer !== undefined;
     const classes = {
       sidebar: true,
       'dashboard-sidebar-root': true,
       collapsed,
       preview: this.preview,
-      'preview-footer': footerOnly,
       [`pos-${this._side}`]: true,
     };
     const sidebarStyle = cfg.background ? { background: cfg.background } : {};

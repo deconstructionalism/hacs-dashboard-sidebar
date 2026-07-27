@@ -446,9 +446,9 @@ export class DashboardSidebarEditor extends LitElement {
   protected render(): TemplateResult {
     return html`
       <div class="backdrop" @click=${this._close}></div>
-      <div class="panel" role="dialog" aria-label="Edit sidebar">
+      <div class="panel" role="dialog" aria-label="Edit Dashboard Sidebar">
         <header>
-          <h2>Edit sidebar</h2>
+          <h2>Edit Dashboard Sidebar</h2>
           <button class="icon" title="Close" @click=${this._close}>✕</button>
         </header>
         <div class="tabs">
@@ -971,7 +971,8 @@ export class DashboardSidebarEditor extends LitElement {
 
     header h2 {
       margin: 0;
-      font-size: 1rem;
+      font-size: 1.4rem;
+      font-weight: 600;
     }
 
     .content {

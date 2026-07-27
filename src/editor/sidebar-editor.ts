@@ -190,20 +190,23 @@ export class DashboardSidebarEditor extends LitElement {
         }
         this._compactedEditors.add(ed);
         const style = document.createElement('style');
-        style.textContent = '.cm-gutters{display:none!important}.cm-panels{display:none!important}';
+        // Hide the line-number gutter, CodeMirror panels, and the editor's
+        // action toolbar (its icon buttons), wherever they render.
+        style.textContent =
+          '.cm-gutters{display:none!important}' +
+          '.cm-panels{display:none!important}' +
+          'ha-icon-button,mwc-icon-button{display:none!important}';
         ed.shadowRoot.appendChild(style);
-        // Hide any element rendered above the editor (its action toolbar).
-        let node: Element | null = cm;
-        while (node && node.parentNode !== ed.shadowRoot) {
-          node = node.parentElement;
-        }
-        for (
-          let sib = node?.previousElementSibling ?? null;
-          sib;
-          sib = sib.previousElementSibling
-        ) {
-          (sib as HTMLElement).style.display = 'none';
-        }
+        // Collapse the toolbar's container too, so it leaves no empty strip.
+        ed.shadowRoot.querySelectorAll('ha-icon-button, mwc-icon-button').forEach((btn) => {
+          if (btn.closest('.cm-editor')) {
+            return;
+          }
+          const bar = btn.parentElement;
+          if (bar && !bar.querySelector('.cm-editor')) {
+            (bar as HTMLElement).style.display = 'none';
+          }
+        });
       });
     if (retry && !this._compactScheduled) {
       this._compactScheduled = true;

@@ -1014,6 +1014,8 @@ export class DashboardSidebarEditor extends LitElement {
     return html`
       <select
         class="add"
+        title="Add element"
+        aria-label="Add element"
         @change=${(e: Event) => {
           const sel = e.target as HTMLSelectElement;
           if (sel.value) {
@@ -1022,7 +1024,7 @@ export class DashboardSidebarEditor extends LitElement {
           }
         }}
       >
-        <option value="">＋ Add element…</option>
+        <option value="">＋</option>
         ${types.map((t) => html`<option value=${t}>${titleCase(t)}</option>`)}
       </select>
     `;
@@ -1040,6 +1042,12 @@ export class DashboardSidebarEditor extends LitElement {
       /* A subtly distinct surface shared by the active tab and the content
          area, so the two read as one region against the modal background. */
       --dsb-surface: color-mix(in srgb, var(--primary-text-color, #212121) 6%, transparent);
+    }
+
+    /* No focus/selection outlines on the modal's own controls. */
+    :focus,
+    :focus-visible {
+      outline: none;
     }
 
     .backdrop {
@@ -1328,16 +1336,18 @@ export class DashboardSidebarEditor extends LitElement {
       opacity: 0.6;
     }
 
-    /* The inline add control that sits under the selected element in the list. */
+    /* The inline add control that sits under the selected element in the list:
+       a compact, centered control that still opens the full type dropdown. */
     .pv-add {
+      display: flex;
+      justify-content: center;
       padding: 4px 0;
     }
 
     .pv-add .add,
     .pv-add .add-btn {
-      width: 100%;
+      width: auto;
       margin: 0;
-      box-sizing: border-box;
       border-radius: 0;
     }
 

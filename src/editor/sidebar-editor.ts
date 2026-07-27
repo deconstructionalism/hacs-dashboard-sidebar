@@ -573,6 +573,16 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
+   * Renders a highlighted info callout describing a tab's scroll behavior.
+   */
+  private _editorNote(text: string): TemplateResult {
+    return html`<div class="editor-note">
+      <ha-icon icon="mdi:information-outline"></ha-icon>
+      <span>${text}</span>
+    </div>`;
+  }
+
+  /**
    * Renders a region (header or body) as a two-column split: the edit panel on
    * the left, the live, drag-reorderable preview on the right.
    */
@@ -581,13 +591,11 @@ export class DashboardSidebarEditor extends LitElement {
     return html`
       <div class="split ${this._previewCollapsed ? 'pv-collapsed' : ''}">
         <div class="editor">
-          <p class="editor-note">
-            ${
-              region === 'header'
-                ? 'The header is pinned to the top of the sidebar and does not scroll.'
-                : 'Content scrolls on its own when it is taller than the sidebar.'
-            }
-          </p>
+          ${this._editorNote(
+            region === 'header'
+              ? 'The header is pinned to the top of the sidebar and does not scroll.'
+              : 'Content scrolls on its own when it is taller than the sidebar.',
+          )}
           ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
           ${this._renderSelectedForm()}
         </div>
@@ -728,9 +736,7 @@ export class DashboardSidebarEditor extends LitElement {
     const footer = this._working.footer;
     const cardMode = footer?.card !== undefined;
     const controls = html`
-      <p class="editor-note">
-        The footer is pinned to the bottom of the sidebar and does not scroll.
-      </p>
+      ${this._editorNote('The footer is pinned to the bottom of the sidebar and does not scroll.')}
       <div class="modes">
         <button class="mode ${cardMode ? '' : 'sel'}" @click=${() => this._setFooterMode(false)}>
           Buttons
@@ -1432,12 +1438,24 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     .editor-note {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
       margin: 0 0 4px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--divider-color, rgb(0 0 0 / 12%));
-      font-size: 0.8rem;
-      opacity: 0.7;
-      line-height: 1.35;
+      padding: 10px 12px;
+      border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
+      border-left: 3px solid var(--primary-color, #03a9f4);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--primary-color, #03a9f4) 8%, transparent);
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+
+    .editor-note ha-icon {
+      --mdc-icon-size: 22px;
+
+      flex: 0 0 auto;
+      color: var(--primary-color, #03a9f4);
     }
 
     .add,

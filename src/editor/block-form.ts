@@ -426,19 +426,15 @@ export function serviceField(
  * {@link serviceField} references it by {@link SERVICE_DATALIST_ID}.
  */
 export function serviceDatalist(hass?: HomeAssistant): TemplateResult {
-  const services = (hass?.services ?? {}) as Record<
-    string,
-    Record<string, { name?: string; description?: string }>
-  >;
-  const options: Array<{ id: string; name?: string }> = [];
+  const services = (hass?.services ?? {}) as Record<string, Record<string, unknown>>;
+  const ids: string[] = [];
   for (const domain of Object.keys(services).sort()) {
     for (const service of Object.keys(services[domain]).sort()) {
-      const entry = services[domain][service];
-      options.push({ id: `${domain}.${service}`, name: entry?.name ?? entry?.description });
+      ids.push(`${domain}.${service}`);
     }
   }
   return html`<datalist id=${SERVICE_DATALIST_ID}>
-    ${options.map((o) => html`<option value=${o.id} label=${o.name ?? nothing}></option>`)}
+    ${ids.map((id) => html`<option value=${id}></option>`)}
   </datalist>`;
 }
 

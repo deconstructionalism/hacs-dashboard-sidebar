@@ -902,7 +902,7 @@ export class DashboardSidebarEditor extends LitElement {
       ></div>
       <div
         class="add-menu"
-        style="top: ${rect.bottom + 4}px; left: ${Math.max(8, rect.right - 220)}px"
+        style="top: ${rect.bottom + 4}px; right: ${Math.max(8, window.innerWidth - rect.right)}px"
       >
         <button
           class="add-menu-item"
@@ -1103,7 +1103,7 @@ export class DashboardSidebarEditor extends LitElement {
       ></div>
       <div
         class="add-menu"
-        style="top: ${rect.bottom + 4}px; left: ${Math.max(8, rect.right - 180)}px"
+        style="top: ${rect.bottom + 4}px; right: ${Math.max(8, window.innerWidth - rect.right)}px"
       >
         ${
           this._actionable() && this.hass
@@ -1954,7 +1954,9 @@ export class DashboardSidebarEditor extends LitElement {
       z-index: 2;
       display: flex;
       flex-direction: column;
+      width: max-content;
       min-width: 150px;
+      height: min-content;
       max-height: 60vh;
       overflow-y: auto;
       padding: 4px;

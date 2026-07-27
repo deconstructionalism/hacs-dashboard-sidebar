@@ -2312,35 +2312,58 @@ export class DashboardSidebarEditor extends LitElement {
       line-height: 1.3;
     }
 
-    /* The resolved entity name shown under an entity field, with a clear button. */
-    .field-selected {
+    /* A resolved entity/service replaces the input with a card: the id over its
+       friendly name, and a clear button. Matches the inputs' bordered box. */
+    .field-picked {
       display: flex;
       align-items: center;
-      gap: 6px;
-      margin-top: 4px;
+      gap: 8px;
+      box-sizing: border-box;
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
+      border-radius: 6px;
+      background: var(--card-background-color, #fff);
+    }
+
+    .field-picked-text {
+      display: flex;
+      flex: 1 1 auto;
+      min-width: 0;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .field-picked-id,
+    .field-picked-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .field-picked-name {
       font-size: 0.8rem;
       color: var(--secondary-text-color, #666);
     }
 
-    .field-clear {
+    .field-picked-clear {
+      flex: 0 0 auto;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 18px;
-      height: 18px;
+      width: 28px;
+      height: 28px;
       padding: 0;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       background: transparent;
-      color: inherit;
-      font-size: 0.85rem;
-      line-height: 1;
+      color: var(--primary-text-color, #000);
+      font-size: 1rem;
       cursor: pointer;
     }
 
-    .field-clear:hover {
+    .field-picked-clear:hover {
       background: var(--secondary-background-color, rgb(0 0 0 / 8%));
-      color: var(--primary-text-color, #000);
     }
 
     /* Non-blocking advisory (e.g. an out-of-range width): amber, not red. */

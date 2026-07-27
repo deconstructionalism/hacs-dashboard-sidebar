@@ -306,7 +306,13 @@ export function entityField(
     string,
     { attributes?: { friendly_name?: string } }
   >;
-  const name = id ? (states[id]?.attributes?.friendly_name ?? id) : '';
+  const entry = id ? states[id] : undefined;
+  // Once the value resolves to a real entity, replace the input with a card that
+  // shows the id and friendly name and an X to clear it. Until then (while
+  // typing), keep the autocomplete input.
+  if (entry) {
+    return pickedCard(label, id, entry.attributes?.friendly_name, () => onChange(''));
+  }
   return html`<label class="field">
     <span>${label}</span>
     <input
@@ -318,23 +324,38 @@ export function entityField(
       .value=${value ?? ''}
       @input=${(e: Event) => onChange((e.target as HTMLInputElement).value)}
     />
-    ${
-      id
-        ? html`<div class="field-selected">
-            <span>${name}</span>
-            <button
-              type="button"
-              class="field-clear"
-              title="Clear"
-              aria-label="Clear"
-              @click=${() => onChange('')}
-            >
-              ✕
-            </button>
-          </div>`
-        : nothing
-    }
   </label>`;
+}
+
+/**
+ * Renders a resolved-selection card: the id over its (optional) friendly name,
+ * with a clear button. Used in place of the input once an entity or service
+ * value resolves to a real one.
+ */
+function pickedCard(
+  label: string,
+  id: string,
+  name: string | undefined,
+  onClear: () => void,
+): TemplateResult {
+  return html`<div class="field">
+    <span>${label}</span>
+    <div class="field-picked">
+      <div class="field-picked-text">
+        <span class="field-picked-id">${id}</span>
+        ${name ? html`<span class="field-picked-name">${name}</span>` : nothing}
+      </div>
+      <button
+        type="button"
+        class="field-picked-clear"
+        title="Clear"
+        aria-label="Clear"
+        @click=${onClear}
+      >
+        ✕
+      </button>
+    </div>
+  </div>`;
 }
 
 /**
@@ -362,14 +383,27 @@ export const SERVICE_DATALIST_ID = 'dsb-service-options';
 /**
  * Renders a service field: a native text input backed by the shared service
  * `<datalist>`, autocompleting `domain.service` while keeping the plain input
- * look. {@link serviceDatalist} must be rendered once in the same tree.
+ * look. Once the value resolves to a real service it becomes a card (id over the
+ * service name) with a clear button. {@link serviceDatalist} must be rendered
+ * once in the same tree.
  */
 export function serviceField(
   label: string,
   value: string | undefined,
   onInput: (value: string) => void,
   opts?: FieldOpts,
+  hass?: HomeAssistant,
 ): TemplateResult {
+  const id = (value ?? '').trim();
+  const [domain, service] = id.split('.');
+  const services = (hass?.services ?? {}) as Record<
+    string,
+    Record<string, { name?: string; description?: string }>
+  >;
+  const entry = domain && service ? services[domain]?.[service] : undefined;
+  if (entry) {
+    return pickedCard(label, id, entry.name ?? entry.description, () => onInput(''));
+  }
   return html`<label class="field ${opts?.error ? 'invalid' : ''}">
     <span>${label}</span>
     <input
@@ -717,6 +751,7 @@ export function actionFields(
               action.service,
               (v) => set({ service: v }),
               fieldOpts(ctx, 'service', validateService),
+              hass,
             )}
             ${entityField('Target entity', action.entity, (v) => set({ entity: v || undefined }), hass)}
             ${areaField(

@@ -142,12 +142,19 @@ export const DATE_PRESET_VALUES = new Set(DATE_PRESETS.filter(Boolean));
 
 /**
  * Builds the clock Format dropdown options, each labelled with the current time
- * rendered in that convention.
+ * rendered in that convention. Labels include seconds when `seconds` is set, so
+ * the dropdown preview matches the Show seconds toggle.
  */
-function clockFormatOptions(): SelectOption[] {
+function clockFormatOptions(seconds: boolean): SelectOption[] {
   const now = new Date();
   const loc = navigator.language;
-  return (['24h', '12h'] as const).map((value) => ({ value, label: formatClock(now, value, loc) }));
+  const pattern: Record<'24h' | '12h', string> = seconds
+    ? { '24h': '%H:%M:%S', '12h': '%-I:%M:%S %p' }
+    : { '24h': '%H:%M', '12h': '%-I:%M %p' };
+  return (['24h', '12h'] as const).map((value) => ({
+    value,
+    label: formatClock(now, pattern[value], loc),
+  }));
 }
 
 /**
@@ -625,7 +632,7 @@ function blockTypeFields(
         ${selectField(
           'Format',
           custom ? '24h' : raw || '24h',
-          clockFormatOptions(),
+          clockFormatOptions(block.show_seconds ?? false),
           (v) => patch({ format: v }),
           { disabled: custom },
         )}

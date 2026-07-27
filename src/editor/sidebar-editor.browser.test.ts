@@ -113,7 +113,7 @@ describe('<dashboard-sidebar-editor>', () => {
     (root(el).querySelector('.pv-cat-head') as HTMLElement).click();
     await el.updateComplete;
     const addItem = [...root(el).querySelectorAll('.form .add-btn')].some((b) =>
-      b.textContent?.includes('Add Item'),
+      b.textContent?.includes('Add Sub-Item'),
     );
     expect(addItem).to.equal(true);
   });

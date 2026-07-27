@@ -1055,7 +1055,7 @@ export class DashboardSidebarEditor extends LitElement {
           ${this._formHeader('Item')}
           ${blockFields({ ...sel.item, type: 'item' }, patch, this._ctx())}
           <button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
-            ＋ Add Item Below
+            ＋ Add Sub-Item Below
           </button>
           <button
             class="add-btn danger"
@@ -1077,7 +1077,7 @@ export class DashboardSidebarEditor extends LitElement {
         ${
           sel.block.type === 'category'
             ? html`<button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
-                ＋ Add Item
+                ＋ Add Sub-Item
               </button>`
             : nothing
         }

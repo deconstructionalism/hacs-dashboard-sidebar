@@ -144,15 +144,6 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Selects the first element in the current tab's region (the first that would
-   * be visible while collapsed, when the tab is collapsed), or clears selection
-   * when the region is empty.
-   */
-  private _selectFirst(): void {
-    this._selected = this._firstVisible();
-  }
-
-  /**
    * Id of the first element in the current tab's region — restricted to those
    * that show while collapsed when the tab is collapsed — or null.
    */
@@ -197,7 +188,7 @@ export class DashboardSidebarEditor extends LitElement {
    * (for a selected sub-item) or otherwise to the first visible element.
    */
   private _reselectForCollapse(): void {
-    if (this._selectionVisibleCollapsed()) {
+    if (!this._selected || this._selectionVisibleCollapsed()) {
       return;
     }
     const sel = this._locate(this._selected);
@@ -570,7 +561,7 @@ export class DashboardSidebarEditor extends LitElement {
                   this._fieldErrors = {};
                   this._catPopover = null;
                   this._addMenuOpen = false;
-                  this._selectFirst();
+                  this._selected = null;
                 }}
               >
                 ${t.label}
@@ -1580,10 +1571,11 @@ export class DashboardSidebarEditor extends LitElement {
       gap: 4px;
     }
 
-    /* Mirror the live sidebar's category-items guide line and indent so a
-       category preview reads the same as it will on the dashboard. */
+    /* Mirror the live sidebar's category-items guide line and indent. The left
+       margin puts the guide under the category icon (which is inset by the
+       node, sidebar, and row padding). */
     .pv-sublist {
-      margin-left: 18px;
+      margin-left: 30px;
       padding-left: 8px;
       border-left: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
     }

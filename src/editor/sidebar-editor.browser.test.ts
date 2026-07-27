@@ -72,6 +72,9 @@ describe('<dashboard-sidebar-editor>', () => {
     const el = await mount(cfg());
     await tab(el, 'Content');
     const before = root(el).querySelectorAll('.pv-list[data-sort="body"] > .pv-node').length;
+    // Nothing is auto-selected, so pick an element to reveal its "Add Below" control.
+    (root(el).querySelector('.pv-list[data-sort="body"] > .pv-node') as HTMLElement).click();
+    await el.updateComplete;
     (root(el).querySelector('.form .add') as HTMLButtonElement).click();
     await el.updateComplete;
     const divider = [...root(el).querySelectorAll('.add-menu-item')].find(
@@ -95,6 +98,13 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(root(el).querySelectorAll('.pv-list[data-sort="body"] > .pv-node').length).to.equal(
       before - 1,
     );
+  });
+
+  it('selects nothing on landing and shows the hint', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Content');
+    expect(root(el).querySelector('.form')).to.not.exist;
+    expect(root(el).querySelector('.hint')?.textContent).to.contain('Select an element');
   });
 
   it('selecting a preview node reveals its edit form', async () => {

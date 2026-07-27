@@ -89,6 +89,12 @@ export class DashboardSidebarEditor extends LitElement {
   private _addMenuTypes: BlockType[] = [];
   private _addMenuPick: ((type: BlockType) => void) | null = null;
 
+  /** Whether the selected element's overflow ("...") menu is open. */
+  @state() private _elementMenuOpen = false;
+
+  /** Anchor rect of the overflow menu's trigger. */
+  private _elementMenuRect: DOMRect | null = null;
+
   /** Validation errors from the last save attempt. */
   @state() private _errors: string[] = [];
 
@@ -122,6 +128,7 @@ export class DashboardSidebarEditor extends LitElement {
       this._confirmingClose = false;
       this._collapsedTabs = new Set();
       this._addMenuOpen = false;
+      this._elementMenuOpen = false;
     }
   }
 
@@ -337,6 +344,54 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
+   * The array and index of the selected element within its own container (its
+   * region blocks, a category's items, or the footer buttons), or null.
+   */
+  private _selectedContainer(): { arr: unknown[]; index: number } | null {
+    const sel = this._locate(this._selected);
+    if (!sel) {
+      return null;
+    }
+    if (sel.kind === 'block') {
+      const arr = this._working[sel.region];
+      return arr ? { arr, index: sel.index } : null;
+    }
+    if (sel.kind === 'item') {
+      const cat = this._working[sel.region]?.[sel.index];
+      return cat?.type === 'category' ? { arr: cat.items, index: sel.itemIndex } : null;
+    }
+    const buttons = this._working.footer?.buttons;
+    return buttons ? { arr: buttons, index: sel.index } : null;
+  }
+
+  /**
+   * Moves the selected element one slot up (-1) or down (+1) within its
+   * container, clamped to the ends.
+   */
+  private _moveSelected(delta: number): void {
+    const c = this._selectedContainer();
+    if (!c) {
+      return;
+    }
+    const to = c.index + delta;
+    if (to < 0 || to >= c.arr.length) {
+      return;
+    }
+    const [moved] = c.arr.splice(c.index, 1);
+    c.arr.splice(to, 0, moved);
+    this._touch();
+  }
+
+  /**
+   * Opens the selected element's overflow ("...") menu, anchored to its trigger.
+   */
+  private _openElementMenu(ev: Event): void {
+    ev.stopPropagation();
+    this._elementMenuRect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+    this._elementMenuOpen = true;
+  }
+
+  /**
    * Merges a partial update into the top-level sidebar settings.
    */
   private _patchConfig(partial: Record<string, unknown>): void {
@@ -544,6 +599,7 @@ export class DashboardSidebarEditor extends LitElement {
                   this._tab = t.id;
                   this._fieldErrors = {};
                   this._addMenuOpen = false;
+                  this._elementMenuOpen = false;
                   this._selected = null;
                 }}
               >
@@ -566,7 +622,7 @@ export class DashboardSidebarEditor extends LitElement {
         </footer>
         ${this._confirmingClose ? this._renderConfirmClose() : nothing}
       </div>
-      ${this._renderAddMenuPopup()}
+      ${this._renderAddMenuPopup()} ${this._renderElementMenu()}
     `;
   }
 
@@ -829,7 +885,67 @@ export class DashboardSidebarEditor extends LitElement {
    * element's type above the controls.
    */
   private _formHeader(typeLabel: string): TemplateResult {
-    return html`<div class="form-title">Element Setting: ${typeLabel}</div>`;
+    const c = this._selectedContainer();
+    const atTop = !c || c.index <= 0;
+    const atBottom = !c || c.index >= c.arr.length - 1;
+    return html`
+      <div class="form-head">
+        <div class="form-title">Element Setting: ${typeLabel}</div>
+        <div class="form-tools">
+          <button
+            class="tool"
+            title="Move up"
+            aria-label="Move up"
+            ?disabled=${atTop}
+            @click=${() => this._moveSelected(-1)}
+          >
+            <ha-icon icon="mdi:arrow-up"></ha-icon>
+          </button>
+          <button
+            class="tool"
+            title="Move down"
+            aria-label="Move down"
+            ?disabled=${atBottom}
+            @click=${() => this._moveSelected(1)}
+          >
+            <ha-icon icon="mdi:arrow-down"></ha-icon>
+          </button>
+          <button
+            class="tool"
+            title="More"
+            aria-label="More"
+            @click=${(e: Event) => this._openElementMenu(e)}
+          >
+            <ha-icon icon="mdi:dots-vertical"></ha-icon>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the selected element's overflow menu, fixed-positioned under its
+   * trigger. Currently a placeholder; per-element actions land here later.
+   */
+  private _renderElementMenu(): TemplateResult | typeof nothing {
+    const rect = this._elementMenuRect;
+    if (!this._elementMenuOpen || !rect) {
+      return nothing;
+    }
+    return html`
+      <div
+        class="menu-scrim"
+        @click=${() => {
+          this._elementMenuOpen = false;
+        }}
+      ></div>
+      <div
+        class="add-menu"
+        style="top: ${rect.bottom + 4}px; left: ${Math.max(8, rect.right - 180)}px"
+      >
+        <p class="menu-empty">No actions yet.</p>
+      </div>
+    `;
   }
 
   /**
@@ -1330,12 +1446,62 @@ export class DashboardSidebarEditor extends LitElement {
       gap: 10px;
     }
 
+    /* The form header row: the element-setting label plus the move/overflow
+       tools aligned to the right. */
+    .form-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
     /* Matches the PREVIEW label so the two columns' headers read as a pair. */
     .form-title {
       font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 1px;
       opacity: 0.6;
+    }
+
+    .form-tools {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex: 0 0 auto;
+    }
+
+    .tool {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .tool:hover:not([disabled]) {
+      background: var(--secondary-background-color, rgb(0 0 0 / 8%));
+    }
+
+    .tool[disabled] {
+      opacity: 0.3;
+      cursor: default;
+    }
+
+    .tool ha-icon {
+      --mdc-icon-size: 18px;
+    }
+
+    .menu-empty {
+      margin: 0;
+      padding: 8px 12px;
+      opacity: 0.6;
+      font-size: 0.85rem;
     }
 
     /* Shown in place of the preview when a region has no elements yet: a

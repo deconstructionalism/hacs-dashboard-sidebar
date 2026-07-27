@@ -155,6 +155,37 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(saved?.body?.[0]?.type).to.equal('category');
   });
 
+  it('moves the selected element with the header up/down tools', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Content');
+    let saved: DashboardSidebarConfig | undefined;
+    el.onSave = (c) => {
+      saved = c;
+    };
+    await clickLoc(el, 'body:0');
+    // At the top, so "up" is disabled and "down" is enabled.
+    const up = root(el).querySelector('.form-tools [title="Move up"]') as HTMLButtonElement;
+    const down = root(el).querySelector('.form-tools [title="Move down"]') as HTMLButtonElement;
+    expect(up.disabled).to.equal(true);
+    expect(down.disabled).to.equal(false);
+    down.click();
+    await settle(el);
+    await tab(el, 'Settings');
+    (root(el).querySelector('.settings input[type="checkbox"]') as HTMLInputElement).click();
+    await el.updateComplete;
+    (root(el).querySelector('footer .primary') as HTMLButtonElement).click();
+    expect(saved?.body?.[0]?.type).to.equal('category');
+  });
+
+  it('opens the selected element overflow menu', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Content');
+    await clickLoc(el, 'body:0');
+    (root(el).querySelector('.form-tools [title="More"]') as HTMLButtonElement).click();
+    await el.updateComplete;
+    expect(root(el).querySelector('.add-menu .menu-empty')).to.exist;
+  });
+
   it('shows category items in the preview and offers add-item when selected', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');

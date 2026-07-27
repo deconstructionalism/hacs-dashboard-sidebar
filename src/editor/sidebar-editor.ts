@@ -1709,7 +1709,7 @@ export class DashboardSidebarEditor extends LitElement {
     .panel {
       position: relative;
       z-index: 1;
-      width: min(640px, 94vw);
+      width: min(820px, 94vw);
       height: 75vh;
       display: flex;
       flex-direction: column;

@@ -971,6 +971,8 @@ export class DashboardSidebarEditor extends LitElement {
     .content {
       flex: 1 1 auto;
       min-height: 0;
+      display: flex;
+      flex-direction: column;
       padding: 12px;
       /* Clip here; the columns inside scroll independently. */
       overflow: hidden;
@@ -1013,7 +1015,8 @@ export class DashboardSidebarEditor extends LitElement {
       display: flex;
       flex-direction: column;
       gap: 10px;
-      max-height: 100%;
+      flex: 1 1 auto;
+      min-height: 0;
       overflow-y: auto;
     }
 
@@ -1060,7 +1063,8 @@ export class DashboardSidebarEditor extends LitElement {
       gap: 20px;
       align-items: stretch;
       flex-wrap: wrap;
-      height: 100%;
+      flex: 1 1 auto;
+      min-height: 0;
     }
 
     .editor {
@@ -1165,12 +1169,14 @@ export class DashboardSidebarEditor extends LitElement {
 
       .split {
         flex-direction: column;
-        height: auto;
+        flex: 0 0 auto;
       }
 
       .editor,
-      .preview {
+      .preview,
+      .pv-frame {
         width: 100%;
+        flex: 0 0 auto;
       }
 
       .editor,

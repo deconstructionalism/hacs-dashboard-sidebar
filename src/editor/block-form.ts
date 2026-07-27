@@ -256,6 +256,13 @@ export function colorField(
         type="color"
         .value=${swatch}
         @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
+        @change=${(e: Event) => {
+          const el = e.target as HTMLInputElement;
+          onInput(el.value);
+          // Blur once the OS picker commits, so the swatch reopens on the next
+          // click (a focused color input otherwise won't reopen its picker).
+          el.blur();
+        }}
       />
       <input
         type="text"

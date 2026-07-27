@@ -861,11 +861,22 @@ export class DashboardSidebarEditor extends LitElement {
         ${notes} ${this._renderEmptyState(this._renderAddMenu(this._typeItems(region)))}
       `;
     }
+    // The header is pinned to the top, so cross-hatch the space below it to
+    // stand in for the content that would follow; the body is itself the
+    // scrolling content, so it fills the frame as-is.
+    const preview =
+      region === 'header'
+        ? this._renderPreview(
+            html`${this._renderRegionPreview(region)}
+              <div class="pv-hatch"></div>`,
+            true,
+          )
+        : this._renderPreview(this._renderRegionPreview(region));
     return html`
       ${notes}
       <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
         <div class="editor">${this._renderSelectedForm()}</div>
-        ${this._renderPreview(this._renderRegionPreview(region))}
+        ${preview}
       </div>
     `;
   }
@@ -975,7 +986,7 @@ export class DashboardSidebarEditor extends LitElement {
    * expand/collapse toggle, and the sidebar frame (narrowed when collapsed) so
    * the user can see both the expanded and collapsed looks.
    */
-  private _renderPreview(content: TemplateResult, fit = false): TemplateResult {
+  private _renderPreview(content: TemplateResult, column = false): TemplateResult {
     return html`
       <div class="preview">
         <div class="preview-head">
@@ -1008,7 +1019,7 @@ export class DashboardSidebarEditor extends LitElement {
           </button>
         </div>
         <div
-          class="pv-frame ${this._tabCollapsed ? 'collapsed' : ''} ${fit ? 'fit' : ''}"
+          class="pv-frame ${this._tabCollapsed ? 'collapsed' : ''} ${column ? 'pv-col' : ''}"
           style="background: ${this._working.background ?? ''}"
         >
           ${content}
@@ -1068,9 +1079,11 @@ export class DashboardSidebarEditor extends LitElement {
             )}
           </div>
           ${this._renderPreview(
-            html`${this._previewEl('footer-card', {
-              footer: { card: footer?.card ?? '', divider: false },
-            })}`,
+            html`<div class="pv-hatch"></div>
+              ${this._previewEl('footer-card', {
+                footer: { card: footer?.card ?? '', divider: false },
+              })}`,
+            true,
           )}
         </div>
       `;
@@ -1081,11 +1094,12 @@ export class DashboardSidebarEditor extends LitElement {
       <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
         <div class="editor">${this._renderSelectedForm()}</div>
         ${this._renderPreview(
-          html`${this._previewEl('footer', {
-            footer: { buttons, divider: footer?.divider ?? true },
-          })}`,
-          // The footer is a single row of buttons, so the frame hugs it rather
-          // than stretching and reading as a large area.
+          // Cross-hatch the space above so the footer sits pinned to the bottom,
+          // as it does live, instead of floating in a large empty box.
+          html`<div class="pv-hatch"></div>
+            ${this._previewEl('footer', {
+              footer: { buttons, divider: footer?.divider ?? true },
+            })}`,
           true,
         )}
       </div>
@@ -1683,10 +1697,30 @@ export class DashboardSidebarEditor extends LitElement {
       align-self: flex-end;
     }
 
-    /* Fit-to-content frame (e.g. the footer's single row of buttons) so a small
-       region does not stretch into a large, misleading preview box. */
-    .pv-frame.fit {
-      flex: 0 0 auto;
+    /* Column frame used by the footer preview: a cross-hatched filler stands in
+       for the content above so the footer sits pinned to the bottom, as it does
+       live, instead of floating in a large empty box. */
+    .pv-frame.pv-col {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pv-hatch {
+      flex: 1 1 auto;
+      min-height: 48px;
+      border-radius: 6px;
+      opacity: 0.5;
+      background-image:
+        repeating-linear-gradient(
+          45deg,
+          var(--divider-color, rgb(0 0 0 / 20%)) 0 1px,
+          transparent 1px 9px
+        ),
+        repeating-linear-gradient(
+          -45deg,
+          var(--divider-color, rgb(0 0 0 / 20%)) 0 1px,
+          transparent 1px 9px
+        );
     }
 
     /* The region preview renders at its natural height instead of filling the

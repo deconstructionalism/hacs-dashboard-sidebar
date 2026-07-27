@@ -825,18 +825,44 @@ export class DashboardSidebarEditor extends LitElement {
    * the left, the live, drag-reorderable preview on the right.
    */
   private _renderSplit(region: Region): TemplateResult {
+    const notes = this._renderTabNotes(
+      region === 'header'
+        ? 'The header is pinned to the top of the sidebar and does not scroll.'
+        : 'Content scrolls on its own when it is taller than the sidebar.',
+      region === 'header'
+        ? 'Collapsed: only clock and date blocks show — titles are hidden.'
+        : 'Collapsed: items and categories show as icons — card blocks are hidden.',
+    );
+    const blocks = this._working[region] ?? [];
+    if (blocks.length === 0) {
+      const types = region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
+      return html`
+        ${notes}
+        ${this._renderEmptyState(
+          this._renderAddMenu(types, (type) => this._addBlock(region, type)),
+        )}
+      `;
+    }
     return html`
-      ${this._renderTabNotes(
-        region === 'header'
-          ? 'The header is pinned to the top of the sidebar and does not scroll.'
-          : 'Content scrolls on its own when it is taller than the sidebar.',
-        region === 'header'
-          ? 'Collapsed: only clock and date blocks show — titles are hidden.'
-          : 'Collapsed: items and categories show as icons — card blocks are hidden.',
-      )}
+      ${notes}
       <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
         <div class="editor">${this._renderSelectedForm()}</div>
         ${this._renderPreview(this._renderRegionPreview(region))}
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the borderless empty-state for a region with no elements: a short
+   * explanation that the area only appears once it has content, plus the given
+   * add control. No preview frame, so an empty area is not made to look as if it
+   * renders anything.
+   */
+  private _renderEmptyState(add: TemplateResult): TemplateResult {
+    return html`
+      <div class="empty-state">
+        <p class="empty-msg">Add your first element for this area to show up.</p>
+        ${add}
       </div>
     `;
   }
@@ -975,17 +1001,11 @@ export class DashboardSidebarEditor extends LitElement {
 
   /**
    * Renders the region preview: the real sidebar element rendering just this
-   * region, in select-and-drag preview mode, or the add-element control when
-   * the region is empty.
+   * region, in select-and-drag preview mode. Only called for a non-empty region
+   * (the empty case shows a borderless empty-state instead).
    */
   private _renderRegionPreview(region: Region): TemplateResult {
     const blocks = this._working[region] ?? [];
-    if (blocks.length === 0) {
-      const types = region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
-      return html`<div class="pv-empty">
-        ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
-      </div>`;
-    }
     return html`${this._previewEl(region, { [region]: blocks })}`;
   }
 
@@ -1025,19 +1045,25 @@ export class DashboardSidebarEditor extends LitElement {
       `;
     }
     const buttons = footer?.buttons ?? [];
-    const preview =
-      buttons.length === 0
-        ? html`<div class="pv-empty">
-            <button class="add-btn" @click=${() => this._addFooterButton()}>＋ Add button</button>
-          </div>`
-        : this._previewEl('footer', {
-            footer: { buttons, divider: footer?.divider ?? true },
-          });
+    if (buttons.length === 0) {
+      return html`
+        ${notes}
+        ${this._renderEmptyState(
+          html`<button class="add-btn" @click=${() => this._addFooterButton()}>
+            ＋ Add button
+          </button>`,
+        )}
+      `;
+    }
     return html`
       ${notes}
       <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
         <div class="editor">${this._renderSelectedForm()}</div>
-        ${this._renderPreview(html`${preview}`)}
+        ${this._renderPreview(
+          html`${this._previewEl('footer', {
+            footer: { buttons, divider: footer?.divider ?? true },
+          })}`,
+        )}
       </div>
     `;
   }
@@ -1695,12 +1721,23 @@ export class DashboardSidebarEditor extends LitElement {
       font-size: 0.85rem;
     }
 
-    /* Shown in place of the preview when a region has no elements yet: a
-       centered add-element control. */
-    .pv-empty {
+    /* Borderless call-to-action shown instead of a preview when a region has no
+       elements, so an empty area is not made to look as if it renders. */
+    .empty-state {
       display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      align-items: center;
       justify-content: center;
-      padding: 8px 0;
+      gap: 14px;
+      padding: 32px 16px;
+      text-align: center;
+    }
+
+    .empty-msg {
+      margin: 0;
+      max-width: 32ch;
+      opacity: 0.7;
     }
 
     .danger {

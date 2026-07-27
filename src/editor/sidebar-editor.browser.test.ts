@@ -84,6 +84,15 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(sb?.shadowRoot?.querySelector('[data-loc="body:1"]')).to.exist;
   });
 
+  it('shows a borderless empty state (no preview frame) for an empty region', async () => {
+    const el = await mount({ ...cfg(), header: [] });
+    await tab(el, 'Header');
+    expect(root(el).querySelector('.pv-frame')).to.not.exist;
+    expect(root(el).querySelector('.pv-toggle')).to.not.exist;
+    expect(root(el).querySelector('.empty-state')).to.exist;
+    expect(root(el).querySelector('.empty-msg')?.textContent).to.contain('Add your first');
+  });
+
   it('edits sidebar settings (position via icon choice)', async () => {
     const el = await mount(cfg());
     await tab(el, 'Settings');

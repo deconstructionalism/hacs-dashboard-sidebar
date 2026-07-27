@@ -2,10 +2,18 @@ import { type HomeAssistant, type LovelaceCardConfig, handleAction } from 'custo
 import { LitElement, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
+import { repeat } from 'lit/directives/repeat.js';
 import { styleMap } from 'lit/directives/style-map.js';
+import Sortable from 'sortablejs';
 
 import { applyCardMod } from './lib/card-mod';
-import { EDIT_EVENT, STORAGE_PREFIX, TOGGLE_EVENT } from './lib/const';
+import {
+  EDIT_EVENT,
+  PREVIEW_REORDER_EVENT,
+  PREVIEW_SELECT_EVENT,
+  STORAGE_PREFIX,
+  TOGGLE_EVENT,
+} from './lib/const';
 import {
   formatClock,
   formatCollapsedClock,
@@ -68,6 +76,13 @@ export class DashboardSidebar extends LitElement {
   /** In preview mode, whether to render the collapsed (icon-strip) look. */
   @property({ attribute: false }) public previewCollapsed = false;
 
+  /**
+   * In preview mode, the location string of the element currently selected in
+   * the editor, so it can be outlined. Matches the `data-loc` stamped on each
+   * rendered element (e.g. `body:1`, `body:1.0`, `footer:btn:0`, `footer:card`).
+   */
+  @property({ attribute: false }) public previewSelected?: string;
+
   /** The validated configuration, or undefined before setConfig runs. */
   @state() private _config?: DashboardSidebarConfig;
 
@@ -107,6 +122,15 @@ export class DashboardSidebar extends LitElement {
   /** Whether card-mod styles have already been applied for this config. */
   private _cardModApplied = false;
 
+  /** Stable render keys per block/item object, for keyed reconciliation. */
+  private readonly _keys = new WeakMap<object, string>();
+
+  /** Monotonic counter backing the render-key map. */
+  private _keySeq = 0;
+
+  /** Preview drag-and-drop containers already wired, to avoid re-wiring. */
+  private readonly _sortables = new WeakSet<HTMLElement>();
+
   /**
    * Document-level click handler that closes any open popover when the click
    * lands outside this element.
@@ -145,11 +169,15 @@ export class DashboardSidebar extends LitElement {
       ? false
       : (this._readStored() ?? Boolean(config.start_collapsed));
     const cats = new Set<string>();
-    this._eachBlock((block, region, i) => {
-      if (block.type === 'category' && (block.start_collapsed ?? true)) {
-        cats.add(`${region}-${i}`);
-      }
-    });
+    // A preview shows every category expanded so all its items are visible and
+    // selectable in the editor; live respects each category's start_collapsed.
+    if (!this.preview) {
+      this._eachBlock((block, region, i) => {
+        if (block.type === 'category' && (block.start_collapsed ?? true)) {
+          cats.add(`${region}-${i}`);
+        }
+      });
+    }
     this._collapsedCats = cats;
     this._templates.collect(config);
     this._restartTick();
@@ -251,6 +279,32 @@ export class DashboardSidebar extends LitElement {
       });
     }
     this._applyCardMod();
+    this._wirePreviewSort();
+  }
+
+  /**
+   * In an expanded preview, wires drag-and-drop onto the region container, each
+   * category's item list, and the footer button bar. No-op in live mode or a
+   * collapsed preview.
+   */
+  private _wirePreviewSort(): void {
+    if (!this.preview || this.previewCollapsed) {
+      return;
+    }
+    const root = this.renderRoot as ParentNode;
+    (['header', 'body'] as const).forEach((region) => {
+      const container = root.querySelector<HTMLElement>(`.region-${region}`);
+      if (container) {
+        this._wireSort(container, region);
+      }
+      root
+        .querySelectorAll<HTMLElement>(`.region-${region} .category-items`)
+        .forEach((el) => this._wireSort(el, region));
+    });
+    const footer = root.querySelector<HTMLElement>('.footer[data-container="footer"]');
+    if (footer) {
+      this._wireSort(footer, 'footer');
+    }
   }
 
   /**
@@ -458,9 +512,95 @@ export class DashboardSidebar extends LitElement {
   }
 
   /**
-   * Toggles whether a category is collapsed within the expanded menu.
+   * A stable render key for a block or item object, minted on first use, so
+   * keyed `repeat` reconciles cleanly after a preview drag moves DOM nodes.
+   */
+  private _keyFor(obj: object): string {
+    let key = this._keys.get(obj);
+    if (!key) {
+      this._keySeq += 1;
+      key = `k${this._keySeq}`;
+      this._keys.set(obj, key);
+    }
+    return key;
+  }
+
+  /**
+   * The extra class marking the selected element in preview mode, keyed off the
+   * element's location string.
+   */
+  private _selClass(loc: string): string {
+    return this.preview && this.previewSelected === loc ? ' sb-selected' : '';
+  }
+
+  /**
+   * In preview mode, a click anywhere on an element selects it for editing
+   * (dispatched to the editor) rather than running its action.
+   */
+  private _onPreviewClick(ev: Event): void {
+    const target = ev.target as Element | null;
+    const el = target?.closest?.('[data-loc]');
+    if (!el) {
+      return;
+    }
+    ev.stopPropagation();
+    this.dispatchEvent(
+      new CustomEvent(PREVIEW_SELECT_EVENT, {
+        detail: { loc: el.getAttribute('data-loc') },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  /**
+   * Wires drag-and-drop reordering onto a preview container, dispatching the
+   * source/destination containers and indices so the editor can rebuild the
+   * config. Category item lists accept only items; the whole element is the
+   * drag handle, so no separate handle is shown.
+   */
+  private _wireSort(el: HTMLElement, region: Region | 'footer'): void {
+    if (this._sortables.has(el)) {
+      return;
+    }
+    this._sortables.add(el);
+    const itemsOnly =
+      el.classList.contains('region-body') || el.classList.contains('region-header')
+        ? false
+        : el.classList.contains('category-items');
+    Sortable.create(el, {
+      group: {
+        name: `sb-${region}`,
+        put: itemsOnly
+          ? (_to, _from, drag) => drag.classList.contains('dashboard-sidebar-item')
+          : true,
+      },
+      animation: 150,
+      onEnd: (evt) => {
+        this.dispatchEvent(
+          new CustomEvent(PREVIEW_REORDER_EVENT, {
+            detail: {
+              from: evt.from.getAttribute('data-container'),
+              to: evt.to.getAttribute('data-container'),
+              oldIndex: evt.oldIndex,
+              newIndex: evt.newIndex,
+            },
+            bubbles: true,
+            composed: true,
+          }),
+        );
+      },
+    });
+  }
+
+  /**
+   * Toggles whether a category is collapsed within the expanded menu. In a
+   * preview all categories stay expanded, so the header click only selects.
    */
   private _toggleCategoryCollapse(key: string): void {
+    if (this.preview) {
+      return;
+    }
     const next = new Set(this._collapsedCats);
     if (next.has(key)) {
       next.delete(key);
@@ -492,7 +632,11 @@ export class DashboardSidebar extends LitElement {
     const sidebarStyle = cfg.background ? { background: cfg.background } : {};
 
     return html`
-      <div class=${classMap(classes)} style=${styleMap(sidebarStyle)}>
+      <div
+        class=${classMap(classes)}
+        style=${styleMap(sidebarStyle)}
+        @click=${this.preview ? (ev: Event) => this._onPreviewClick(ev) : nothing}
+      >
         ${
           this.preview
             ? nothing
@@ -550,14 +694,19 @@ export class DashboardSidebar extends LitElement {
       return nothing;
     }
     return html`
-      <div class="region ${cls}">
-        ${blocks.map((block, i) => this._renderBlock(block, region, i, collapsed))}
+      <div class="region ${cls}" data-container=${region}>
+        ${repeat(
+          blocks,
+          (block) => this._keyFor(block),
+          (block, i) => this._renderBlock(block, region, i, collapsed),
+        )}
       </div>
     `;
   }
 
   /**
-   * Renders one block, dispatching on its type.
+   * Renders one block, dispatching on its type. `loc` is the block's location
+   * string (`region:index`), stamped for preview selection.
    */
   private _renderBlock(
     block: SidebarBlock,
@@ -565,24 +714,26 @@ export class DashboardSidebar extends LitElement {
     index: number,
     collapsed: boolean,
   ): TemplateResult | typeof nothing {
+    const loc = `${region}:${index}`;
     switch (block.type) {
       case 'title':
-        return this._renderTitle(block, collapsed);
+        return this._renderTitle(block, collapsed, loc);
       case 'clock':
-        return this._renderClock(block, collapsed);
+        return this._renderClock(block, collapsed, loc);
       case 'date':
-        return this._renderDate(block, collapsed);
+        return this._renderDate(block, collapsed, loc);
       case 'divider':
         return html`<div
-          class="entry-divider dashboard-sidebar-divider${this._hookClass(block)}"
+          class="entry-divider dashboard-sidebar-divider${this._hookClass(block)}${this._selClass(loc)}"
           id=${block.id ?? nothing}
+          data-loc=${loc}
         ></div>`;
       case 'item':
-        return this._renderItemRow(block, collapsed);
+        return this._renderItemRow(block, collapsed, loc);
       case 'category':
-        return this._renderCategory(block, `${region}-${index}`, collapsed);
+        return this._renderCategory(block, region, index, collapsed);
       case 'card':
-        return this._renderCardBlock(block, `${region}-${index}`, collapsed);
+        return this._renderCardBlock(block, `${region}-${index}`, collapsed, loc);
       default:
         return nothing;
     }
@@ -591,15 +742,20 @@ export class DashboardSidebar extends LitElement {
   /**
    * Renders a title block, hidden while collapsed.
    */
-  private _renderTitle(block: TitleBlock, collapsed: boolean): TemplateResult | typeof nothing {
+  private _renderTitle(
+    block: TitleBlock,
+    collapsed: boolean,
+    loc: string,
+  ): TemplateResult | typeof nothing {
     if (collapsed) {
       return nothing;
     }
     const text = this._templates.resolve(block.text);
     const style = { 'text-align': block.align ?? 'center' };
     return html`<div
-      class="app-title dashboard-sidebar-title${this._hookClass(block)}"
+      class="app-title dashboard-sidebar-title${this._hookClass(block)}${this._selClass(loc)}"
       id=${block.id ?? nothing}
+      data-loc=${loc}
       style=${styleMap(style)}
     >
       ${text}
@@ -609,11 +765,12 @@ export class DashboardSidebar extends LitElement {
   /**
    * Renders a clock block, using the compact form while collapsed.
    */
-  private _renderClock(block: ClockBlock, collapsed: boolean): TemplateResult {
+  private _renderClock(block: ClockBlock, collapsed: boolean, loc: string): TemplateResult {
     const style = { 'text-align': block.align ?? 'center' };
     return html`<div
-      class="clock dashboard-sidebar-clock${this._hookClass(block)}"
+      class="clock dashboard-sidebar-clock${this._hookClass(block)}${this._selClass(loc)}"
       id=${block.id ?? nothing}
+      data-loc=${loc}
       style=${styleMap(style)}
     >
       ${
@@ -627,11 +784,12 @@ export class DashboardSidebar extends LitElement {
   /**
    * Renders a date block, using the compact form while collapsed.
    */
-  private _renderDate(block: DateBlock, collapsed: boolean): TemplateResult {
+  private _renderDate(block: DateBlock, collapsed: boolean, loc: string): TemplateResult {
     const style = { 'text-align': block.align ?? 'center' };
     return html`<div
-      class="date dashboard-sidebar-date${this._hookClass(block)}"
+      class="date dashboard-sidebar-date${this._hookClass(block)}${this._selClass(loc)}"
       id=${block.id ?? nothing}
+      data-loc=${loc}
       style=${styleMap(style)}
     >
       ${
@@ -650,6 +808,7 @@ export class DashboardSidebar extends LitElement {
     block: CardBlock,
     key: string,
     collapsed: boolean,
+    loc: string,
   ): TemplateResult | typeof nothing {
     if (collapsed) {
       return nothing;
@@ -668,8 +827,9 @@ export class DashboardSidebar extends LitElement {
         : {}),
     };
     return html`<div
-      class="content dashboard-sidebar-content${this._hookClass(block)}"
+      class="content dashboard-sidebar-content${this._hookClass(block)}${this._selClass(loc)}"
       id=${block.id ?? nothing}
+      data-loc=${loc}
       style=${styleMap(style)}
     >
       ${el}
@@ -681,19 +841,22 @@ export class DashboardSidebar extends LitElement {
    */
   private _renderCategory(
     category: CategoryBlock,
-    key: string,
+    region: Region,
+    index: number,
     collapsed: boolean,
   ): TemplateResult {
+    const key = `${region}-${index}`;
+    const loc = `${region}:${index}`;
     return collapsed
-      ? this._renderCollapsedCategory(category, key)
-      : this._renderExpandedCategory(category, key);
+      ? this._renderCollapsedCategory(category, key, loc)
+      : this._renderExpandedCategory(category, key, loc);
   }
 
   /**
    * Renders a single item row: an icon-only button when collapsed (falling back
    * to initials), or an icon-and-label row when expanded.
    */
-  private _renderItemRow(item: ItemBlock, collapsed: boolean): TemplateResult {
+  private _renderItemRow(item: ItemBlock, collapsed: boolean, loc: string): TemplateResult {
     const title = this._templates.resolve(item.title);
     const icon = item.icon ? this._templates.resolve(item.icon) : '';
     const textColor = item.text_color ? this._templates.resolve(item.text_color) : '';
@@ -702,8 +865,9 @@ export class DashboardSidebar extends LitElement {
     if (collapsed) {
       return html`
         <button
-          class="row item collapsed-row dashboard-sidebar-item${this._hookClass(item)}"
+          class="row item collapsed-row dashboard-sidebar-item${this._hookClass(item)}${this._selClass(loc)}"
           id=${item.id ?? nothing}
+          data-loc=${loc}
           aria-label=${title}
           @mouseenter=${(ev: MouseEvent) => this._showTip(ev, title)}
           @mouseleave=${this._hideTip}
@@ -726,8 +890,9 @@ export class DashboardSidebar extends LitElement {
 
     return html`
       <button
-        class="row item dashboard-sidebar-item${this._hookClass(item)}"
+        class="row item dashboard-sidebar-item${this._hookClass(item)}${this._selClass(loc)}"
         id=${item.id ?? nothing}
+        data-loc=${loc}
         @click=${() => this._runAction(item)}
       >
         ${
@@ -750,7 +915,11 @@ export class DashboardSidebar extends LitElement {
    * Renders an expanded category: a clickable header with a chevron, and its
    * items behind an optional guide line when open.
    */
-  private _renderExpandedCategory(category: CategoryBlock, key: string): TemplateResult {
+  private _renderExpandedCategory(
+    category: CategoryBlock,
+    key: string,
+    loc: string,
+  ): TemplateResult {
     const title = this._templates.resolve(category.title);
     const icon = category.icon ? this._templates.resolve(category.icon) : '';
     const collapsed = this._collapsedCats.has(key);
@@ -760,7 +929,8 @@ export class DashboardSidebar extends LitElement {
         id=${category.id ?? nothing}
       >
         <button
-          class="row category-header dashboard-sidebar-category-header"
+          class="row category-header dashboard-sidebar-category-header${this._selClass(loc)}"
+          data-loc=${loc}
           @click=${() => this._toggleCategoryCollapse(key)}
         >
           ${icon ? html`<ha-icon icon=${icon}></ha-icon>` : nothing}
@@ -777,8 +947,13 @@ export class DashboardSidebar extends LitElement {
                 class="category-items dashboard-sidebar-category-items ${
                   category.guide_line === false ? 'no-line' : ''
                 }"
+                data-container=${loc}
               >
-                ${category.items.map((item) => this._renderItemRow(item, false))}
+                ${repeat(
+                  category.items,
+                  (item) => this._keyFor(item),
+                  (item, j) => this._renderItemRow(item, false, `${loc}.${j}`),
+                )}
               </div>`
         }
       </div>
@@ -788,7 +963,11 @@ export class DashboardSidebar extends LitElement {
   /**
    * Renders a collapsed category as an icon button that opens an item popover.
    */
-  private _renderCollapsedCategory(category: CategoryBlock, key: string): TemplateResult {
+  private _renderCollapsedCategory(
+    category: CategoryBlock,
+    key: string,
+    loc: string,
+  ): TemplateResult {
     const title = this._templates.resolve(category.title);
     const icon = category.icon ? this._templates.resolve(category.icon) : '';
     const open = this._openCategory === key;
@@ -798,7 +977,8 @@ export class DashboardSidebar extends LitElement {
         id=${category.id ?? nothing}
       >
         <button
-          class="row item collapsed-row dashboard-sidebar-item ${open ? 'active' : ''}"
+          class="row item collapsed-row dashboard-sidebar-item ${open ? 'active' : ''}${this._selClass(loc)}"
+          data-loc=${loc}
           aria-label=${title}
           @mouseenter=${(ev: MouseEvent) => {
             if (!open) {
@@ -819,7 +999,11 @@ export class DashboardSidebar extends LitElement {
                 >`
           }
         </button>
-        ${open && this._popoverAnchor ? this._renderPopover(category, this._popoverAnchor) : nothing}
+        ${
+          open && this._popoverAnchor
+            ? this._renderPopover(category, this._popoverAnchor, loc)
+            : nothing
+        }
       </div>
     `;
   }
@@ -828,17 +1012,17 @@ export class DashboardSidebar extends LitElement {
    * Renders a collapsed category's popover: its title and item rows, fixed to
    * the viewport so it escapes the scrollable body's clipping.
    */
-  private _renderPopover(category: CategoryBlock, anchor: DOMRect): TemplateResult {
+  private _renderPopover(category: CategoryBlock, anchor: DOMRect, loc: string): TemplateResult {
     return html`
       <div
         class="popover dashboard-sidebar-popover"
         style=${styleMap(this._popoverStyle(anchor, false))}
-        @click=${(ev: Event) => ev.stopPropagation()}
+        @click=${this.preview ? nothing : (ev: Event) => ev.stopPropagation()}
       >
         <div class="popover-title dashboard-sidebar-popover-title">
           ${this._templates.resolve(category.title)}
         </div>
-        ${category.items.map((item) => this._renderItemRow(item, false))}
+        ${category.items.map((item, j) => this._renderItemRow(item, false, `${loc}.${j}`))}
       </div>
     `;
   }
@@ -866,7 +1050,13 @@ export class DashboardSidebar extends LitElement {
       }
       const style = typeof footer.card === 'string' ? CHROMELESS_CARD : {};
       return html`<div class=${classMap(footerClasses)}>
-        <div class="content dashboard-sidebar-content" style=${styleMap(style)}>${el}</div>
+        <div
+          class="content dashboard-sidebar-content${this._selClass('footer:card')}"
+          data-loc="footer:card"
+          style=${styleMap(style)}
+        >
+          ${el}
+        </div>
       </div>`;
     }
 
@@ -880,26 +1070,37 @@ export class DashboardSidebar extends LitElement {
       return html`
         <div class=${classMap(footerClasses)}>
           ${this._renderDots('row item collapsed-row dashboard-sidebar-item dashboard-sidebar-footer-more')}
-          ${this._footerOpen && anchor ? this._renderFooterPopover(buttons, anchor) : nothing}
+          ${this._footerOpen && anchor ? this._renderFooterPopover(buttons, anchor, 0) : nothing}
         </div>
       `;
     }
 
-    // Fit as many as the width allows; the rest go behind a dots button.
+    // A preview shows every button inline so each is visible and reorderable;
+    // live fits as many as the width allows and overflows the rest to a menu.
+    if (this.preview) {
+      return html`<div class=${classMap(footerClasses)} data-container="footer">
+        ${repeat(
+          buttons,
+          (btn) => this._keyFor(btn),
+          (btn, i) => this._renderFooterButton(btn, i),
+        )}
+      </div>`;
+    }
+
     const width = this._config?.width ?? 240;
     const maxFit = Math.max(1, Math.floor((width - 24 + 4) / 44)); // 40px button + 4px gap
     if (buttons.length <= maxFit) {
       return html`<div class=${classMap(footerClasses)}>
-        ${buttons.map((btn) => this._renderFooterButton(btn))}
+        ${buttons.map((btn, i) => this._renderFooterButton(btn, i))}
       </div>`;
     }
     const inline = buttons.slice(0, maxFit - 1);
     const overflow = buttons.slice(maxFit - 1);
     return html`
       <div class=${classMap(footerClasses)}>
-        ${inline.map((btn) => this._renderFooterButton(btn))}
+        ${inline.map((btn, i) => this._renderFooterButton(btn, i))}
         ${this._renderDots('footer-btn dashboard-sidebar-footer-btn dashboard-sidebar-footer-more')}
-        ${this._footerOpen && anchor ? this._renderFooterPopover(overflow, anchor) : nothing}
+        ${this._footerOpen && anchor ? this._renderFooterPopover(overflow, anchor, maxFit - 1) : nothing}
       </div>
     `;
   }
@@ -932,14 +1133,18 @@ export class DashboardSidebar extends LitElement {
    * Renders the footer overflow popover holding the given buttons, fixed to the
    * viewport and growing upward from its anchor.
    */
-  private _renderFooterPopover(buttons: FooterButtonConfig[], anchor: DOMRect): TemplateResult {
+  private _renderFooterPopover(
+    buttons: FooterButtonConfig[],
+    anchor: DOMRect,
+    startIndex: number,
+  ): TemplateResult {
     return html`
       <div
         class="popover footer-popover dashboard-sidebar-popover dashboard-sidebar-footer-popover"
         style=${styleMap(this._popoverStyle(anchor, true))}
         @click=${(ev: Event) => ev.stopPropagation()}
       >
-        ${buttons.map((btn) => this._renderFooterButton(btn))}
+        ${buttons.map((btn, i) => this._renderFooterButton(btn, startIndex + i))}
       </div>
     `;
   }
@@ -947,14 +1152,16 @@ export class DashboardSidebar extends LitElement {
   /**
    * Renders a single footer icon button that runs its configured action.
    */
-  private _renderFooterButton(btn: FooterButtonConfig): TemplateResult {
+  private _renderFooterButton(btn: FooterButtonConfig, index: number): TemplateResult {
     const icon = this._templates.resolve(btn.icon);
     const color = btn.icon_color ? this._templates.resolve(btn.icon_color) : '';
     const title = btn.title ? this._templates.resolve(btn.title) : '';
+    const loc = `footer:btn:${index}`;
     return html`
       <button
-        class="footer-btn dashboard-sidebar-footer-btn${this._hookClass(btn)}"
+        class="footer-btn dashboard-sidebar-footer-btn${this._hookClass(btn)}${this._selClass(loc)}"
         id=${btn.id ?? nothing}
+        data-loc=${loc}
         aria-label=${title}
         @mouseenter=${(ev: MouseEvent) => this._showTip(ev, title)}
         @mouseleave=${this._hideTip}

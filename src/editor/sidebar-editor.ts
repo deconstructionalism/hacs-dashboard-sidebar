@@ -1,7 +1,6 @@
 import type { HomeAssistant, LovelaceCardConfig } from 'custom-card-helpers';
 import { LitElement, css, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { repeat } from 'lit/directives/repeat.js';
 
 import type {
   BlockType,
@@ -14,9 +13,9 @@ import type {
 } from '../lib/types';
 import type { DashboardSidebar } from '../dashboard-sidebar';
 import '../dashboard-sidebar';
+import { PREVIEW_REORDER_EVENT, PREVIEW_SELECT_EVENT } from '../lib/const';
 import { validateConfig } from '../lib/validate';
 import { defaultBlock, defaultFooterButton } from './arrange';
-import { makeSortable } from './sortable';
 import {
   areaField,
   blockFields,
@@ -82,12 +81,6 @@ export class DashboardSidebarEditor extends LitElement {
   /** Tabs whose preview is showing the collapsed (icon-strip) look. */
   @state() private _collapsedTabs = new Set<string>();
 
-  /** Id of the category whose collapsed-preview popover is open, or null. */
-  @state() private _catPopover: string | null = null;
-
-  /** Viewport rect of the collapsed category icon anchoring the popover. */
-  private _catPopoverRect: DOMRect | null = null;
-
   /** Whether the add-element type menu is open. */
   @state() private _addMenuOpen = false;
 
@@ -111,10 +104,7 @@ export class DashboardSidebarEditor extends LitElement {
   /** Monotonic counter backing the id map. */
   private _idSeq = 0;
 
-  /** Row containers already wired for drag-and-drop. */
-  private readonly _sorted = new WeakSet<HTMLElement>();
-
-  /** Cached live preview elements, keyed by the row object's stable id. */
+  /** Cached preview sidebar elements, one per region key (header/body/footer). */
   private readonly _previews = new Map<string, DashboardSidebar>();
 
   /** Last config serialized into each preview, to skip redundant rebuilds. */
@@ -131,7 +121,6 @@ export class DashboardSidebarEditor extends LitElement {
       this._selected = null;
       this._confirmingClose = false;
       this._collapsedTabs = new Set();
-      this._catPopover = null;
       this._addMenuOpen = false;
     }
   }
@@ -141,63 +130,6 @@ export class DashboardSidebarEditor extends LitElement {
    */
   private get _tabCollapsed(): boolean {
     return this._collapsedTabs.has(this._tab);
-  }
-
-  /**
-   * Id of the first element in the current tab's region — restricted to those
-   * that show while collapsed when the tab is collapsed — or null.
-   */
-  private _firstVisible(): string | null {
-    if (this._tab === 'header' || this._tab === 'body') {
-      const blocks = this._working[this._tab] ?? [];
-      const block = this._tabCollapsed ? blocks.find((b) => this._visibleCollapsed(b)) : blocks[0];
-      return block ? this._idFor(block) : null;
-    }
-    if (this._tab === 'footer') {
-      const buttons = this._working.footer?.buttons;
-      return buttons && buttons.length > 0 ? this._idFor(buttons[0]) : null;
-    }
-    return null;
-  }
-
-  /**
-   * Whether a block still renders in the collapsed (icon-strip) sidebar. Titles
-   * and cards are hidden when collapsed.
-   */
-  private _visibleCollapsed(block: SidebarBlock): boolean {
-    return block.type !== 'title' && block.type !== 'card';
-  }
-
-  /**
-   * Whether the current selection would be visible in the collapsed preview.
-   * Category items (behind a popover) count as not visible.
-   */
-  private _selectionVisibleCollapsed(): boolean {
-    const sel = this._locate(this._selected);
-    if (!sel) {
-      return false;
-    }
-    if (sel.kind === 'block') {
-      return this._visibleCollapsed(sel.block);
-    }
-    return sel.kind === 'footer';
-  }
-
-  /**
-   * When collapsing hides the current selection, move it to the parent category
-   * (for a selected sub-item) or otherwise to the first visible element.
-   */
-  private _reselectForCollapse(): void {
-    if (!this._selected || this._selectionVisibleCollapsed()) {
-      return;
-    }
-    const sel = this._locate(this._selected);
-    if (sel?.kind === 'item') {
-      const category = this._working[sel.region]?.[sel.index];
-      this._selected = category ? this._idFor(category) : this._firstVisible();
-    } else {
-      this._selected = this._firstVisible();
-    }
   }
 
   /**
@@ -246,19 +178,6 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Wires drag-and-drop on any row list not already handled.
-   */
-  protected updated(): void {
-    this.renderRoot.querySelectorAll<HTMLElement>('[data-sort]').forEach((el) => {
-      if (!this._sorted.has(el)) {
-        this._sorted.add(el);
-        const handle = el.classList.contains('pv-sublist') ? '.idrag' : '.drag';
-        makeSortable(el, (from, to) => this._onSort(el.dataset.sort ?? '', from, to), handle);
-      }
-    });
-  }
-
-  /**
    * Re-renders after an in-place mutation of the working copy.
    */
   private _touch(): void {
@@ -279,43 +198,108 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Moves an element within an array from one index to another.
+   * The location string of the current selection (matching the `data-loc` the
+   * preview stamps on each element), or undefined when nothing is selected.
    */
-  private _reorder(arr: unknown[] | undefined, from: number, to: number): void {
-    if (arr && from >= 0 && from < arr.length && to >= 0 && to < arr.length) {
-      const [moved] = arr.splice(from, 1);
-      arr.splice(to, 0, moved);
+  private _selectedLoc(): string | undefined {
+    const sel = this._locate(this._selected);
+    if (!sel) {
+      return undefined;
     }
+    if (sel.kind === 'block') {
+      return `${sel.region}:${sel.index}`;
+    }
+    if (sel.kind === 'item') {
+      return `${sel.region}:${sel.index}.${sel.itemIndex}`;
+    }
+    return `footer:btn:${sel.index}`;
   }
 
   /**
-   * Handles a drag-drop reorder for the identified list.
+   * Resolves a preview location string back to a selectable element's stable id,
+   * or null when it does not resolve (e.g. the footer card, which is edited
+   * through its own field rather than the selection form).
    */
-  private _onSort(key: string, from?: number, to?: number): void {
-    if (from === undefined || to === undefined || from === to) {
+  private _idForLoc(loc: string): string | null {
+    if (loc === 'footer:card') {
+      return null;
+    }
+    if (loc.startsWith('footer:btn:')) {
+      const btn = this._working.footer?.buttons?.[Number(loc.slice('footer:btn:'.length))];
+      return btn ? this._idFor(btn) : null;
+    }
+    const [region, rest] = loc.split(':');
+    const dot = rest.indexOf('.');
+    const index = dot === -1 ? Number(rest) : Number(rest.slice(0, dot));
+    const block = this._working[region as Region]?.[index];
+    if (!block) {
+      return null;
+    }
+    if (dot === -1) {
+      return this._idFor(block);
+    }
+    if (block.type === 'category') {
+      const item = block.items?.[Number(rest.slice(dot + 1))];
+      return item ? this._idFor(item) : null;
+    }
+    return null;
+  }
+
+  /**
+   * Selects the element a preview click identified, resetting field errors when
+   * the selection changes.
+   */
+  private _onPreviewSelect(loc: string): void {
+    const id = this._idForLoc(loc);
+    if (!id) {
       return;
     }
-    if (key === 'header' || key === 'body') {
-      this._reorder(this._working[key], from, to);
-    } else if (key === 'footer') {
-      this._reorder(this._working.footer?.buttons, from, to);
-    } else if (key.startsWith('cat:')) {
-      const [, region, index] = key.split(':');
-      this._reorder(this._category(region as Region, Number(index))?.items, from, to);
-    }
-    this._touch();
-  }
-
-  /**
-   * Selects an element for editing, stopping the click from bubbling to a
-   * parent selectable (e.g. a category behind one of its items).
-   */
-  private _select(ev: Event, id: string): void {
-    ev.stopPropagation();
     if (id !== this._selected) {
       this._fieldErrors = {};
     }
     this._selected = id;
+  }
+
+  /**
+   * Returns the working-copy array backing a preview drag container: a region's
+   * blocks (`body`), a category's items (`body:1`), or the footer buttons.
+   */
+  private _containerArray(container: string): unknown[] | undefined {
+    if (container === 'footer') {
+      return this._working.footer?.buttons;
+    }
+    const [region, cat] = container.split(':');
+    if (cat === undefined) {
+      return this._working[region as Region];
+    }
+    return this._category(region as Region, Number(cat))?.items;
+  }
+
+  /**
+   * Applies a preview drag-reorder to the working copy: moves the element from
+   * its source container/index to the destination, then evicts the affected
+   * preview so it rebuilds cleanly from the new order.
+   */
+  private _applyReorder(detail: {
+    from: string;
+    to: string;
+    oldIndex?: number;
+    newIndex?: number;
+  }): void {
+    const { from, to, oldIndex, newIndex } = detail;
+    const src = this._containerArray(from);
+    const dst = this._containerArray(to);
+    if (!src || !dst || oldIndex === undefined || newIndex === undefined) {
+      return;
+    }
+    const [moved] = src.splice(oldIndex, 1);
+    if (moved === undefined) {
+      return;
+    }
+    dst.splice(newIndex, 0, moved);
+    this._selected = this._idFor(moved as object);
+    this._previews.delete(to === 'footer' ? 'footer' : to.split(':')[0]);
+    this._touch();
   }
 
   /**
@@ -559,7 +543,6 @@ export class DashboardSidebarEditor extends LitElement {
                 @click=${() => {
                   this._tab = t.id;
                   this._fieldErrors = {};
-                  this._catPopover = null;
                   this._addMenuOpen = false;
                   this._selected = null;
                 }}
@@ -583,7 +566,7 @@ export class DashboardSidebarEditor extends LitElement {
         </footer>
         ${this._confirmingClose ? this._renderConfirmClose() : nothing}
       </div>
-      ${this._renderCatPopover()} ${this._renderAddMenuPopup()}
+      ${this._renderAddMenuPopup()}
     `;
   }
 
@@ -735,18 +718,13 @@ export class DashboardSidebarEditor extends LitElement {
             aria-label=${this._tabCollapsed ? 'Show expanded' : 'Show collapsed'}
             @click=${() => {
               const next = new Set(this._collapsedTabs);
-              const collapsing = !next.has(this._tab);
-              if (collapsing) {
-                next.add(this._tab);
-              } else {
+              if (next.has(this._tab)) {
                 next.delete(this._tab);
+              } else {
+                next.add(this._tab);
               }
               this._collapsedTabs = next;
-              this._catPopover = null;
               this._addMenuOpen = false;
-              if (collapsing) {
-                this._reselectForCollapse();
-              }
             }}
           >
             <ha-icon
@@ -767,159 +745,19 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Renders the live preview list for a region: one selectable, draggable node
-   * per block, with a nested item list for each category.
+   * Renders the region preview: the real sidebar element rendering just this
+   * region, in select-and-drag preview mode, or the add-element control when
+   * the region is empty.
    */
   private _renderRegionPreview(region: Region): TemplateResult {
     const blocks = this._working[region] ?? [];
-    const types = region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
-    return html`
-      <div class="pv-list" data-sort=${region}>
-        ${repeat(
-          blocks,
-          (block) => this._idFor(block),
-          (block, i) => this._renderPreviewNode(region, i, block),
-        )}
-        ${
-          blocks.length === 0
-            ? html`<div class="pv-add">
-                ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
-              </div>`
-            : nothing
-        }
-      </div>
-    `;
-  }
-
-  /**
-   * Renders one preview node: a selectable, draggable block, plus a nested
-   * draggable item list when the block is a category.
-   */
-  private _renderPreviewNode(region: Region, index: number, block: SidebarBlock): TemplateResult {
-    const id = this._idFor(block);
-    if (block.type !== 'category') {
-      return html`
-        <div
-          class="pv-node pv-drag ${this._selected === id ? 'sel' : ''}"
-          data-id=${id}
-          @click=${(e: Event) => this._select(e, id)}
-        >
-          <span class="drag" title="Drag to reorder">⣿</span>
-          <div class="pv-body">${this._renderBlockPreview(block)}</div>
-        </div>
-      `;
+    if (blocks.length === 0) {
+      const types = region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
+      return html`<div class="pv-empty">
+        ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
+      </div>`;
     }
-    return html`
-      <div class="pv-cat pv-drag">
-        <div
-          class="pv-cat-head ${this._selected === id ? 'sel' : ''}"
-          data-id=${id}
-          @click=${(e: Event) => this._onCatClick(e, id)}
-        >
-          <span class="drag" title="Drag to reorder">⣿</span>
-          <div class="pv-body">${this._renderBlockPreview(block)}</div>
-        </div>
-        ${
-          this._tabCollapsed
-            ? nothing
-            : html`<div
-                class="pv-sublist ${block.guide_line === false ? 'no-line' : ''}"
-                data-sort=${`cat:${region}:${index}`}
-              >
-                ${repeat(
-                  block.items,
-                  (item) => this._idFor(item),
-                  (item) => this._renderPreviewItem(item),
-                )}
-              </div>`
-        }
-      </div>
-    `;
-  }
-
-  /**
-   * Handles a click on a category head: selects it, and in the collapsed
-   * preview toggles a popover of its items (mirroring the live sidebar).
-   */
-  private _onCatClick(e: Event, id: string): void {
-    e.stopPropagation();
-    this._selected = id;
-    if (!this._tabCollapsed) {
-      return;
-    }
-    if (this._catPopover === id) {
-      this._catPopover = null;
-    } else {
-      this._catPopoverRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      this._catPopover = id;
-    }
-  }
-
-  /**
-   * Renders the collapsed-category items popover, anchored to the clicked icon
-   * and positioned fixed so it escapes the modal's clipping.
-   */
-  private _renderCatPopover(): TemplateResult | typeof nothing {
-    const rect = this._catPopoverRect;
-    const sel = this._locate(this._catPopover);
-    if (!this._catPopover || !rect || sel?.kind !== 'block' || sel.block.type !== 'category') {
-      return nothing;
-    }
-    const cat = sel.block;
-    const left = Math.max(8, rect.left - 216);
-    return html`
-      <div
-        class="cat-pop-scrim"
-        @click=${() => {
-          this._catPopover = null;
-        }}
-      ></div>
-      <div class="cat-pop" style="top: ${rect.top}px; left: ${left}px">
-        <div class="cat-pop-title">${cat.title || 'Category'}</div>
-        ${
-          cat.items.length === 0
-            ? html`<p class="hint">No items.</p>`
-            : cat.items.map(
-                (item) =>
-                  html`<div
-                    class="cat-pop-item"
-                    @click=${() => this._selectFromPopover(this._idFor(item))}
-                  >
-                    ${this._previewEl(`pop:${this._idFor(item)}`, { body: [{ ...item, type: 'item' }] }, false)}
-                  </div>`,
-              )
-        }
-      </div>
-    `;
-  }
-
-  /**
-   * Selects a child item from the collapsed-view popover, expanding the tab back
-   * out so the item can be edited, and closing the popover.
-   */
-  private _selectFromPopover(id: string): void {
-    this._selected = id;
-    const next = new Set(this._collapsedTabs);
-    next.delete(this._tab);
-    this._collapsedTabs = next;
-    this._catPopover = null;
-  }
-
-  /**
-   * Renders one selectable, draggable category-item node.
-   */
-  private _renderPreviewItem(item: ItemBlock): TemplateResult {
-    const id = this._idFor(item);
-    return html`
-      <div
-        class="pv-node pv-subnode pv-drag ${this._selected === id ? 'sel' : ''}"
-        data-id=${id}
-        @click=${(e: Event) => this._select(e, id)}
-      >
-        <span class="idrag" title="Drag to reorder">⣿</span>
-        <div class="pv-body">${this._renderItemPreview(item)}</div>
-      </div>
-    `;
+    return html`${this._previewEl(region, { [region]: blocks })}`;
   }
 
   /**
@@ -961,53 +799,27 @@ export class DashboardSidebarEditor extends LitElement {
             )}
           </div>
           ${this._renderPreview(
-            this._previewEl('footer-card', {
+            html`${this._previewEl('footer-card', {
               footer: { card: footer?.card ?? '', divider: false },
-            }),
+            })}`,
           )}
         </div>
       `;
     }
     const buttons = footer?.buttons ?? [];
+    const preview =
+      buttons.length === 0
+        ? html`<div class="pv-empty">
+            <button class="add-btn" @click=${() => this._addFooterButton()}>＋ Add button</button>
+          </div>`
+        : this._previewEl('footer', {
+            footer: { buttons, divider: footer?.divider ?? true },
+          });
     return html`
       ${notes}
       <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
         <div class="editor">${controls} ${this._renderSelectedForm()}</div>
-        ${this._renderPreview(html`
-          <div class="pv-list" data-sort="footer">
-            ${repeat(
-              buttons,
-              (btn) => this._idFor(btn),
-              (btn) => this._renderFooterNode(btn),
-            )}
-            ${
-              buttons.length === 0
-                ? html`<div class="pv-add">
-                    <button class="add-btn" @click=${() => this._addFooterButton()}>
-                      ＋ Add button
-                    </button>
-                  </div>`
-                : nothing
-            }
-          </div>
-        `)}
-      </div>
-    `;
-  }
-
-  /**
-   * Renders one selectable, draggable footer-button node.
-   */
-  private _renderFooterNode(btn: FooterButtonConfig): TemplateResult {
-    const id = this._idFor(btn);
-    return html`
-      <div
-        class="pv-node pv-drag ${this._selected === id ? 'sel' : ''}"
-        data-id=${id}
-        @click=${(e: Event) => this._select(e, id)}
-      >
-        <span class="drag" title="Drag to reorder">⣿</span>
-        <div class="pv-body">${this._renderFooterButtonPreview(btn)}</div>
+        ${this._renderPreview(html`${preview}`)}
       </div>
     `;
   }
@@ -1106,56 +918,40 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Returns a cached, inert `<dashboard-sidebar preview>` for a row, rebuilt only
-   * when its single-block config changes so live cards are not re-instantiated on
-   * every keystroke.
+   * Returns the cached `<dashboard-sidebar preview>` for a region, rendering the
+   * real component so the preview is exactly the live sidebar. Clicks select and
+   * drags reorder (wired via the preview's own events); the config is re-applied
+   * only when it changes so live cards are not re-instantiated on every
+   * keystroke, while the selection and collapse state track every render.
    */
-  private _previewEl(
-    id: string,
-    config: DashboardSidebarConfig,
-    collapsed = this._tabCollapsed,
-  ): DashboardSidebar {
-    let el = this._previews.get(id);
+  private _previewEl(key: string, config: DashboardSidebarConfig): DashboardSidebar {
+    let el = this._previews.get(key);
     if (!el) {
       el = document.createElement('dashboard-sidebar') as DashboardSidebar;
       el.preview = true;
       // Set the attribute up front too, so the sidebar's :host([preview])
       // compacting rules apply on the very first paint (not a reflection later).
       el.setAttribute('preview', '');
-      this._previews.set(id, el);
+      el.addEventListener(PREVIEW_SELECT_EVENT, (ev: Event) => {
+        this._onPreviewSelect((ev as CustomEvent<{ loc: string }>).detail.loc);
+      });
+      el.addEventListener(PREVIEW_REORDER_EVENT, (ev: Event) => {
+        this._applyReorder(
+          (ev as CustomEvent<{ from: string; to: string; oldIndex?: number; newIndex?: number }>)
+            .detail,
+        );
+      });
+      this._previews.set(key, el);
     }
     el.hass = this.hass;
-    el.previewCollapsed = collapsed;
-    const key = JSON.stringify(config);
-    if (this._previewCfg.get(el) !== key) {
+    el.previewCollapsed = this._tabCollapsed;
+    el.previewSelected = this._selectedLoc();
+    const json = JSON.stringify(config);
+    if (this._previewCfg.get(el) !== json) {
       el.setConfig(config);
-      this._previewCfg.set(el, key);
+      this._previewCfg.set(el, json);
     }
     return el;
-  }
-
-  /**
-   * Renders a live preview of a block as currently set, using the real sidebar
-   * element so templates, clocks, cards, and icons all resolve.
-   */
-  private _renderBlockPreview(block: SidebarBlock): DashboardSidebar {
-    const config: DashboardSidebarConfig =
-      block.type === 'category' ? { body: [{ ...block, items: [] }] } : { body: [block] };
-    return this._previewEl(this._idFor(block), config);
-  }
-
-  /**
-   * Renders a live preview of a category item as a single-item sidebar row.
-   */
-  private _renderItemPreview(item: ItemBlock): DashboardSidebar {
-    return this._previewEl(this._idFor(item), { body: [{ ...item, type: 'item' }] });
-  }
-
-  /**
-   * Renders a live preview of a footer button as a divider-less footer.
-   */
-  private _renderFooterButtonPreview(btn: FooterButtonConfig): DashboardSidebar {
-    return this._previewEl(this._idFor(btn), { footer: { buttons: [btn], divider: false } });
   }
 
   /**
@@ -1490,9 +1286,9 @@ export class DashboardSidebarEditor extends LitElement {
       align-self: flex-end;
     }
 
-    /* Each block preview renders at its natural height so previews stack tightly
-       like the real sidebar instead of filling the host's full height. */
-    .pv-body dashboard-sidebar {
+    /* The region preview renders at its natural height instead of filling the
+       frame, so a short region does not stretch. */
+    .pv-frame dashboard-sidebar {
       display: block;
       height: auto;
     }
@@ -1542,103 +1338,12 @@ export class DashboardSidebarEditor extends LitElement {
       opacity: 0.6;
     }
 
-    /* The inline add control that sits under the selected element in the list:
-       a compact, centered control that still opens the full type dropdown. */
-    .pv-add {
+    /* Shown in place of the preview when a region has no elements yet: a
+       centered add-element control. */
+    .pv-empty {
       display: flex;
       justify-content: center;
-      padding: 4px 0;
-    }
-
-    .pv-add .add,
-    .pv-add .add-btn {
-      width: auto;
-      margin: 0;
-      border-radius: 0;
-    }
-
-    /* Hide the native select chevron on the add control; it stays a dropdown. */
-    .pv-add .add {
-      appearance: none;
-      text-align: center;
-    }
-
-    .pv-list,
-    .pv-sublist,
-    .pv-cat {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    /* Mirror the live sidebar's category-items guide line. The category icon
-       sits 30px in (6px node head + 12px sidebar inset + 12px row padding);
-       live draws the guide 6px past the icon's left edge, so match that. */
-    .pv-sublist {
-      margin-left: 36px;
-      padding-left: 8px;
-      border-left: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
-    }
-
-    .pv-sublist.no-line {
-      border-left-color: transparent;
-    }
-
-    .drag,
-    .idrag {
-      position: absolute;
-      left: 6px;
-      top: 50%;
-      transform: translateY(-50%);
-      cursor: grab;
-      opacity: 0;
-      user-select: none;
-      font-size: 0.8rem;
-      line-height: 1;
-      transition: opacity 0.1s ease;
-    }
-
-    .pv-node:hover .drag,
-    .pv-node:hover .idrag,
-    .pv-cat-head:hover .drag {
-      opacity: 0.5;
-    }
-
-    .pv-node,
-    .pv-cat-head {
-      position: relative;
-      display: flex;
-      align-items: center;
-      /* No extra left gutter: the handle sits in the sidebar's own left inset,
-         so elements are not pushed in and the category guide line stays under
-         the category icon. */
-      padding: 2px 4px;
-      border: 2px solid transparent;
-      cursor: pointer;
-    }
-
-    .pv-cat {
-      padding: 0;
-      border: none;
-      cursor: default;
-    }
-
-    .pv-node:hover,
-    .pv-cat-head:hover {
-      border-color: var(--divider-color, rgb(0 0 0 / 25%));
-      background: var(--secondary-background-color, rgb(0 0 0 / 4%));
-    }
-
-    .pv-node.sel,
-    .pv-cat-head.sel {
-      border-color: var(--primary-color, #03a9f4);
-      background: color-mix(in srgb, var(--primary-color, #03a9f4) 12%, transparent);
-    }
-
-    .pv-body {
-      flex: 1;
-      min-width: 0;
-      pointer-events: none;
+      padding: 8px 0;
     }
 
     .danger {
@@ -1895,44 +1600,6 @@ export class DashboardSidebarEditor extends LitElement {
       background: var(--error-color, #db4437);
       color: var(--text-primary-color, #fff);
       border-color: transparent;
-    }
-
-    /* Collapsed-category items popover (mirrors the live sidebar). */
-    .cat-pop-scrim {
-      position: fixed;
-      inset: 0;
-      z-index: 1;
-    }
-
-    .cat-pop {
-      position: fixed;
-      z-index: 2;
-      width: 200px;
-      max-height: 60vh;
-      overflow-y: auto;
-      padding: 8px 0;
-      border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
-      border-radius: 10px;
-      background-color: var(--primary-background-color, #fff);
-      background-image: linear-gradient(
-        var(--card-background-color, #fff),
-        var(--card-background-color, #fff)
-      );
-      box-shadow: 0 4px 16px rgb(0 0 0 / 40%);
-    }
-
-    .cat-pop-title {
-      padding: 4px 12px 8px;
-      font-weight: 600;
-    }
-
-    .cat-pop-item {
-      padding: 2px 6px;
-      cursor: pointer;
-    }
-
-    .cat-pop-item:hover {
-      background: var(--secondary-background-color, rgb(0 0 0 / 8%));
     }
 
     /* Custom add-element type menu (fixed so it escapes the modal clipping). */

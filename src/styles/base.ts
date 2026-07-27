@@ -38,12 +38,38 @@ export const baseStyles = css`
     /* Keep the real horizontal inset so content sits where it will in the live
        sidebar, but no vertical padding so stacked previews stay compact. */
     padding: 0 12px;
-    pointer-events: none;
   }
 
   /* Collapsed preview sits in a narrow icon-strip frame, so drop the inset. */
   :host([preview]) .sidebar.collapsed {
     padding: 0;
+  }
+
+  /* Every element in a preview is clickable to select and draggable to reorder,
+     so show a pointer and mark the selected one with an outline. */
+  :host([preview]) .row,
+  :host([preview]) .app-title,
+  :host([preview]) .clock,
+  :host([preview]) .date,
+  :host([preview]) .entry-divider,
+  :host([preview]) .content,
+  :host([preview]) .footer-btn {
+    cursor: pointer;
+  }
+
+  :host([preview]) .entry-divider {
+    /* Give the divider a hit area so it can be selected and dragged. */
+    min-height: 10px;
+  }
+
+  :host([preview]) .sb-selected {
+    outline: 2px solid var(--primary-color, #03a9f4);
+    outline-offset: 1px;
+    border-radius: 8px;
+  }
+
+  :host([preview]) .sortable-ghost {
+    opacity: 0.4;
   }
 
   :host([preview]) .region-header {

@@ -24,3 +24,17 @@ export const TOGGLE_EVENT = 'dashboard-sidebar-toggle';
  * is pressed, so the bootstrap can open the editor.
  */
 export const EDIT_EVENT = 'dashboard-sidebar-edit';
+
+/**
+ * Name of the bubbling, composed event a preview sidebar fires when one of its
+ * elements is clicked, carrying the element's location so the editor can select
+ * it for editing instead of running its action. Detail: `{ loc: string }`.
+ */
+export const PREVIEW_SELECT_EVENT = 'dashboard-sidebar-preview-select';
+
+/**
+ * Name of the bubbling, composed event a preview sidebar fires when an element
+ * is drag-reordered, carrying the source and destination containers and the old
+ * and new indices. Detail: `{ from, to, oldIndex, newIndex }`.
+ */
+export const PREVIEW_REORDER_EVENT = 'dashboard-sidebar-preview-reorder';

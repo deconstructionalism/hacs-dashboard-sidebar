@@ -100,6 +100,12 @@ export class DashboardSidebarEditor extends LitElement {
   /** Anchor rect of the overflow menu's trigger. */
   private _elementMenuRect: DOMRect | null = null;
 
+  /** Whether the current tab's options ("...") menu is open. */
+  @state() private _tabMenuOpen = false;
+
+  /** Anchor rect of the tab options menu's trigger. */
+  private _tabMenuRect: DOMRect | null = null;
+
   /** Validation errors from the last save attempt. */
   @state() private _errors: string[] = [];
 
@@ -134,6 +140,7 @@ export class DashboardSidebarEditor extends LitElement {
       this._collapsedTabs = new Set();
       this._addMenuOpen = false;
       this._elementMenuOpen = false;
+      this._tabMenuOpen = false;
     }
   }
 
@@ -688,6 +695,7 @@ export class DashboardSidebarEditor extends LitElement {
                   this._fieldErrors = {};
                   this._addMenuOpen = false;
                   this._elementMenuOpen = false;
+                  this._tabMenuOpen = false;
                   this._selected = null;
                 }}
               >
@@ -710,7 +718,7 @@ export class DashboardSidebarEditor extends LitElement {
         </footer>
         ${this._confirmingClose ? this._renderConfirmClose() : nothing}
       </div>
-      ${this._renderAddMenuPopup()} ${this._renderElementMenu()}
+      ${this._renderAddMenuPopup()} ${this._renderElementMenu()} ${this._renderTabMenu()}
     `;
   }
 
@@ -838,12 +846,83 @@ export class DashboardSidebarEditor extends LitElement {
    * (with its divider line), then the collapsed-state note below that line when
    * the preview is collapsed.
    */
-  private _renderTabNotes(scrollNote: string, collapsedNote: string): TemplateResult {
+  private _renderTabNotes(
+    scrollNote: string,
+    collapsedNote: string,
+    menu: TemplateResult | typeof nothing = nothing,
+  ): TemplateResult {
     return html`
       <div class="tab-notes">
         <p class="tab-note">${scrollNote}</p>
+        ${menu}
       </div>
       ${this._tabCollapsed ? this._editorNote(collapsedNote) : nothing}
+    `;
+  }
+
+  /**
+   * Renders the current tab's options ("...") menu trigger, shown at the right
+   * of the tab notes row.
+   */
+  private _renderTabMenuButton(): TemplateResult {
+    return html`
+      <button
+        class="tool"
+        title="Footer options"
+        aria-label="Footer options"
+        @click=${(e: Event) => {
+          e.stopPropagation();
+          this._tabMenuRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          this._tabMenuOpen = true;
+        }}
+      >
+        <ha-icon icon="mdi:dots-vertical"></ha-icon>
+      </button>
+    `;
+  }
+
+  /**
+   * Renders the footer tab's options menu, fixed under its trigger: toggles for
+   * the top divider bar and the buttons/component mode.
+   */
+  private _renderTabMenu(): TemplateResult | typeof nothing {
+    const rect = this._tabMenuRect;
+    if (!this._tabMenuOpen || !rect || this._tab !== 'footer') {
+      return nothing;
+    }
+    const footer = this._working.footer;
+    const cardMode = footer?.card !== undefined;
+    const dividerShown = footer?.divider ?? true;
+    return html`
+      <div
+        class="menu-scrim"
+        @click=${() => {
+          this._tabMenuOpen = false;
+        }}
+      ></div>
+      <div
+        class="add-menu"
+        style="top: ${rect.bottom + 4}px; left: ${Math.max(8, rect.right - 220)}px"
+      >
+        <button
+          class="add-menu-item"
+          @click=${() => {
+            this._setFooterDivider(!dividerShown);
+            this._tabMenuOpen = false;
+          }}
+        >
+          ${dividerShown ? 'Hide' : 'Show'} Top Divider Bar
+        </button>
+        <button
+          class="add-menu-item"
+          @click=${() => {
+            this._setFooterMode(!cardMode);
+            this._tabMenuOpen = false;
+          }}
+        >
+          ${cardMode ? 'Show As Buttons' : 'Show As Component'}
+        </button>
+      </div>
     `;
   }
 
@@ -922,24 +1001,13 @@ export class DashboardSidebarEditor extends LitElement {
       cardMode
         ? 'Collapsed: the footer component is hidden.'
         : 'Collapsed: footer buttons collapse into a single menu button.',
+      this._renderTabMenuButton(),
     );
-    const controls = html`
-      <div class="modes">
-        <button class="mode ${cardMode ? '' : 'sel'}" @click=${() => this._setFooterMode(false)}>
-          Buttons
-        </button>
-        <button class="mode ${cardMode ? 'sel' : ''}" @click=${() => this._setFooterMode(true)}>
-          Component
-        </button>
-      </div>
-      ${checkboxField('Top divider bar', footer?.divider ?? true, (v) => this._setFooterDivider(v))}
-    `;
     if (cardMode) {
       return html`
         ${notes}
         <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
           <div class="editor">
-            ${controls}
             ${areaField(
               'Card (markdown or JSON)',
               typeof footer?.card === 'string'
@@ -968,7 +1036,7 @@ export class DashboardSidebarEditor extends LitElement {
     return html`
       ${notes}
       <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
-        <div class="editor">${controls} ${this._renderSelectedForm()}</div>
+        <div class="editor">${this._renderSelectedForm()}</div>
         ${this._renderPreview(html`${preview}`)}
       </div>
     `;
@@ -1738,11 +1806,15 @@ export class DashboardSidebarEditor extends LitElement {
     .tab-notes {
       display: flex;
       flex: 0 0 auto;
-      flex-direction: column;
+      align-items: center;
       gap: 8px;
       margin-bottom: 12px;
       padding-bottom: 12px;
       border-bottom: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
+    }
+
+    .tab-notes .tab-note {
+      flex: 1 1 auto;
     }
 
     .tab-note {
@@ -1783,27 +1855,6 @@ export class DashboardSidebarEditor extends LitElement {
       background: transparent;
       color: inherit;
       cursor: pointer;
-    }
-
-    .modes {
-      display: flex;
-      gap: 4px;
-    }
-
-    .mode {
-      font: inherit;
-      padding: 4px 12px;
-      border: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
-      border-radius: 8px;
-      background: transparent;
-      color: inherit;
-      cursor: pointer;
-    }
-
-    .mode.sel {
-      background: var(--primary-color, #03a9f4);
-      color: var(--text-primary-color, #fff);
-      border-color: transparent;
     }
 
     .errors {

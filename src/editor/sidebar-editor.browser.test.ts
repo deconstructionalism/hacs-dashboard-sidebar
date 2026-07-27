@@ -198,10 +198,15 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(addItem).to.equal(true);
   });
 
-  it('toggles the footer to a custom component', async () => {
+  it('toggles the footer to a custom component through the tab menu', async () => {
     const el = await mount(cfg());
     await tab(el, 'Footer');
-    (root(el).querySelectorAll('.mode')[1] as HTMLButtonElement).click();
+    (root(el).querySelector('.tab-notes .tool') as HTMLButtonElement).click();
+    await el.updateComplete;
+    const toComponent = [...root(el).querySelectorAll('.add-menu-item')].find((b) =>
+      b.textContent?.includes('Component'),
+    ) as HTMLButtonElement;
+    toComponent.click();
     await el.updateComplete;
     expect(root(el).querySelector('textarea')).to.exist;
   });
@@ -340,14 +345,19 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(root(el).querySelector('.pv-frame.collapsed')).to.exist;
   });
 
-  it('toggles the footer top divider bar', async () => {
+  it('toggles the footer top divider bar through the tab menu', async () => {
     const el = await mount(cfg());
     await tab(el, 'Footer');
     let saved: DashboardSidebarConfig | undefined;
     el.onSave = (c) => {
       saved = c;
     };
-    (root(el).querySelector('.editor input[type="checkbox"]') as HTMLInputElement).click();
+    (root(el).querySelector('.tab-notes .tool') as HTMLButtonElement).click();
+    await el.updateComplete;
+    const hide = [...root(el).querySelectorAll('.add-menu-item')].find((b) =>
+      b.textContent?.includes('Top Divider Bar'),
+    ) as HTMLButtonElement;
+    hide.click();
     await el.updateComplete;
     (root(el).querySelector('footer .primary') as HTMLButtonElement).click();
     expect(saved?.footer?.divider).to.equal(false);

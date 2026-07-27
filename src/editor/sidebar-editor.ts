@@ -259,7 +259,8 @@ export class DashboardSidebarEditor extends LitElement {
 
   /**
    * Selects the element a preview click identified, resetting field errors when
-   * the selection changes.
+   * the selection changes. Choosing a category sub-item from the collapsed
+   * popover expands the preview so the item is visible where it was selected.
    */
   private _onPreviewSelect(loc: string): void {
     const id = this._idForLoc(loc);
@@ -270,6 +271,11 @@ export class DashboardSidebarEditor extends LitElement {
       this._fieldErrors = {};
     }
     this._selected = id;
+    if (this._tabCollapsed && loc.includes('.')) {
+      const next = new Set(this._collapsedTabs);
+      next.delete(this._tab);
+      this._collapsedTabs = next;
+    }
   }
 
   /**
@@ -1231,6 +1237,12 @@ export class DashboardSidebarEditor extends LitElement {
       position: fixed;
       inset: 0;
       z-index: 100;
+      /* Center via flexbox rather than a transform on the panel: a transformed
+         ancestor would become the containing block for the preview's
+         fixed-position popovers and tooltips, throwing off their placement. */
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-family: var(--ha-font-family-body, sans-serif);
       color: var(--primary-text-color, #212121);
 
@@ -1252,10 +1264,8 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     .panel {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+      position: relative;
+      z-index: 1;
       width: min(640px, 94vw);
       height: 75vh;
       display: flex;

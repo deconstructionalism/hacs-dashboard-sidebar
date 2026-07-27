@@ -131,6 +131,9 @@ export class DashboardSidebar extends LitElement {
   /** Preview drag-and-drop containers already wired, to avoid re-wiring. */
   private readonly _sortables = new WeakSet<HTMLElement>();
 
+  /** Pending close of the preview's hover popover, for hover-intent bridging. */
+  private _previewPopoverTimer?: number;
+
   /**
    * Document-level click handler that closes any open popover when the click
    * lands outside this element.
@@ -254,6 +257,7 @@ export class DashboardSidebar extends LitElement {
     super.disconnectedCallback();
     window.removeEventListener('click', this._onDocumentClick);
     this._stopTick();
+    this._cancelPopoverClose();
     this._templates.clear();
   }
 
@@ -499,6 +503,41 @@ export class DashboardSidebar extends LitElement {
   }
 
   /**
+   * Opens a collapsed category's popover on hover (preview only), anchoring it
+   * to the row and cancelling any pending close so moving onto the popover keeps
+   * it open.
+   */
+  private _hoverCategory(key: string, ev: Event): void {
+    this._cancelPopoverClose();
+    this._footerOpen = false;
+    this._tooltip = null;
+    this._openCategory = key;
+    this._popoverAnchor = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+  }
+
+  /**
+   * Cancels a pending hover-popover close.
+   */
+  private _cancelPopoverClose(): void {
+    if (this._previewPopoverTimer !== undefined) {
+      window.clearTimeout(this._previewPopoverTimer);
+      this._previewPopoverTimer = undefined;
+    }
+  }
+
+  /**
+   * Schedules the hover popover to close shortly, bridging the gap between the
+   * category icon and its popover so it does not flicker shut while crossing.
+   */
+  private _schedulePopoverClose(): void {
+    this._cancelPopoverClose();
+    this._previewPopoverTimer = window.setTimeout(() => {
+      this._closePopovers();
+      this._previewPopoverTimer = undefined;
+    }, 140);
+  }
+
+  /**
    * Toggles the popover for a collapsed category, anchoring it to the row.
    */
   private _toggleCategory(key: string, ev: Event): void {
@@ -663,7 +702,7 @@ export class DashboardSidebar extends LitElement {
         }
         ${this._renderRegion('header', cfg.header, collapsed, 'region-header dashboard-sidebar-header')}
         ${this._renderRegion('body', cfg.body, collapsed, 'region-body dashboard-sidebar-body')}
-        ${this._renderFooter(collapsed)} ${this.preview ? nothing : this._renderTooltip()}
+        ${this._renderFooter(collapsed)} ${this._renderTooltip()}
       </div>
     `;
   }
@@ -982,16 +1021,24 @@ export class DashboardSidebar extends LitElement {
           class="row item collapsed-row dashboard-sidebar-item ${open ? 'active' : ''}${this._selClass(loc)}"
           data-loc=${loc}
           aria-label=${title}
-          @mouseenter=${(ev: MouseEvent) => {
-            if (!open) {
-              this._showTip(ev, title);
-            }
-          }}
-          @mouseleave=${this._hideTip}
-          @click=${(ev: Event) => {
-            ev.stopPropagation();
-            this._toggleCategory(key, ev);
-          }}
+          @mouseenter=${
+            this.preview
+              ? (ev: MouseEvent) => this._hoverCategory(key, ev)
+              : (ev: MouseEvent) => {
+                  if (!open) {
+                    this._showTip(ev, title);
+                  }
+                }
+          }
+          @mouseleave=${this.preview ? () => this._schedulePopoverClose() : this._hideTip}
+          @click=${
+            this.preview
+              ? nothing
+              : (ev: Event) => {
+                  ev.stopPropagation();
+                  this._toggleCategory(key, ev);
+                }
+          }
         >
           ${
             icon
@@ -1020,6 +1067,8 @@ export class DashboardSidebar extends LitElement {
         class="popover dashboard-sidebar-popover"
         style=${styleMap(this._popoverStyle(anchor, false))}
         @click=${this.preview ? nothing : (ev: Event) => ev.stopPropagation()}
+        @mouseenter=${this.preview ? () => this._cancelPopoverClose() : nothing}
+        @mouseleave=${this.preview ? () => this._schedulePopoverClose() : nothing}
       >
         <div class="popover-title dashboard-sidebar-popover-title">
           ${this._templates.resolve(category.title)}

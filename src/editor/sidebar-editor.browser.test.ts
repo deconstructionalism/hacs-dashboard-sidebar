@@ -311,6 +311,25 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(root(el).querySelector('.form-title')?.textContent).to.contain('Category');
   });
 
+  it('selecting a sub-item from the collapsed popover expands the preview', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Content');
+    (root(el).querySelector('.pv-toggle') as HTMLButtonElement).click(); // collapse
+    await settle(el);
+    expect(root(el).querySelector('.pv-frame.collapsed')).to.exist;
+    preview(el)?.dispatchEvent(
+      new CustomEvent('dashboard-sidebar-preview-select', {
+        detail: { loc: 'body:1.0' },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+    await settle(el);
+    // Choosing the hidden sub-item expands the preview and selects the item.
+    expect(root(el).querySelector('.pv-frame.collapsed')).to.not.exist;
+    expect(root(el).querySelector('.form-title')?.textContent).to.contain('Item');
+  });
+
   it('shows a Preview header and toggles the collapsed look', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');

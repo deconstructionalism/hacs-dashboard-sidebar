@@ -1211,7 +1211,7 @@ export class DashboardSidebarEditor extends LitElement {
     if (sel.kind === 'footer') {
       return html`
         <div class="form">
-          ${this._formHeader('Footer Button')}
+          ${this._formHeader('Button')}
           ${footerButtonFields(
             sel.btn,
             (partial) => this._patchFooterButton(sel.index, partial),

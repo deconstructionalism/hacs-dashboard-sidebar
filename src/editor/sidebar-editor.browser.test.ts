@@ -207,6 +207,23 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(addItem).to.equal(true);
   });
 
+  it('expands/collapses a selected category through its overflow menu', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Content');
+    await clickLoc(el, 'body:1'); // the "Rooms" category
+    expect(preview(el)?.shadowRoot?.querySelector('[data-loc="body:1.0"]')).to.exist;
+    (root(el).querySelector('.form-tools [title="More"]') as HTMLButtonElement).click();
+    await el.updateComplete;
+    const collapse = [...root(el).querySelectorAll('.add-menu-item')].find((b) =>
+      b.textContent?.includes('Collapse Category'),
+    ) as HTMLButtonElement;
+    expect(collapse).to.exist;
+    collapse.click();
+    await settle(el);
+    // Collapsed in the preview: the category's item is hidden.
+    expect(preview(el)?.shadowRoot?.querySelector('[data-loc="body:1.0"]')).to.not.exist;
+  });
+
   it('toggles the footer to a custom component through the tab menu', async () => {
     const el = await mount(cfg());
     await tab(el, 'Footer');

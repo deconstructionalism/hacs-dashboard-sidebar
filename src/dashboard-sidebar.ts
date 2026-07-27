@@ -83,6 +83,13 @@ export class DashboardSidebar extends LitElement {
    */
   @property({ attribute: false }) public previewSelected?: string;
 
+  /**
+   * In preview mode, the location strings of categories to show collapsed
+   * (e.g. `body:1`). Categories are expanded by default in a preview so their
+   * items are selectable; the editor collapses specific ones on request.
+   */
+  @property({ attribute: false }) public previewCollapsedCats?: string[];
+
   /** The validated configuration, or undefined before setConfig runs. */
   @state() private _config?: DashboardSidebarConfig;
 
@@ -969,7 +976,10 @@ export class DashboardSidebar extends LitElement {
   ): TemplateResult {
     const title = this._templates.resolve(category.title);
     const icon = category.icon ? this._templates.resolve(category.icon) : '';
-    const collapsed = this._collapsedCats.has(key);
+    // In a preview, categories are expanded unless the editor asks otherwise.
+    const collapsed = this.preview
+      ? (this.previewCollapsedCats?.includes(loc) ?? false)
+      : this._collapsedCats.has(key);
     return html`
       <div
         class="category dashboard-sidebar-category${this._hookClass(category)}"

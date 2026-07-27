@@ -86,6 +86,9 @@ export class DashboardSidebarEditor extends LitElement {
   /** Tabs whose preview is showing the collapsed (icon-strip) look. */
   @state() private _collapsedTabs = new Set<string>();
 
+  /** Ids of categories shown collapsed in the preview (toggled via their menu). */
+  @state() private _previewCollapsedCats = new Set<string>();
+
   /** Whether the add-element type menu is open. */
   @state() private _addMenuOpen = false;
 
@@ -138,6 +141,7 @@ export class DashboardSidebarEditor extends LitElement {
       this._selected = null;
       this._confirmingClose = false;
       this._collapsedTabs = new Set();
+      this._previewCollapsedCats = new Set();
       this._addMenuOpen = false;
       this._elementMenuOpen = false;
       this._tabMenuOpen = false;
@@ -221,7 +225,15 @@ export class DashboardSidebarEditor extends LitElement {
    * preview stamps on each element), or undefined when nothing is selected.
    */
   private _selectedLoc(): string | undefined {
-    const sel = this._locate(this._selected);
+    return this._selected ? this._locOf(this._selected) : undefined;
+  }
+
+  /**
+   * The location string for an element id (matching the preview's `data-loc`),
+   * or undefined when the id no longer resolves.
+   */
+  private _locOf(id: string): string | undefined {
+    const sel = this._locate(id);
     if (!sel) {
       return undefined;
     }
@@ -232,6 +244,15 @@ export class DashboardSidebarEditor extends LitElement {
       return `${sel.region}:${sel.index}.${sel.itemIndex}`;
     }
     return `footer:btn:${sel.index}`;
+  }
+
+  /**
+   * The location strings of categories currently shown collapsed in the preview.
+   */
+  private _collapsedCatLocs(): string[] {
+    return [...this._previewCollapsedCats]
+      .map((id) => this._locOf(id))
+      .filter((loc): loc is string => loc !== undefined);
   }
 
   /**
@@ -1113,13 +1134,16 @@ export class DashboardSidebarEditor extends LitElement {
 
   /**
    * Renders the selected element's overflow menu, fixed-positioned under its
-   * trigger. Currently a placeholder; per-element actions land here later.
+   * trigger: expand/collapse for a category, "Test action" for an element with a
+   * tap action, or a placeholder otherwise.
    */
   private _renderElementMenu(): TemplateResult | typeof nothing {
     const rect = this._elementMenuRect;
     if (!this._elementMenuOpen || !rect) {
       return nothing;
     }
+    const sel = this._locate(this._selected);
+    const category = sel?.kind === 'block' && sel.block.type === 'category' ? sel : null;
     return html`
       <div
         class="menu-scrim"
@@ -1131,15 +1155,48 @@ export class DashboardSidebarEditor extends LitElement {
         class="add-menu"
         style="top: ${rect.bottom + 4}px; right: ${Math.max(8, window.innerWidth - rect.right)}px"
       >
-        ${
-          this._actionable() && this.hass
-            ? html`<button class="add-menu-item" @click=${() => this._testAction()}>
-                Test action
-              </button>`
-            : html`<p class="menu-empty">No actions yet.</p>`
-        }
+        ${this._renderElementMenuItems(category)}
       </div>
     `;
+  }
+
+  /**
+   * The overflow menu items for the current selection.
+   */
+  private _renderElementMenuItems(
+    category: Extract<Selected, { kind: 'block' }> | null,
+  ): TemplateResult {
+    if (category) {
+      const collapsed = this._previewCollapsedCats.has(this._idFor(category.block));
+      return html`<button class="add-menu-item" @click=${() => this._toggleCategoryPreview()}>
+        ${collapsed ? 'Expand' : 'Collapse'} Category
+      </button>`;
+    }
+    if (this._actionable() && this.hass) {
+      return html`<button class="add-menu-item" @click=${() => this._testAction()}>
+        Test action
+      </button>`;
+    }
+    return html`<p class="menu-empty">No actions yet.</p>`;
+  }
+
+  /**
+   * Toggles whether the selected category is shown collapsed in the preview.
+   */
+  private _toggleCategoryPreview(): void {
+    const sel = this._locate(this._selected);
+    if (sel?.kind !== 'block' || sel.block.type !== 'category') {
+      return;
+    }
+    const id = this._idFor(sel.block);
+    const next = new Set(this._previewCollapsedCats);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    this._previewCollapsedCats = next;
+    this._elementMenuOpen = false;
   }
 
   /**
@@ -1256,6 +1313,7 @@ export class DashboardSidebarEditor extends LitElement {
     el.hass = this.hass;
     el.previewCollapsed = this._tabCollapsed;
     el.previewSelected = this._selectedLoc();
+    el.previewCollapsedCats = this._collapsedCatLocs();
     const json = JSON.stringify(config);
     if (this._previewCfg.get(el) !== json) {
       el.setConfig(config);
@@ -1510,10 +1568,10 @@ export class DashboardSidebarEditor extends LitElement {
 
     .editor {
       gap: 10px;
-      /* Scrolls independently of the preview, with a thin overlaid scrollbar so
-         it does not take width from the form controls. */
+      /* Scrolls independently of the preview. A reserved, thin scrollbar gutter
+         keeps the bar in its own lane so it never overlaps the form controls. */
       overflow-y: auto;
-      padding-right: 2px;
+      scrollbar-gutter: stable;
       scrollbar-width: thin;
       scrollbar-color: var(--divider-color, rgb(0 0 0 / 30%)) transparent;
     }

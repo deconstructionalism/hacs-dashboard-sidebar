@@ -129,6 +129,12 @@ export class DashboardSidebarEditor extends LitElement {
   /** Last config serialized into each preview, to skip redundant rebuilds. */
   private readonly _previewCfg = new WeakMap<DashboardSidebar, string>();
 
+  /** Code editors already stripped of their gutter and toolbar chrome. */
+  private readonly _compactedEditors = new WeakSet<HTMLElement>();
+
+  /** Whether a retry to compact not-yet-ready code editors is pending. */
+  private _compactScheduled = false;
+
   /**
    * Clones the incoming config into the working copy.
    */
@@ -152,6 +158,60 @@ export class DashboardSidebarEditor extends LitElement {
    */
   protected firstUpdated(): void {
     void this._ensureCodeEditor();
+  }
+
+  /**
+   * After each render, strips the line-number gutter and action toolbar from
+   * any code-editor field so it reads as a compact input.
+   */
+  protected updated(): void {
+    this._compactEditors();
+  }
+
+  /**
+   * Reaches into each code editor's shadow DOM to hide its gutter (line numbers)
+   * and any chrome rendered above the editor (the action toolbar), retrying on
+   * the next frame while CodeMirror is still loading.
+   */
+  private _compactEditors(): void {
+    let retry = false;
+    this.renderRoot
+      .querySelectorAll<HTMLElement & { shadowRoot: ShadowRoot | null }>(
+        '.code-field ha-code-editor',
+      )
+      .forEach((ed) => {
+        if (this._compactedEditors.has(ed)) {
+          return;
+        }
+        const cm = ed.shadowRoot?.querySelector('.cm-editor');
+        if (!ed.shadowRoot || !cm) {
+          retry = true;
+          return;
+        }
+        this._compactedEditors.add(ed);
+        const style = document.createElement('style');
+        style.textContent = '.cm-gutters{display:none!important}.cm-panels{display:none!important}';
+        ed.shadowRoot.appendChild(style);
+        // Hide any element rendered above the editor (its action toolbar).
+        let node: Element | null = cm;
+        while (node && node.parentNode !== ed.shadowRoot) {
+          node = node.parentElement;
+        }
+        for (
+          let sib = node?.previousElementSibling ?? null;
+          sib;
+          sib = sib.previousElementSibling
+        ) {
+          (sib as HTMLElement).style.display = 'none';
+        }
+      });
+    if (retry && !this._compactScheduled) {
+      this._compactScheduled = true;
+      requestAnimationFrame(() => {
+        this._compactScheduled = false;
+        this._compactEditors();
+      });
+    }
   }
 
   /**
@@ -2017,12 +2077,12 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     /* HA's code editor field: wrap it in the same bordered box as the other
-       inputs so its inline autocomplete matches the form. */
+       inputs. Keep overflow visible so the CodeMirror autocomplete popup is not
+       clipped by the field box. */
     .code-field ha-code-editor {
       display: block;
       border: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
       border-radius: 6px;
-      overflow: hidden;
       --code-editor-background-color: var(--card-background-color, transparent);
       --code-mirror-max-height: 160px;
     }

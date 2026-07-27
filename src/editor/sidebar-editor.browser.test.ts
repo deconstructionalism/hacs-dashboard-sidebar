@@ -224,6 +224,36 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(preview(el)?.shadowRoot?.querySelector('[data-loc="body:1.0"]')).to.not.exist;
   });
 
+  it('offers a Button/Component picker and no tab menu for an empty footer', async () => {
+    const el = await mount({ ...cfg(), footer: undefined });
+    await tab(el, 'Footer');
+    expect(root(el).querySelector('.empty-state')).to.exist;
+    expect(root(el).querySelector('.tab-notes .tool')).to.not.exist;
+    (root(el).querySelector('.empty-state .add') as HTMLButtonElement).click();
+    await el.updateComplete;
+    const labels = [...root(el).querySelectorAll('.add-menu-item')].map((b) =>
+      b.textContent?.trim(),
+    );
+    expect(labels).to.include('Button');
+    expect(labels).to.include('Component');
+  });
+
+  it('re-disables Save after toggling a boolean setting off again', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Settings');
+    const save = (): HTMLButtonElement =>
+      root(el).querySelector('footer .primary') as HTMLButtonElement;
+    const hide = (): HTMLInputElement =>
+      [...root(el).querySelectorAll('.settings input[type="checkbox"]')][1] as HTMLInputElement;
+    expect(save().disabled).to.equal(true);
+    hide().click();
+    await el.updateComplete;
+    expect(save().disabled).to.equal(false);
+    hide().click();
+    await el.updateComplete;
+    expect(save().disabled).to.equal(true);
+  });
+
   it('toggles the footer to a custom component through the tab menu', async () => {
     const el = await mount(cfg());
     await tab(el, 'Footer');

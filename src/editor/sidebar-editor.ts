@@ -89,13 +89,12 @@ export class DashboardSidebarEditor extends LitElement {
   /** Ids of categories shown collapsed in the preview (toggled via their menu). */
   @state() private _previewCollapsedCats = new Set<string>();
 
-  /** Whether the add-element type menu is open. */
+  /** Whether the add-element menu is open. */
   @state() private _addMenuOpen = false;
 
-  /** Anchor rect, offered types, and pick callback for the open add menu. */
+  /** Anchor rect and choices for the open add menu. */
   private _addMenuRect: DOMRect | null = null;
-  private _addMenuTypes: BlockType[] = [];
-  private _addMenuPick: ((type: BlockType) => void) | null = null;
+  private _addMenuItems: Array<{ label: string; run: () => void }> = [];
 
   /** Whether the selected element's overflow ("...") menu is open. */
   @state() private _elementMenuOpen = false;
@@ -815,13 +814,15 @@ export class DashboardSidebarEditor extends LitElement {
         ${checkboxField(
           'Start Collapsed',
           c.start_collapsed ?? false,
-          (v) => this._patchConfig({ start_collapsed: v }),
+          // Store undefined (not false) when off so the key is dropped and an
+          // off-then-on-then-off toggle returns cleanly to the original config.
+          (v) => this._patchConfig({ start_collapsed: v || undefined }),
           'Load the sidebar collapsed to its icon strip; it expands when you tap the toggle.',
         )}
         ${checkboxField(
           'Hide Sidebar On Mobile',
           c.hide_on_mobile ?? false,
-          (v) => this._patchConfig({ hide_on_mobile: v }),
+          (v) => this._patchConfig({ hide_on_mobile: v || undefined }),
           'Hide the sidebar entirely on narrow (phone-width) screens.',
         )}
         ${colorField('Background CSS Color', c.background, (v) =>
@@ -856,12 +857,8 @@ export class DashboardSidebarEditor extends LitElement {
     );
     const blocks = this._working[region] ?? [];
     if (blocks.length === 0) {
-      const types = region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
       return html`
-        ${notes}
-        ${this._renderEmptyState(
-          this._renderAddMenu(types, (type) => this._addBlock(region, type)),
-        )}
+        ${notes} ${this._renderEmptyState(this._renderAddMenu(this._typeItems(region)))}
       `;
     }
     return html`
@@ -1037,13 +1034,26 @@ export class DashboardSidebarEditor extends LitElement {
   private _renderFooterTab(): TemplateResult {
     const footer = this._working.footer;
     const cardMode = footer?.card !== undefined;
+    const empty = !cardMode && (footer?.buttons?.length ?? 0) === 0;
     const notes = this._renderTabNotes(
       'The footer is pinned to the bottom of the sidebar and does not scroll.',
       cardMode
         ? 'Collapsed: the footer component is hidden.'
         : 'Collapsed: footer buttons collapse into a single menu button.',
-      this._renderTabMenuButton(),
+      // No options menu until the footer has content: divider/mode do not apply.
+      empty ? nothing : this._renderTabMenuButton(),
     );
+    if (empty) {
+      return html`
+        ${notes}
+        ${this._renderEmptyState(
+          this._renderAddMenu([
+            { label: 'Button', run: () => this._addFooterButton() },
+            { label: 'Component', run: () => this._setFooterMode(true) },
+          ]),
+        )}
+      `;
+    }
     if (cardMode) {
       return html`
         ${notes}
@@ -1066,16 +1076,6 @@ export class DashboardSidebarEditor extends LitElement {
       `;
     }
     const buttons = footer?.buttons ?? [];
-    if (buttons.length === 0) {
-      return html`
-        ${notes}
-        ${this._renderEmptyState(
-          html`<button class="add-btn" @click=${() => this._addFooterButton()}>
-            ＋ Add button
-          </button>`,
-        )}
-      `;
-    }
     return html`
       ${notes}
       <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
@@ -1255,7 +1255,6 @@ export class DashboardSidebarEditor extends LitElement {
       `;
     }
     const patch: Patch = (partial) => this._patchBlock(sel.region, sel.index, partial);
-    const types = sel.region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
     return html`
       <div class="form">
         ${this._formHeader(titleCase(sel.block.type))} ${blockFields(sel.block, patch, this._ctx())}
@@ -1266,11 +1265,7 @@ export class DashboardSidebarEditor extends LitElement {
               </button>`
             : nothing
         }
-        ${this._renderAddMenu(
-          types,
-          (type) => this._addBlock(sel.region, type),
-          '＋ Add Element Below',
-        )}
+        ${this._renderAddMenu(this._typeItems(sel.region), '＋ Add Element Below')}
         <button
           class="add-btn danger"
           @click=${() => {
@@ -1323,13 +1318,12 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Renders the add-element trigger: a dashed "+ Add Element" button (just "+"
-   * while collapsed) that opens a custom type menu, so the trigger label is
+   * Renders an add trigger: a dashed "+ Add Element" button (just "+" while
+   * collapsed) that opens a menu of the given choices, so the trigger label is
    * never listed as a choice the way a native select's placeholder would be.
    */
   private _renderAddMenu(
-    types: BlockType[],
-    onPick: (type: BlockType) => void,
+    items: Array<{ label: string; run: () => void }>,
     label?: string,
   ): TemplateResult {
     return html`
@@ -1340,8 +1334,7 @@ export class DashboardSidebarEditor extends LitElement {
         @click=${(e: Event) => {
           e.stopPropagation();
           this._addMenuRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          this._addMenuTypes = types;
-          this._addMenuPick = onPick;
+          this._addMenuItems = items;
           this._addMenuOpen = true;
         }}
       >
@@ -1351,8 +1344,16 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Renders the add-element type menu, fixed-positioned under its trigger so it
-   * escapes the modal's clipping.
+   * Builds the add-menu choices for a region's block types.
+   */
+  private _typeItems(region: Region): Array<{ label: string; run: () => void }> {
+    const types = region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
+    return types.map((t) => ({ label: titleCase(t), run: () => this._addBlock(region, t) }));
+  }
+
+  /**
+   * Renders the add menu, fixed-positioned under its trigger so it escapes the
+   * modal's clipping.
    */
   private _renderAddMenuPopup(): TemplateResult | typeof nothing {
     const rect = this._addMenuRect;
@@ -1367,16 +1368,16 @@ export class DashboardSidebarEditor extends LitElement {
         }}
       ></div>
       <div class="add-menu" style="top: ${rect.bottom + 4}px; left: ${Math.max(8, rect.left)}px">
-        ${this._addMenuTypes.map(
-          (t) =>
+        ${this._addMenuItems.map(
+          (item) =>
             html`<button
               class="add-menu-item"
               @click=${() => {
-                this._addMenuPick?.(t);
+                item.run();
                 this._addMenuOpen = false;
               }}
             >
-              ${titleCase(t)}
+              ${item.label}
             </button>`,
         )}
       </div>

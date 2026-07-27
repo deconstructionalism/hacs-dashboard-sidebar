@@ -193,6 +193,23 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
+   * When collapsing hides the current selection, move it to the parent category
+   * (for a selected sub-item) or otherwise to the first visible element.
+   */
+  private _reselectForCollapse(): void {
+    if (this._selectionVisibleCollapsed()) {
+      return;
+    }
+    const sel = this._locate(this._selected);
+    if (sel?.kind === 'item') {
+      const category = this._working[sel.region]?.[sel.index];
+      this._selected = category ? this._idFor(category) : this._firstVisible();
+    } else {
+      this._selected = this._firstVisible();
+    }
+  }
+
+  /**
    * Whether the working copy differs from the config as first loaded.
    */
   private get _dirty(): boolean {
@@ -736,8 +753,8 @@ export class DashboardSidebarEditor extends LitElement {
               this._collapsedTabs = next;
               this._catPopover = null;
               this._addMenuOpen = false;
-              if (collapsing && !this._selectionVisibleCollapsed()) {
-                this._selected = this._firstVisible();
+              if (collapsing) {
+                this._reselectForCollapse();
               }
             }}
           >

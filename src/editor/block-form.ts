@@ -402,7 +402,7 @@ export function serviceField(
   >;
   const entry = domain && service ? services[domain]?.[service] : undefined;
   if (entry) {
-    return pickedCard(label, id, entry.name ?? entry.description, () => onInput(''));
+    return pickedCard(label, id, entry.description ?? entry.name, () => onInput(''));
   }
   return html`<label class="field ${opts?.error ? 'invalid' : ''}">
     <span>${label}</span>
@@ -426,15 +426,19 @@ export function serviceField(
  * {@link serviceField} references it by {@link SERVICE_DATALIST_ID}.
  */
 export function serviceDatalist(hass?: HomeAssistant): TemplateResult {
-  const services = (hass?.services ?? {}) as Record<string, Record<string, unknown>>;
-  const ids: string[] = [];
+  const services = (hass?.services ?? {}) as Record<
+    string,
+    Record<string, { name?: string; description?: string }>
+  >;
+  const options: Array<{ id: string; label?: string }> = [];
   for (const domain of Object.keys(services).sort()) {
     for (const service of Object.keys(services[domain]).sort()) {
-      ids.push(`${domain}.${service}`);
+      const entry = services[domain][service];
+      options.push({ id: `${domain}.${service}`, label: entry?.description ?? entry?.name });
     }
   }
   return html`<datalist id=${SERVICE_DATALIST_ID}>
-    ${ids.map((id) => html`<option value=${id}></option>`)}
+    ${options.map((o) => html`<option value=${o.id} label=${o.label ?? nothing}></option>`)}
   </datalist>`;
 }
 

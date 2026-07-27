@@ -614,7 +614,7 @@ export class DashboardSidebarEditor extends LitElement {
   private _renderTabNotes(scrollNote: string, collapsedNote: string): TemplateResult {
     return html`
       <div class="tab-notes">
-        ${this._editorNote(scrollNote)}
+        <p class="tab-note">${scrollNote}</p>
         ${this._previewCollapsed ? this._editorNote(collapsedNote) : nothing}
       </div>
     `;
@@ -1437,6 +1437,13 @@ export class DashboardSidebarEditor extends LitElement {
       margin-bottom: 12px;
       padding-bottom: 12px;
       border-bottom: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
+    }
+
+    .tab-note {
+      margin: 0;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      opacity: 0.85;
     }
 
     .editor-note {

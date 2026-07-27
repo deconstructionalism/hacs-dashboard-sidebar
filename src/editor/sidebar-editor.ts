@@ -2515,6 +2515,12 @@ export class DashboardSidebarEditor extends LitElement {
       color: inherit;
     }
 
+    /* Monospace variant for code-ish content (e.g. Service Data JSON). */
+    .field textarea.mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      line-height: 1.4;
+    }
+
     /* Match the select's height to the text inputs (native selects render
        shorter otherwise). */
     .field input[type='text'],

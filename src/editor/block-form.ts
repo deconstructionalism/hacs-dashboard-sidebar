@@ -80,8 +80,23 @@ export function fieldOpts(
 /** Alignment choices shared by the text and card blocks. */
 const ALIGN_OPTIONS = ['left', 'center', 'right'];
 
-/** Tap-action kinds offered by the action editor. */
-const ACTION_OPTIONS = ['none', 'toggle', 'more-info', 'navigate', 'url', 'call-service'];
+/** Tap-action kinds offered by the action editor, with Title Case labels. */
+const ACTION_OPTIONS: SelectOption[] = [
+  { value: 'none', label: 'None' },
+  { value: 'toggle', label: 'Toggle' },
+  { value: 'more-info', label: 'More Info' },
+  { value: 'navigate', label: 'Navigate' },
+  { value: 'url', label: 'URL' },
+  { value: 'call-service', label: 'Call Service' },
+];
+
+/** Explanations shown under the tap-action fields. */
+const TAP_ACTION_HINT = 'What happens when this is tapped.';
+const ENTITY_HINT = 'Entity targeted by the toggle and more-info actions.';
+const SERVICE_HINT = 'The service to call, written as domain.service.';
+const TARGET_ENTITY_HINT = 'Entity the service is called on.';
+const NAV_PATH_HINT = 'Dashboard path to open, e.g. /lovelace/home.';
+const URL_HINT = 'Web address to open in a new tab.';
 
 /**
  * Renders a labelled single-line text input.
@@ -91,6 +106,7 @@ export function textField(
   value: string | undefined,
   onInput: (value: string) => void,
   opts?: FieldOpts,
+  description?: string,
 ): TemplateResult {
   return html`<label class="field ${opts?.error ? 'invalid' : ''}">
     <span>${label}</span>
@@ -101,6 +117,7 @@ export function textField(
       @blur=${(e: Event) => opts?.onBlur?.((e.target as HTMLInputElement).value)}
     />
     ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
+    ${description ? html`<small class="field-desc">${description}</small>` : nothing}
   </label>`;
 }
 
@@ -300,6 +317,7 @@ export function entityField(
   value: string | undefined,
   onChange: (value: string) => void,
   hass?: HomeAssistant,
+  description?: string,
 ): TemplateResult {
   const id = (value ?? '').trim();
   const states = (hass?.states ?? {}) as Record<
@@ -311,7 +329,7 @@ export function entityField(
   // shows the id and friendly name and an X to clear it. Until then (while
   // typing), keep the autocomplete input.
   if (entry) {
-    return pickedCard(label, id, entry.attributes?.friendly_name, () => onChange(''));
+    return pickedCard(label, id, entry.attributes?.friendly_name, () => onChange(''), description);
   }
   return html`<label class="field">
     <span>${label}</span>
@@ -324,19 +342,21 @@ export function entityField(
       .value=${value ?? ''}
       @input=${(e: Event) => onChange((e.target as HTMLInputElement).value)}
     />
+    ${description ? html`<small class="field-desc">${description}</small>` : nothing}
   </label>`;
 }
 
 /**
  * Renders a resolved-selection card: the id over its (optional) friendly name,
- * with a clear button. Used in place of the input once an entity or service
- * value resolves to a real one.
+ * with a clear button and optional explanation. Used in place of the input once
+ * an entity or service value resolves to a real one.
  */
 function pickedCard(
   label: string,
   id: string,
   name: string | undefined,
   onClear: () => void,
+  description?: string,
 ): TemplateResult {
   return html`<div class="field">
     <span>${label}</span>
@@ -355,6 +375,7 @@ function pickedCard(
         ✕
       </button>
     </div>
+    ${description ? html`<small class="field-desc">${description}</small>` : nothing}
   </div>`;
 }
 
@@ -411,6 +432,7 @@ export function serviceField(
   onInput: (value: string) => void,
   opts?: FieldOpts,
   hass?: HomeAssistant,
+  description?: string,
 ): TemplateResult {
   const id = (value ?? '').trim();
   const [domain, service] = id.split('.');
@@ -420,7 +442,13 @@ export function serviceField(
   >;
   const entry = domain && service ? services[domain]?.[service] : undefined;
   if (entry) {
-    return pickedCard(label, id, serviceDescription(hass, domain, service), () => onInput(''));
+    return pickedCard(
+      label,
+      id,
+      serviceDescription(hass, domain, service),
+      () => onInput(''),
+      description,
+    );
   }
   return html`<label class="field ${opts?.error ? 'invalid' : ''}">
     <span>${label}</span>
@@ -435,6 +463,7 @@ export function serviceField(
       @blur=${(e: Event) => opts?.onBlur?.((e.target as HTMLInputElement).value)}
     />
     ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
+    ${description ? html`<small class="field-desc">${description}</small>` : nothing}
   </label>`;
 }
 
@@ -481,16 +510,22 @@ export function areaField(
   value: string,
   onInput: (value: string) => void,
   opts?: FieldOpts,
+  extra?: { description?: string; mono?: boolean; minRows?: number },
 ): TemplateResult {
+  const minRows = extra?.minRows ?? 4;
+  // Auto-size to the content's line count, never below the minimum.
+  const rows = Math.max(minRows, value.split('\n').length);
   return html`<label class="field ${opts?.error ? 'invalid' : ''}">
     <span>${label}</span>
     <textarea
-      rows="4"
+      class=${extra?.mono ? 'mono' : nothing}
+      rows=${rows}
       .value=${value}
       @input=${(e: Event) => onInput((e.target as HTMLTextAreaElement).value)}
       @blur=${(e: Event) => opts?.onBlur?.((e.target as HTMLTextAreaElement).value)}
     ></textarea>
     ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
+    ${extra?.description ? html`<small class="field-desc">${extra.description}</small>` : nothing}
   </label>`;
 }
 
@@ -544,7 +579,7 @@ export function selectField(
   value: string | undefined,
   options: SelectOption[],
   onChange: (value: string) => void,
-  opts?: { disabled?: boolean },
+  opts?: { disabled?: boolean; description?: string },
 ): TemplateResult {
   const norm = (o: SelectOption): { label: string; value: string } =>
     typeof o === 'string' ? { label: titleCase(o), value: o } : o;
@@ -566,6 +601,7 @@ export function selectField(
         return html`<option value=${n.value} ?selected=${n.value === value}>${n.label}</option>`;
       })}
     </select>
+    ${opts?.description ? html`<small class="field-desc">${opts.description}</small>` : nothing}
   </label>`;
 }
 
@@ -750,36 +786,75 @@ export function actionFields(
   const set = (partial: Record<string, unknown>): void =>
     patch({ tap_action: { ...action, action: kind, ...partial } });
   return html`
-    ${selectField('Tap action', kind, ACTION_OPTIONS, (v) =>
-      patch({ tap_action: { ...action, action: v } }),
+    ${selectField(
+      'Tap Action',
+      kind,
+      ACTION_OPTIONS,
+      (v) => patch({ tap_action: { ...action, action: v } }),
+      { description: TAP_ACTION_HINT },
     )}
     ${
       kind === 'navigate'
-        ? textField('Navigation path', action.navigation_path, (v) => set({ navigation_path: v }))
+        ? textField(
+            'Navigation Path',
+            action.navigation_path,
+            (v) => set({ navigation_path: v }),
+            undefined,
+            NAV_PATH_HINT,
+          )
         : nothing
     }
-    ${kind === 'url' ? textField('URL', action.url_path, (v) => set({ url_path: v })) : nothing}
+    ${
+      kind === 'url'
+        ? textField('URL', action.url_path, (v) => set({ url_path: v }), undefined, URL_HINT)
+        : nothing
+    }
     ${
       kind === 'toggle' || kind === 'more-info'
-        ? entityField('Entity', action.entity, (v) => set({ entity: v || undefined }), hass)
+        ? entityField(
+            'Entity',
+            action.entity,
+            (v) => set({ entity: v || undefined }),
+            hass,
+            ENTITY_HINT,
+          )
         : nothing
     }
     ${
       kind === 'call-service'
         ? html`
             ${serviceField(
-              'Service (domain.service)',
+              'Service',
               action.service,
               (v) => set({ service: v }),
               fieldOpts(ctx, 'service', validateService),
               hass,
+              SERVICE_HINT,
             )}
-            ${entityField('Target entity', action.entity, (v) => set({ entity: v || undefined }), hass)}
+            ${entityField(
+              'Target Entity',
+              action.entity,
+              (v) => set({ entity: v || undefined }),
+              hass,
+              TARGET_ENTITY_HINT,
+            )}
             ${areaField(
-              'Service data (JSON)',
+              'Service Data',
               action.data ? JSON.stringify(action.data, null, 2) : '',
-              (v) => set({ data: parseJson(v) }),
+              (v) => {
+                // Keep the typed text until it parses, so partial JSON is not
+                // wiped or reformatted mid-edit; clear only when emptied.
+                if (!v.trim()) {
+                  set({ data: undefined });
+                  return;
+                }
+                const parsed = parseJson(v);
+                if (parsed !== undefined) {
+                  set({ data: parsed });
+                }
+              },
               fieldOpts(ctx, 'data', validateJsonField),
+              { description: 'Must be valid JSON.', mono: true, minRows: 3 },
             )}
           `
         : nothing
@@ -803,7 +878,7 @@ export function footerButtonFields(
       icons: true,
       description: TEMPLATE_HINT,
     })}
-    ${entityField('Entity', btn.entity, (v) => patch({ entity: v || undefined }), hass)}
+    ${entityField('Entity', btn.entity, (v) => patch({ entity: v || undefined }), hass, ENTITY_HINT)}
     ${actionFields(btn.tap_action ?? {}, patch, ctx, hass)}
   `;
 }
@@ -925,7 +1000,7 @@ function blockTypeFields(
           description: TEMPLATE_HINT,
         })}
         ${iconField('Icon Template', block.icon, (v) => patch({ icon: v || undefined }), hass, TEMPLATE_HINT)}
-        ${entityField('Entity', block.entity, (v) => patch({ entity: v || undefined }), hass)}
+        ${entityField('Entity', block.entity, (v) => patch({ entity: v || undefined }), hass, ENTITY_HINT)}
         ${actionFields(block.tap_action as { action?: string }, patch, ctx, hass)}
       `;
     case 'category':

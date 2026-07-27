@@ -690,7 +690,7 @@ function blockTypeFields(
           'Show seconds',
           block.show_seconds ?? false,
           (v) => patch({ show_seconds: v || undefined }),
-          'Show seconds in the clock.',
+          undefined,
           custom,
         )}
         ${timezoneField(block.timezone, (v) => patch({ timezone: v || undefined }))}

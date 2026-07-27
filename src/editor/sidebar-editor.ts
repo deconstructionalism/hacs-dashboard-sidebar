@@ -1261,7 +1261,7 @@ export class DashboardSidebarEditor extends LitElement {
 
     .pv-frame {
       box-sizing: border-box;
-      padding: 8px 0;
+      padding: 0;
       border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
       background: var(--card-background-color, #fff);
       /* Fill the preview height and scroll on its own, below the fixed heading. */
@@ -1338,6 +1338,7 @@ export class DashboardSidebarEditor extends LitElement {
       width: 100%;
       margin: 0;
       box-sizing: border-box;
+      border-radius: 0;
     }
 
     .pv-list,

@@ -183,25 +183,22 @@ export class DashboardSidebarEditor extends LitElement {
         if (this._compactedEditors.has(ed)) {
           return;
         }
-        const cm = ed.shadowRoot?.querySelector('.cm-editor');
-        if (!ed.shadowRoot || !cm) {
+        if (!ed.shadowRoot?.querySelector('.cm-editor')) {
           retry = true;
           return;
         }
         this._compactedEditors.add(ed);
         const style = document.createElement('style');
-        style.textContent = '.cm-gutters{display:none!important}.cm-panels{display:none!important}';
+        // Hide the line-number gutter and the action toolbar (which sits in the
+        // editor's top padding), then shift that top padding to the code so the
+        // text keeps its breathing room without the toolbar.
+        style.textContent =
+          '.cm-gutters{display:none!important}' +
+          '.cm-panels{display:none!important}' +
+          '.code-editor-toolbar{display:none!important}' +
+          '.cm-editor{padding-top:0!important}' +
+          '.cm-scroller{padding-top:8px!important}';
         ed.shadowRoot.appendChild(style);
-        // Hide the action toolbar: any element rendered before the CodeMirror
-        // editor, at any wrapping level. The completion popup lives inside
-        // .cm-editor, so this leaves autocomplete intact.
-        for (let node: Element | null = cm; node; node = node.parentElement) {
-          for (let sib = node.previousElementSibling; sib; sib = sib.previousElementSibling) {
-            if (sib.tagName !== 'STYLE') {
-              (sib as HTMLElement).style.display = 'none';
-            }
-          }
-        }
       });
     if (retry && !this._compactScheduled) {
       this._compactScheduled = true;

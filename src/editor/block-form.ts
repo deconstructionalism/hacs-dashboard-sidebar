@@ -765,10 +765,7 @@ function blockTypeFields(
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
       `;
     case 'card':
-      return html`
-        ${yamlField('Card (YAML)', block.card, (v) => patch({ card: v }))}
-        ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
-      `;
+      return html`${yamlField('YAML Config', block.card, (v) => patch({ card: v }))}`;
     default:
       return html``;
   }

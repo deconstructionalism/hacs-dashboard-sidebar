@@ -262,33 +262,44 @@ export class DashboardSidebarEditor extends LitElement {
    */
   private _compactEditors(): void {
     let retry = false;
-    this.renderRoot
-      .querySelectorAll<HTMLElement & { shadowRoot: ShadowRoot | null }>(
+    // The code fields hold an <ha-code-editor> directly; the YAML field's editor
+    // is an <ha-code-editor> nested inside an <ha-yaml-editor>'s shadow root.
+    const editors: Array<HTMLElement & { shadowRoot: ShadowRoot | null }> = [
+      ...this.renderRoot.querySelectorAll<HTMLElement & { shadowRoot: ShadowRoot | null }>(
         '.code-field ha-code-editor',
-      )
-      .forEach((ed) => {
-        if (this._compactedEditors.has(ed)) {
-          return;
-        }
-        if (!ed.shadowRoot?.querySelector('.cm-editor')) {
-          retry = true;
-          return;
-        }
-        this._compactedEditors.add(ed);
-        const style = document.createElement('style');
-        // Hide the line-number gutter and the action toolbar (which sits in the
-        // editor's top padding), drop the padding and the toolbar's separator
-        // border so the code sits flush like a plain input.
-        style.textContent =
-          '.cm-gutters{display:none!important}' +
-          '.cm-panels{display:none!important}' +
-          '.code-editor-toolbar{display:none!important}' +
-          '.cm-editor{padding-top:0!important}' +
-          '.cm-scroller{padding-top:0!important}' +
-          '.cm-content{border-top-style:none!important;padding:8px 0!important}' +
-          '.cm-activeLine{background-color:transparent!important}';
-        ed.shadowRoot.appendChild(style);
-      });
+      ),
+    ];
+    this.renderRoot.querySelectorAll('.yaml-field ha-yaml-editor').forEach((yaml) => {
+      const inner = yaml.shadowRoot?.querySelector('ha-code-editor');
+      if (inner) {
+        editors.push(inner as HTMLElement & { shadowRoot: ShadowRoot | null });
+      } else {
+        retry = true;
+      }
+    });
+    editors.forEach((ed) => {
+      if (this._compactedEditors.has(ed)) {
+        return;
+      }
+      if (!ed.shadowRoot?.querySelector('.cm-editor')) {
+        retry = true;
+        return;
+      }
+      this._compactedEditors.add(ed);
+      const style = document.createElement('style');
+      // Hide the line-number gutter and the action toolbar (which sits in the
+      // editor's top padding), drop the padding and the toolbar's separator
+      // border so the code sits flush like a plain input.
+      style.textContent =
+        '.cm-gutters{display:none!important}' +
+        '.cm-panels{display:none!important}' +
+        '.code-editor-toolbar{display:none!important}' +
+        '.cm-editor{padding-top:0!important}' +
+        '.cm-scroller{padding-top:0!important}' +
+        '.cm-content{border-top-style:none!important;padding:8px 0!important}' +
+        '.cm-activeLine{background-color:transparent!important}';
+      ed.shadowRoot.appendChild(style);
+    });
     if (retry && !this._compactScheduled) {
       this._compactScheduled = true;
       requestAnimationFrame(() => {
@@ -1318,7 +1329,7 @@ export class DashboardSidebarEditor extends LitElement {
         ${notes}
         <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
           <div class="editor">
-            ${yamlField('Card (YAML)', footer?.card, (v) => this._setFooterCard(v))}
+            ${yamlField('YAML Config', footer?.card, (v) => this._setFooterCard(v))}
           </div>
           ${this._renderPreview(
             html`${this._renderGhost('up')}

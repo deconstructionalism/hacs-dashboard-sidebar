@@ -37,6 +37,7 @@ import {
   iconChoiceField,
   intField,
   type Patch,
+  TEMPLATE_HINT,
   type ValidationCtx,
   validateWidth,
   yamlField,
@@ -259,8 +260,12 @@ export class DashboardSidebarEditor extends LitElement {
    */
   protected firstUpdated(): void {
     void this._ensureCodeEditor();
-    if (!customElements.get('ha-yaml-editor')) {
-      void customElements.whenDefined('ha-yaml-editor').then(() => this.requestUpdate());
+    // The YAML editor and entity picker are lazily registered by HA; re-render
+    // once each defines so their fields upgrade from the fallback inputs.
+    for (const tag of ['ha-yaml-editor', 'ha-entity-picker']) {
+      if (!customElements.get(tag)) {
+        void customElements.whenDefined(tag).then(() => this.requestUpdate());
+      }
     }
   }
 
@@ -1406,6 +1411,7 @@ export class DashboardSidebarEditor extends LitElement {
               {
                 entities: true,
                 icons: true,
+                description: TEMPLATE_HINT,
               },
             )}
           </div>
@@ -2435,6 +2441,12 @@ export class DashboardSidebarEditor extends LitElement {
 
     .code-field.invalid ha-code-editor {
       border-color: var(--error-color, #db4437);
+    }
+
+    /* HA's entity picker fills the field width like the other inputs. */
+    .entity-field ha-entity-picker {
+      display: block;
+      width: 100%;
     }
 
     /* HA's YAML editor field (manual card): match the bordered input box. */

@@ -241,8 +241,18 @@ export function codeField(
   value: string | undefined,
   onInput: (value: string) => void,
   hass?: HomeAssistant,
-  opts?: { mode?: string; entities?: boolean; icons?: boolean; error?: string },
+  opts?: {
+    mode?: string;
+    entities?: boolean;
+    icons?: boolean;
+    error?: string;
+    description?: string;
+  },
 ): TemplateResult {
+  const desc = opts?.description
+    ? html`<small class="field-desc">${opts.description}</small>`
+    : nothing;
+  const error = opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing;
   if (hass && customElements.get('ha-code-editor')) {
     return html`<div class="field code-field ${opts?.error ? 'invalid' : ''}">
       <span>${label}</span>
@@ -255,10 +265,47 @@ export function codeField(
         dir="ltr"
         @value-changed=${(e: CustomEvent<{ value: string }>) => onInput(e.detail.value)}
       ></ha-code-editor>
-      ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
+      ${error}${desc}
     </div>`;
   }
-  return textField(label, value, onInput, opts?.error ? { error: opts.error } : undefined);
+  return html`<label class="field ${opts?.error ? 'invalid' : ''}">
+    <span>${label}</span>
+    <input
+      type="text"
+      .value=${value ?? ''}
+      @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
+    />
+    ${error}${desc}
+  </label>`;
+}
+
+/** Shared hint for fields that accept Home Assistant markdown and Jinja. */
+export const TEMPLATE_HINT =
+  'Use Home Assistant markdown with Jinja to style and interpolate values from HA.';
+
+/**
+ * Renders an entity field: HA's `<ha-entity-picker>` combobox (autocompletes
+ * existing entities by `domain.name`) when available, else the templatable code
+ * field so an entity can still be typed.
+ */
+export function entityField(
+  label: string,
+  value: string | undefined,
+  onChange: (value: string) => void,
+  hass?: HomeAssistant,
+): TemplateResult {
+  if (hass && customElements.get('ha-entity-picker')) {
+    return html`<div class="field entity-field">
+      <span>${label}</span>
+      <ha-entity-picker
+        .hass=${hass}
+        .value=${value ?? ''}
+        allow-custom-entity
+        @value-changed=${(e: CustomEvent<{ value: string }>) => onChange(e.detail.value)}
+      ></ha-entity-picker>
+    </div>`;
+  }
+  return codeField(label, value, onChange, hass, { entities: true });
 }
 
 /**
@@ -270,8 +317,9 @@ export function iconField(
   value: string | undefined,
   onInput: (value: string) => void,
   hass?: HomeAssistant,
+  description?: string,
 ): TemplateResult {
-  return codeField(label, value, onInput, hass, { icons: true });
+  return codeField(label, value, onInput, hass, { icons: true, description });
 }
 
 /**
@@ -562,9 +610,7 @@ export function actionFields(
     ${kind === 'url' ? textField('URL', action.url_path, (v) => set({ url_path: v })) : nothing}
     ${
       kind === 'toggle' || kind === 'more-info'
-        ? codeField('Entity', action.entity, (v) => set({ entity: v || undefined }), hass, {
-            entities: true,
-          })
+        ? entityField('Entity', action.entity, (v) => set({ entity: v || undefined }), hass)
         : nothing
     }
     ${
@@ -576,15 +622,7 @@ export function actionFields(
               (v) => set({ service: v }),
               fieldOpts(ctx, 'service', validateService),
             )}
-            ${codeField(
-              'Target entity',
-              action.entity,
-              (v) => set({ entity: v || undefined }),
-              hass,
-              {
-                entities: true,
-              },
-            )}
+            ${entityField('Target entity', action.entity, (v) => set({ entity: v || undefined }), hass)}
             ${areaField(
               'Service data (JSON)',
               action.data ? JSON.stringify(action.data, null, 2) : '',
@@ -607,14 +645,13 @@ export function footerButtonFields(
   hass?: HomeAssistant,
 ): TemplateResult {
   return html`
-    ${iconField('Icon', btn.icon, (v) => patch({ icon: v }), hass)}
-    ${codeField('Title', btn.title, (v) => patch({ title: v || undefined }), hass, {
+    ${iconField('Icon Template', btn.icon, (v) => patch({ icon: v }), hass, TEMPLATE_HINT)}
+    ${codeField('Title Template', btn.title, (v) => patch({ title: v || undefined }), hass, {
       entities: true,
       icons: true,
+      description: TEMPLATE_HINT,
     })}
-    ${codeField('Entity', btn.entity, (v) => patch({ entity: v || undefined }), hass, {
-      entities: true,
-    })}
+    ${entityField('Entity', btn.entity, (v) => patch({ entity: v || undefined }), hass)}
     ${actionFields(btn.tap_action ?? {}, patch, ctx, hass)}
   `;
 }
@@ -668,9 +705,10 @@ function blockTypeFields(
   switch (block.type) {
     case 'title':
       return html`
-        ${codeField('Text', block.text, (v) => patch({ text: v }), hass, {
+        ${codeField('Text Template', block.text, (v) => patch({ text: v }), hass, {
           entities: true,
           icons: true,
+          description: TEMPLATE_HINT,
         })}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
       `;
@@ -736,23 +774,23 @@ function blockTypeFields(
       return html`<p class="hint">A horizontal rule. No options.</p>`;
     case 'item':
       return html`
-        ${codeField('Title', block.title, (v) => patch({ title: v }), hass, {
+        ${codeField('Title Template', block.title, (v) => patch({ title: v }), hass, {
           entities: true,
           icons: true,
+          description: TEMPLATE_HINT,
         })}
-        ${iconField('Icon', block.icon, (v) => patch({ icon: v || undefined }), hass)}
-        ${codeField('Entity', block.entity, (v) => patch({ entity: v || undefined }), hass, {
-          entities: true,
-        })}
+        ${iconField('Icon Template', block.icon, (v) => patch({ icon: v || undefined }), hass, TEMPLATE_HINT)}
+        ${entityField('Entity', block.entity, (v) => patch({ entity: v || undefined }), hass)}
         ${actionFields(block.tap_action as { action?: string }, patch, ctx, hass)}
       `;
     case 'category':
       return html`
-        ${codeField('Title', block.title, (v) => patch({ title: v }), hass, {
+        ${codeField('Title Template', block.title, (v) => patch({ title: v }), hass, {
           entities: true,
           icons: true,
+          description: TEMPLATE_HINT,
         })}
-        ${iconField('Icon', block.icon, (v) => patch({ icon: v || undefined }), hass)}
+        ${iconField('Icon Template', block.icon, (v) => patch({ icon: v || undefined }), hass, TEMPLATE_HINT)}
         ${checkboxField('Start collapsed', block.start_collapsed ?? true, (v) =>
           patch({ start_collapsed: v }),
         )}
@@ -763,6 +801,7 @@ function blockTypeFields(
         ${codeField('Content Template', block.content, (v) => patch({ content: v }), hass, {
           entities: true,
           icons: true,
+          description: TEMPLATE_HINT,
         })}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
       `;

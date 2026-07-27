@@ -2071,34 +2071,6 @@ export class DashboardSidebarEditor extends LitElement {
       cursor: pointer;
     }
 
-    .color-clear {
-      display: flex;
-      flex: 0 0 auto;
-      align-items: center;
-      justify-content: center;
-      width: 30px;
-      height: 30px;
-      padding: 0;
-      border: none;
-      border-radius: 6px;
-      background: transparent;
-      color: inherit;
-      cursor: pointer;
-    }
-
-    .color-clear:hover:not([disabled]) {
-      background: var(--secondary-background-color, rgb(0 0 0 / 8%));
-    }
-
-    .color-clear[disabled] {
-      opacity: 0.3;
-      cursor: default;
-    }
-
-    .color-clear ha-icon {
-      --mdc-icon-size: 18px;
-    }
-
     .field input[type='text'],
     .field select,
     .field textarea {

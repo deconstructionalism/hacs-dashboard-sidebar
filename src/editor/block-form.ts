@@ -318,16 +318,6 @@ export function colorField(
         .value=${value ?? ''}
         @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
       />
-      <button
-        class="color-clear"
-        type="button"
-        title="Clear color"
-        aria-label="Clear color"
-        ?disabled=${!value}
-        @click=${() => onInput('')}
-      >
-        <ha-icon icon="mdi:close"></ha-icon>
-      </button>
     </div>
   </div>`;
 }

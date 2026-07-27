@@ -290,6 +290,27 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(root(el).querySelector('.hint')?.textContent).to.contain('Select an element');
   });
 
+  it('collapsing clears the selection when the selected element is hidden', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Header');
+    await clickLoc(el, 'header:0'); // the title, which is hidden when collapsed
+    expect(root(el).querySelector('.form')).to.exist;
+    (root(el).querySelector('.pv-toggle') as HTMLButtonElement).click();
+    await settle(el);
+    // No other visible header element, so the selection clears.
+    expect(root(el).querySelector('.form')).to.not.exist;
+    expect(root(el).querySelector('.hint')).to.exist;
+  });
+
+  it('collapsing a selected sub-item selects its parent category', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Content');
+    await clickLoc(el, 'body:1.0'); // the "Kitchen" sub-item
+    (root(el).querySelector('.pv-toggle') as HTMLButtonElement).click();
+    await settle(el);
+    expect(root(el).querySelector('.form-title')?.textContent).to.contain('Category');
+  });
+
   it('shows a Preview header and toggles the collapsed look', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');

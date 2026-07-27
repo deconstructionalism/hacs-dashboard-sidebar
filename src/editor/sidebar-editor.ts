@@ -349,6 +349,49 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
+   * Whether a block still renders in the collapsed (icon-strip) sidebar: titles
+   * and cards are hidden, everything else shows.
+   */
+  private _visibleCollapsed(block: SidebarBlock): boolean {
+    return block.type !== 'title' && block.type !== 'card';
+  }
+
+  /**
+   * On collapsing the preview, keeps the selection meaningful: a category
+   * sub-item hands off to its parent category (shown as an icon); a top-level
+   * block that is hidden when collapsed hands off to the next visible sibling,
+   * or the previous one, or nothing when the region has no visible elements. A
+   * selection that already shows collapsed, or an empty selection, is left as-is.
+   */
+  private _reselectForCollapse(): void {
+    const sel = this._locate(this._selected);
+    if (!sel) {
+      return;
+    }
+    if (sel.kind === 'item') {
+      const cat = this._working[sel.region]?.[sel.index];
+      this._selected = cat ? this._idFor(cat) : null;
+      return;
+    }
+    if (sel.kind === 'footer' || this._visibleCollapsed(sel.block)) {
+      return;
+    }
+    const blocks = this._working[sel.region] ?? [];
+    let pick: SidebarBlock | undefined;
+    for (let i = sel.index + 1; i < blocks.length && !pick; i += 1) {
+      if (this._visibleCollapsed(blocks[i])) {
+        pick = blocks[i];
+      }
+    }
+    for (let i = sel.index - 1; i >= 0 && !pick; i -= 1) {
+      if (this._visibleCollapsed(blocks[i])) {
+        pick = blocks[i];
+      }
+    }
+    this._selected = pick ? this._idFor(pick) : null;
+  }
+
+  /**
    * The array and index of the selected element within its own container (its
    * region blocks, a category's items, or the footer buttons), or null.
    */
@@ -814,13 +857,18 @@ export class DashboardSidebarEditor extends LitElement {
             aria-label=${this._tabCollapsed ? 'Show expanded' : 'Show collapsed'}
             @click=${() => {
               const next = new Set(this._collapsedTabs);
-              if (next.has(this._tab)) {
-                next.delete(this._tab);
-              } else {
+              const collapsing = !next.has(this._tab);
+              if (collapsing) {
                 next.add(this._tab);
+              } else {
+                next.delete(this._tab);
               }
               this._collapsedTabs = next;
               this._addMenuOpen = false;
+              this._elementMenuOpen = false;
+              if (collapsing) {
+                this._reselectForCollapse();
+              }
             }}
           >
             <ha-icon
@@ -930,7 +978,7 @@ export class DashboardSidebarEditor extends LitElement {
     const atBottom = !c || c.index >= c.arr.length - 1;
     return html`
       <div class="form-head">
-        <div class="form-title">Element Setting: ${typeLabel}</div>
+        <div class="form-title">Element Settings: ${typeLabel}</div>
         <div class="form-tools">
           <button
             class="tool"

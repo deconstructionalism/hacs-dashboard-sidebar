@@ -890,13 +890,28 @@ export class DashboardSidebarEditor extends LitElement {
             ? html`<p class="hint">No items.</p>`
             : cat.items.map(
                 (item) =>
-                  html`<div class="cat-pop-item">
+                  html`<div
+                    class="cat-pop-item"
+                    @click=${() => this._selectFromPopover(this._idFor(item))}
+                  >
                     ${this._previewEl(`pop:${this._idFor(item)}`, { body: [{ ...item, type: 'item' }] }, false)}
                   </div>`,
               )
         }
       </div>
     `;
+  }
+
+  /**
+   * Selects a child item from the collapsed-view popover, expanding the tab back
+   * out so the item can be edited, and closing the popover.
+   */
+  private _selectFromPopover(id: string): void {
+    this._selected = id;
+    const next = new Set(this._collapsedTabs);
+    next.delete(this._tab);
+    this._collapsedTabs = next;
+    this._catPopover = null;
   }
 
   /**
@@ -1919,7 +1934,12 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     .cat-pop-item {
-      padding: 2px 12px;
+      padding: 2px 6px;
+      cursor: pointer;
+    }
+
+    .cat-pop-item:hover {
+      background: var(--secondary-background-color, rgb(0 0 0 / 8%));
     }
 
     /* Custom add-element type menu (fixed so it escapes the modal clipping). */

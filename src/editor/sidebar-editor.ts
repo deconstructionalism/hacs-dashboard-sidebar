@@ -1571,11 +1571,11 @@ export class DashboardSidebarEditor extends LitElement {
       gap: 4px;
     }
 
-    /* Mirror the live sidebar's category-items guide line and indent. The left
-       margin puts the guide under the category icon (which is inset by the
-       node, sidebar, and row padding). */
+    /* Mirror the live sidebar's category-items guide line. The category icon
+       sits 30px in (6px node head + 12px sidebar inset + 12px row padding);
+       live draws the guide 6px past the icon's left edge, so match that. */
     .pv-sublist {
-      margin-left: 30px;
+      margin-left: 36px;
       padding-left: 8px;
       border-left: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
     }

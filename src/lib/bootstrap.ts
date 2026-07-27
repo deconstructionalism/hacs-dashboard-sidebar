@@ -132,7 +132,8 @@ function wrapperCss(config: DashboardSidebarConfig): string {
     }
     #${HOST_ID} {
       flex: 0 0 auto;
-      width: ${expanded}px;
+      /* Clamp to the viewport so a mistyped width can never overflow the page. */
+      width: min(${expanded}px, 100vw);
       box-sizing: border-box;
       overflow: visible;
       align-self: flex-start;

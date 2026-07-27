@@ -18,7 +18,13 @@ import type {
 } from '../lib/types';
 import type { DashboardSidebar } from '../dashboard-sidebar';
 import '../dashboard-sidebar';
-import { DEFAULT_WIDTH, PREVIEW_REORDER_EVENT, PREVIEW_SELECT_EVENT } from '../lib/const';
+import {
+  DEFAULT_WIDTH,
+  MAX_USABLE_WIDTH,
+  MIN_USABLE_WIDTH,
+  PREVIEW_REORDER_EVENT,
+  PREVIEW_SELECT_EVENT,
+} from '../lib/const';
 import { validateConfig } from '../lib/validate';
 import { defaultBlock, defaultFooterButton } from './arrange';
 import {
@@ -376,6 +382,23 @@ export class DashboardSidebarEditor extends LitElement {
       delete next[key];
     }
     this._fieldErrors = next;
+  }
+
+  /**
+   * A non-blocking advisory for the expanded width when it is outside the usable
+   * range. Save is still allowed; the rendered width is clamped to the viewport.
+   */
+  private _widthWarning(width: number | undefined): string | undefined {
+    if (width == null) {
+      return undefined;
+    }
+    if (width < MIN_USABLE_WIDTH) {
+      return `Below ~${MIN_USABLE_WIDTH}px, labels may not fit beside their icons.`;
+    }
+    if (width > MAX_USABLE_WIDTH) {
+      return `Above ~${MAX_USABLE_WIDTH}px, this reads more like a panel than a sidebar.`;
+    }
+    return undefined;
   }
 
   /**
@@ -1013,6 +1036,7 @@ export class DashboardSidebarEditor extends LitElement {
             onBlur: (v) => this._validateField('width', v, validateWidth),
           },
           `Defaults to ${DEFAULT_WIDTH}px when left empty.`,
+          this._widthWarning(c.width),
         )}
         ${checkboxField(
           'Start Collapsed',
@@ -2228,6 +2252,13 @@ export class DashboardSidebarEditor extends LitElement {
       font-size: 0.75rem;
       opacity: 0.6;
       line-height: 1.3;
+    }
+
+    /* Non-blocking advisory (e.g. an out-of-range width): amber, not red. */
+    .field-warn {
+      font-size: 0.75rem;
+      line-height: 1.3;
+      color: var(--warning-color, #e8a33d);
     }
 
     /* Format field: the label row with an info disclosure that reveals the

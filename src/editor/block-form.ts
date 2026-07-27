@@ -424,6 +424,7 @@ export function intField(
   onInput: (value: number | undefined) => void,
   opts?: FieldOpts,
   description?: string,
+  warning?: string,
 ): TemplateResult {
   return html`<label class="field ${opts?.error ? 'invalid' : ''}">
     <span>${label}</span>
@@ -440,6 +441,7 @@ export function intField(
       @blur=${(e: Event) => opts?.onBlur?.((e.target as HTMLInputElement).value)}
     />
     ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
+    ${warning ? html`<small class="field-warn">${warning}</small>` : nothing}
     ${description ? html`<small class="field-desc">${description}</small>` : nothing}
   </label>`;
 }

@@ -7,6 +7,17 @@ export const CONFIG_KEY = 'dashboard_sidebar';
 /** Expanded sidebar width in pixels used when the config omits `width`. */
 export const DEFAULT_WIDTH = 240;
 
+/**
+ * Advisory range for the expanded width. Below the minimum, item labels stop
+ * fitting beside their icons; above the maximum it reads as a panel rather than
+ * a sidebar. Values outside the range are warned about, not blocked, and the
+ * rendered width is still clamped to the viewport as a hard safety net.
+ */
+export const MIN_USABLE_WIDTH = 140;
+
+/** See {@link MIN_USABLE_WIDTH}. */
+export const MAX_USABLE_WIDTH = 640;
+
 /** Fixed sidebar width in pixels while the sidebar is collapsed. */
 export const DEFAULT_COLLAPSED_WIDTH = 64;
 

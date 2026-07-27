@@ -1617,9 +1617,10 @@ export class DashboardSidebarEditor extends LitElement {
       position: relative;
       display: flex;
       align-items: center;
-      /* Left padding holds the drag handle inside the element, so the selected
-         border reaches the frame edge and the handle never sits on it. */
-      padding: 2px 4px 2px 24px;
+      /* No extra left gutter: the handle sits in the sidebar's own left inset,
+         so elements are not pushed in and the category guide line stays under
+         the category icon. */
+      padding: 2px 4px;
       border: 2px solid transparent;
       cursor: pointer;
     }

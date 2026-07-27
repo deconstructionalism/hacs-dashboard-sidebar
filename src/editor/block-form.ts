@@ -1,3 +1,4 @@
+import type { HomeAssistant } from 'custom-card-helpers';
 import { html, nothing, type TemplateResult } from 'lit';
 
 import { DATE_TOKENS, TIME_TOKENS, invalidToken } from '../lib/format';
@@ -141,6 +142,30 @@ export function textField(
     />
     ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
   </label>`;
+}
+
+/**
+ * Renders an icon field. Uses Home Assistant's `<ha-icon-picker>` (with
+ * autocomplete and icon previews) when it and `hass` are available, falling
+ * back to a plain text input otherwise (e.g. outside HA, or in tests).
+ */
+export function iconField(
+  label: string,
+  value: string | undefined,
+  onInput: (value: string) => void,
+  hass?: HomeAssistant,
+): TemplateResult {
+  if (hass && customElements.get('ha-icon-picker')) {
+    return html`<div class="field icon-field">
+      <ha-icon-picker
+        .hass=${hass}
+        .label=${label}
+        .value=${value ?? ''}
+        @value-changed=${(e: CustomEvent<{ value?: string }>) => onInput(e.detail.value ?? '')}
+      ></ha-icon-picker>
+    </div>`;
+  }
+  return textField(label, value, onInput);
 }
 
 /**
@@ -383,9 +408,10 @@ export function footerButtonFields(
   btn: { icon?: string; title?: string; entity?: string; tap_action?: { action?: string } },
   patch: Patch,
   ctx?: ValidationCtx,
+  hass?: HomeAssistant,
 ): TemplateResult {
   return html`
-    ${textField('Icon (mdi:...)', btn.icon, (v) => patch({ icon: v }))}
+    ${iconField('Icon', btn.icon, (v) => patch({ icon: v }), hass)}
     ${textField('Title', btn.title, (v) => patch({ title: v || undefined }))}
     ${textField('Entity', btn.entity, (v) => patch({ entity: v || undefined }))}
     ${actionFields(btn.tap_action ?? {}, patch, ctx)}
@@ -423,15 +449,21 @@ export function blockFields(
   block: SidebarBlock,
   patch: Patch,
   ctx?: ValidationCtx,
+  hass?: HomeAssistant,
 ): TemplateResult {
   const withAbbr = block.type === 'item' || block.type === 'category';
-  return html`${blockTypeFields(block, patch, ctx)}${advancedFields(block, patch, withAbbr)}`;
+  return html`${blockTypeFields(block, patch, ctx, hass)}${advancedFields(block, patch, withAbbr)}`;
 }
 
 /**
  * Renders the type-specific fields for one block.
  */
-function blockTypeFields(block: SidebarBlock, patch: Patch, ctx?: ValidationCtx): TemplateResult {
+function blockTypeFields(
+  block: SidebarBlock,
+  patch: Patch,
+  ctx?: ValidationCtx,
+  hass?: HomeAssistant,
+): TemplateResult {
   switch (block.type) {
     case 'title':
       return html`
@@ -466,14 +498,14 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, ctx?: ValidationCtx)
     case 'item':
       return html`
         ${textField('Title', block.title, (v) => patch({ title: v }))}
-        ${textField('Icon (mdi:...)', block.icon, (v) => patch({ icon: v || undefined }))}
+        ${iconField('Icon', block.icon, (v) => patch({ icon: v || undefined }), hass)}
         ${textField('Entity', block.entity, (v) => patch({ entity: v || undefined }))}
         ${actionFields(block.tap_action as { action?: string }, patch, ctx)}
       `;
     case 'category':
       return html`
         ${textField('Title', block.title, (v) => patch({ title: v }))}
-        ${textField('Icon (mdi:...)', block.icon, (v) => patch({ icon: v || undefined }))}
+        ${iconField('Icon', block.icon, (v) => patch({ icon: v || undefined }), hass)}
         ${checkboxField('Start collapsed', block.start_collapsed ?? true, (v) =>
           patch({ start_collapsed: v }),
         )}

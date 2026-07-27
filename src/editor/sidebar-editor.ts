@@ -148,6 +148,40 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
+   * Preloads Home Assistant's icon picker so the icon fields can use it.
+   */
+  protected firstUpdated(): void {
+    void this._ensureIconPicker();
+  }
+
+  /**
+   * Best-effort load of `<ha-icon-picker>` (lazily registered by HA's own card
+   * editors) by pulling in the entities-card config element, then re-renders so
+   * the icon fields upgrade from the text-input fallback to the picker.
+   */
+  private async _ensureIconPicker(): Promise<void> {
+    if (customElements.get('ha-icon-picker')) {
+      return;
+    }
+    try {
+      const helpers = await (
+        window as unknown as { loadCardHelpers?: () => Promise<Record<string, unknown>> }
+      ).loadCardHelpers?.();
+      const card = (
+        helpers as { createCardElement?: (c: unknown) => HTMLElement } | undefined
+      )?.createCardElement?.({ type: 'entities', entities: [] });
+      await (
+        card?.constructor as { getConfigElement?: () => Promise<unknown> } | undefined
+      )?.getConfigElement?.();
+    } catch {
+      // Could not preload the picker; icon fields keep the text-input fallback.
+    }
+    if (customElements.get('ha-icon-picker')) {
+      this.requestUpdate();
+    }
+  }
+
+  /**
    * Whether the current tab's preview is showing the collapsed look.
    */
   private get _tabCollapsed(): boolean {
@@ -1251,6 +1285,7 @@ export class DashboardSidebarEditor extends LitElement {
             sel.btn,
             (partial) => this._patchFooterButton(sel.index, partial),
             this._ctx(),
+            this.hass,
           )}
           <button class="add-btn" @click=${() => this._addFooterButton()}>
             ＋ Add Button Next
@@ -1273,7 +1308,7 @@ export class DashboardSidebarEditor extends LitElement {
       return html`
         <div class="form">
           ${this._formHeader('Item')}
-          ${blockFields({ ...sel.item, type: 'item' }, patch, this._ctx())}
+          ${blockFields({ ...sel.item, type: 'item' }, patch, this._ctx(), this.hass)}
           <button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
             ＋ Add Sub-Item Below
           </button>
@@ -1290,9 +1325,12 @@ export class DashboardSidebarEditor extends LitElement {
       `;
     }
     const patch: Patch = (partial) => this._patchBlock(sel.region, sel.index, partial);
+    // ItemBlock.type is optional (items in a category omit it), so default to
+    // 'item' for the label of a top-level item.
+    const typeLabel = titleCase(sel.block.type ?? 'item');
     return html`
       <div class="form">
-        ${this._formHeader(titleCase(sel.block.type))} ${blockFields(sel.block, patch, this._ctx())}
+        ${this._formHeader(typeLabel)} ${blockFields(sel.block, patch, this._ctx(), this.hass)}
         ${
           sel.block.type === 'category'
             ? html`<button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
@@ -1308,7 +1346,7 @@ export class DashboardSidebarEditor extends LitElement {
             this._selected = null;
           }}
         >
-          Delete ${titleCase(sel.block.type)}
+          Delete ${typeLabel}
         </button>
       </div>
     `;

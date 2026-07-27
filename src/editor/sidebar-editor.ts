@@ -144,19 +144,52 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Selects the first element in the current tab's region, or clears selection
-   * when the region is empty (or the tab has no elements).
+   * Selects the first element in the current tab's region (the first that would
+   * be visible while collapsed, when the tab is collapsed), or clears selection
+   * when the region is empty.
    */
   private _selectFirst(): void {
+    this._selected = this._firstVisible();
+  }
+
+  /**
+   * Id of the first element in the current tab's region — restricted to those
+   * that show while collapsed when the tab is collapsed — or null.
+   */
+  private _firstVisible(): string | null {
     if (this._tab === 'header' || this._tab === 'body') {
-      const blocks = this._working[this._tab];
-      this._selected = blocks && blocks.length > 0 ? this._idFor(blocks[0]) : null;
-    } else if (this._tab === 'footer') {
-      const buttons = this._working.footer?.buttons;
-      this._selected = buttons && buttons.length > 0 ? this._idFor(buttons[0]) : null;
-    } else {
-      this._selected = null;
+      const blocks = this._working[this._tab] ?? [];
+      const block = this._tabCollapsed ? blocks.find((b) => this._visibleCollapsed(b)) : blocks[0];
+      return block ? this._idFor(block) : null;
     }
+    if (this._tab === 'footer') {
+      const buttons = this._working.footer?.buttons;
+      return buttons && buttons.length > 0 ? this._idFor(buttons[0]) : null;
+    }
+    return null;
+  }
+
+  /**
+   * Whether a block still renders in the collapsed (icon-strip) sidebar. Titles
+   * and cards are hidden when collapsed.
+   */
+  private _visibleCollapsed(block: SidebarBlock): boolean {
+    return block.type !== 'title' && block.type !== 'card';
+  }
+
+  /**
+   * Whether the current selection would be visible in the collapsed preview.
+   * Category items (behind a popover) count as not visible.
+   */
+  private _selectionVisibleCollapsed(): boolean {
+    const sel = this._locate(this._selected);
+    if (!sel) {
+      return false;
+    }
+    if (sel.kind === 'block') {
+      return this._visibleCollapsed(sel.block);
+    }
+    return sel.kind === 'footer';
   }
 
   /**
@@ -694,14 +727,18 @@ export class DashboardSidebarEditor extends LitElement {
             aria-label=${this._tabCollapsed ? 'Show expanded' : 'Show collapsed'}
             @click=${() => {
               const next = new Set(this._collapsedTabs);
-              if (next.has(this._tab)) {
-                next.delete(this._tab);
-              } else {
+              const collapsing = !next.has(this._tab);
+              if (collapsing) {
                 next.add(this._tab);
+              } else {
+                next.delete(this._tab);
               }
               this._collapsedTabs = next;
               this._catPopover = null;
               this._addMenuOpen = false;
+              if (collapsing && !this._selectionVisibleCollapsed()) {
+                this._selected = this._firstVisible();
+              }
             }}
           >
             <ha-icon
@@ -728,24 +765,20 @@ export class DashboardSidebarEditor extends LitElement {
   private _renderRegionPreview(region: Region): TemplateResult {
     const blocks = this._working[region] ?? [];
     const types = region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
-    const addMenu = html`<div class="pv-add">
-      ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
-    </div>`;
-    const selIndex = blocks.findIndex((b) => this._ids.get(b) === this._selected);
-    // A selected category item shows its own add control in the sublist, so the
-    // region-level add is suppressed in that case.
-    const sel = this._locate(this._selected);
-    const itemSelected = sel?.kind === 'item' && sel.region === region;
     return html`
       <div class="pv-list" data-sort=${region}>
         ${repeat(
           blocks,
           (block) => this._idFor(block),
-          (block, i) => html`
-            ${this._renderPreviewNode(region, i, block)}${i === selIndex ? addMenu : nothing}
-          `,
+          (block, i) => this._renderPreviewNode(region, i, block),
         )}
-        ${selIndex === -1 && !itemSelected ? addMenu : nothing}
+        ${
+          blocks.length === 0
+            ? html`<div class="pv-add">
+                ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
+              </div>`
+            : nothing
+        }
       </div>
     `;
   }
@@ -788,17 +821,7 @@ export class DashboardSidebarEditor extends LitElement {
                 ${repeat(
                   block.items,
                   (item) => this._idFor(item),
-                  (item) => html`
-                    ${this._renderPreviewItem(item)}${
-                      this._idFor(item) === this._selected
-                        ? html`<div class="pv-add">
-                            <button class="add-btn" @click=${() => this._addItem(region, index)}>
-                              ＋ Add item
-                            </button>
-                          </div>`
-                        : nothing
-                    }
-                  `,
+                  (item) => this._renderPreviewItem(item),
                 )}
               </div>`
         }
@@ -923,10 +946,6 @@ export class DashboardSidebarEditor extends LitElement {
       `;
     }
     const buttons = footer?.buttons ?? [];
-    const addBtn = html`<div class="pv-add">
-      <button class="add-btn" @click=${() => this._addFooterButton()}>＋ Add button</button>
-    </div>`;
-    const selIndex = buttons.findIndex((b) => this._ids.get(b) === this._selected);
     return html`
       ${notes}
       <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
@@ -936,9 +955,17 @@ export class DashboardSidebarEditor extends LitElement {
             ${repeat(
               buttons,
               (btn) => this._idFor(btn),
-              (btn, i) => html`${this._renderFooterNode(btn)}${i === selIndex ? addBtn : nothing}`,
+              (btn) => this._renderFooterNode(btn),
             )}
-            ${selIndex === -1 ? addBtn : nothing}
+            ${
+              buttons.length === 0
+                ? html`<div class="pv-add">
+                    <button class="add-btn" @click=${() => this._addFooterButton()}>
+                      ＋ Add button
+                    </button>
+                  </div>`
+                : nothing
+            }
           </div>
         `)}
       </div>
@@ -991,6 +1018,9 @@ export class DashboardSidebarEditor extends LitElement {
             (partial) => this._patchFooterButton(sel.index, partial),
             this._ctx(),
           )}
+          <button class="add-btn" @click=${() => this._addFooterButton()}>
+            ＋ Add Button Below
+          </button>
           <button
             class="add-btn danger"
             @click=${() => {
@@ -1010,6 +1040,9 @@ export class DashboardSidebarEditor extends LitElement {
         <div class="form">
           ${this._formHeader('Item')}
           ${blockFields({ ...sel.item, type: 'item' }, patch, this._ctx())}
+          <button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
+            ＋ Add Item Below
+          </button>
           <button
             class="add-btn danger"
             @click=${() => {
@@ -1023,16 +1056,22 @@ export class DashboardSidebarEditor extends LitElement {
       `;
     }
     const patch: Patch = (partial) => this._patchBlock(sel.region, sel.index, partial);
+    const types = sel.region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
     return html`
       <div class="form">
         ${this._formHeader(titleCase(sel.block.type))} ${blockFields(sel.block, patch, this._ctx())}
         ${
           sel.block.type === 'category'
             ? html`<button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
-                ＋ Add item
+                ＋ Add Item
               </button>`
             : nothing
         }
+        ${this._renderAddMenu(
+          types,
+          (type) => this._addBlock(sel.region, type),
+          '＋ Add Element Below',
+        )}
         <button
           class="add-btn danger"
           @click=${() => {
@@ -1104,7 +1143,11 @@ export class DashboardSidebarEditor extends LitElement {
    * while collapsed) that opens a custom type menu, so the trigger label is
    * never listed as a choice the way a native select's placeholder would be.
    */
-  private _renderAddMenu(types: BlockType[], onPick: (type: BlockType) => void): TemplateResult {
+  private _renderAddMenu(
+    types: BlockType[],
+    onPick: (type: BlockType) => void,
+    label?: string,
+  ): TemplateResult {
     return html`
       <button
         class="add"
@@ -1118,7 +1161,7 @@ export class DashboardSidebarEditor extends LitElement {
           this._addMenuOpen = true;
         }}
       >
-        ${this._tabCollapsed ? '＋' : '＋ Add Element'}
+        ${label ?? (this._tabCollapsed ? '＋' : '＋ Add Element')}
       </button>
     `;
   }
@@ -1136,8 +1179,8 @@ export class DashboardSidebarEditor extends LitElement {
       <div
         class="menu-scrim"
         @click=${() => {
-        this._addMenuOpen = false;
-      }}
+          this._addMenuOpen = false;
+        }}
       ></div>
       <div class="add-menu" style="top: ${rect.bottom + 4}px; left: ${Math.max(8, rect.left)}px">
         ${this._addMenuTypes.map(
@@ -1145,9 +1188,9 @@ export class DashboardSidebarEditor extends LitElement {
             html`<button
               class="add-menu-item"
               @click=${() => {
-              this._addMenuPick?.(t);
-              this._addMenuOpen = false;
-            }}
+                this._addMenuPick?.(t);
+                this._addMenuOpen = false;
+              }}
             >
               ${titleCase(t)}
             </button>`,

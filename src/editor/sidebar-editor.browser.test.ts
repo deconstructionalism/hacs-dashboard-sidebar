@@ -72,7 +72,7 @@ describe('<dashboard-sidebar-editor>', () => {
     const el = await mount(cfg());
     await tab(el, 'Content');
     const before = root(el).querySelectorAll('.pv-list[data-sort="body"] > .pv-node').length;
-    (root(el).querySelector('.pv-add .add') as HTMLButtonElement).click();
+    (root(el).querySelector('.form .add') as HTMLButtonElement).click();
     await el.updateComplete;
     const divider = [...root(el).querySelectorAll('.add-menu-item')].find(
       (b) => b.textContent?.trim() === 'Divider',
@@ -113,7 +113,7 @@ describe('<dashboard-sidebar-editor>', () => {
     (root(el).querySelector('.pv-cat-head') as HTMLElement).click();
     await el.updateComplete;
     const addItem = [...root(el).querySelectorAll('.form .add-btn')].some((b) =>
-      b.textContent?.includes('Add item'),
+      b.textContent?.includes('Add Item'),
     );
     expect(addItem).to.equal(true);
   });

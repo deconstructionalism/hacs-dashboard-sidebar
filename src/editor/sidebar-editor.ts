@@ -79,8 +79,8 @@ export class DashboardSidebarEditor extends LitElement {
   /** Whether the unsaved-changes exit confirmation is showing. */
   @state() private _confirmingClose = false;
 
-  /** Whether the preview shows the collapsed (icon-strip) look. */
-  @state() private _previewCollapsed = false;
+  /** Tabs whose preview is showing the collapsed (icon-strip) look. */
+  @state() private _collapsedTabs = new Set<string>();
 
   /** Validation errors from the last save attempt. */
   @state() private _errors: string[] = [];
@@ -116,6 +116,30 @@ export class DashboardSidebarEditor extends LitElement {
       this._fieldErrors = {};
       this._selected = null;
       this._confirmingClose = false;
+      this._collapsedTabs = new Set();
+    }
+  }
+
+  /**
+   * Whether the current tab's preview is showing the collapsed look.
+   */
+  private get _tabCollapsed(): boolean {
+    return this._collapsedTabs.has(this._tab);
+  }
+
+  /**
+   * Selects the first element in the current tab's region, or clears selection
+   * when the region is empty (or the tab has no elements).
+   */
+  private _selectFirst(): void {
+    if (this._tab === 'header' || this._tab === 'body') {
+      const blocks = this._working[this._tab];
+      this._selected = blocks && blocks.length > 0 ? this._idFor(blocks[0]) : null;
+    } else if (this._tab === 'footer') {
+      const buttons = this._working.footer?.buttons;
+      this._selected = buttons && buttons.length > 0 ? this._idFor(buttons[0]) : null;
+    } else {
+      this._selected = null;
     }
   }
 
@@ -285,7 +309,12 @@ export class DashboardSidebarEditor extends LitElement {
   private _addBlock(region: Region, type: BlockType): void {
     const list = this._working[region] ?? (this._working[region] = []);
     const block = defaultBlock(type);
-    list.push(block);
+    const selIndex = list.findIndex((b) => this._ids.get(b) === this._selected);
+    if (selIndex >= 0) {
+      list.splice(selIndex + 1, 0, block);
+    } else {
+      list.push(block);
+    }
     this._selected = this._idFor(block);
     this._touch();
   }
@@ -375,8 +404,14 @@ export class DashboardSidebarEditor extends LitElement {
    */
   private _addFooterButton(): void {
     const footer = this._working.footer ?? (this._working.footer = {});
+    const list = footer.buttons ?? (footer.buttons = []);
     const btn = defaultFooterButton();
-    (footer.buttons ?? (footer.buttons = [])).push(btn);
+    const selIndex = list.findIndex((b) => this._ids.get(b) === this._selected);
+    if (selIndex >= 0) {
+      list.splice(selIndex + 1, 0, btn);
+    } else {
+      list.push(btn);
+    }
     this._selected = this._idFor(btn);
     this._touch();
   }
@@ -458,8 +493,8 @@ export class DashboardSidebarEditor extends LitElement {
                 class="tab ${this._tab === t.id ? 'active' : ''}"
                 @click=${() => {
                   this._tab = t.id;
-                  this._selected = null;
                   this._fieldErrors = {};
+                  this._selectFirst();
                 }}
               >
                 ${t.label}
@@ -587,7 +622,6 @@ export class DashboardSidebarEditor extends LitElement {
    * the left, the live, drag-reorderable preview on the right.
    */
   private _renderSplit(region: Region): TemplateResult {
-    const types = region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
     return html`
       ${this._renderTabNotes(
         region === 'header'
@@ -597,11 +631,8 @@ export class DashboardSidebarEditor extends LitElement {
           ? 'Collapsed: only clock and date blocks show — titles are hidden.'
           : 'Collapsed: items and categories show as icons — card blocks are hidden.',
       )}
-      <div class="split ${this._previewCollapsed ? 'pv-collapsed' : ''}">
-        <div class="editor">
-          ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
-          ${this._renderSelectedForm()}
-        </div>
+      <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
+        <div class="editor">${this._renderSelectedForm()}</div>
         ${this._renderPreview(this._renderRegionPreview(region))}
       </div>
     `;
@@ -615,7 +646,7 @@ export class DashboardSidebarEditor extends LitElement {
     return html`
       <div class="tab-notes">
         <p class="tab-note">${scrollNote}</p>
-        ${this._previewCollapsed ? this._editorNote(collapsedNote) : nothing}
+        ${this._tabCollapsed ? this._editorNote(collapsedNote) : nothing}
       </div>
     `;
   }
@@ -632,22 +663,31 @@ export class DashboardSidebarEditor extends LitElement {
           <span class="preview-title">Preview</span>
           <button
             class="pv-toggle"
-            title=${this._previewCollapsed ? 'Show expanded' : 'Show collapsed'}
-            aria-label=${this._previewCollapsed ? 'Show expanded' : 'Show collapsed'}
+            title=${this._tabCollapsed ? 'Show expanded' : 'Show collapsed'}
+            aria-label=${this._tabCollapsed ? 'Show expanded' : 'Show collapsed'}
             @click=${() => {
-              this._previewCollapsed = !this._previewCollapsed;
+              const next = new Set(this._collapsedTabs);
+              if (next.has(this._tab)) {
+                next.delete(this._tab);
+              } else {
+                next.add(this._tab);
+              }
+              this._collapsedTabs = next;
             }}
           >
             <ha-icon
               icon=${
-                this._previewCollapsed
-                  ? 'mdi:arrow-expand-horizontal'
-                  : 'mdi:arrow-collapse-horizontal'
+                this._tabCollapsed ? 'mdi:arrow-expand-horizontal' : 'mdi:arrow-collapse-horizontal'
               }
             ></ha-icon>
           </button>
         </div>
-        <div class="pv-frame ${this._previewCollapsed ? 'collapsed' : ''}">${content}</div>
+        <div
+          class="pv-frame ${this._tabCollapsed ? 'collapsed' : ''}"
+          style="background: ${this._working.background ?? ''}"
+        >
+          ${content}
+        </div>
       </div>
     `;
   }
@@ -658,19 +698,22 @@ export class DashboardSidebarEditor extends LitElement {
    */
   private _renderRegionPreview(region: Region): TemplateResult {
     const blocks = this._working[region] ?? [];
+    const types = region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
+    const addMenu = html`<div class="pv-add">
+      ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
+    </div>`;
+    const selIndex = blocks.findIndex((b) => this._ids.get(b) === this._selected);
     return html`
       <div class="pv-list" data-sort=${region}>
         ${repeat(
           blocks,
           (block) => this._idFor(block),
-          (block, i) => this._renderPreviewNode(region, i, block),
+          (block, i) => html`
+            ${this._renderPreviewNode(region, i, block)}${i === selIndex ? addMenu : nothing}
+          `,
         )}
+        ${selIndex === -1 ? addMenu : nothing}
       </div>
-      ${
-        blocks.length === 0
-          ? html`<p class="hint">No elements yet — use “Add element”.</p>`
-          : nothing
-      }
     `;
   }
 
@@ -683,7 +726,7 @@ export class DashboardSidebarEditor extends LitElement {
     if (block.type !== 'category') {
       return html`
         <div
-          class="pv-node ${this._selected === id ? 'sel' : ''}"
+          class="pv-node pv-drag ${this._selected === id ? 'sel' : ''}"
           data-id=${id}
           @click=${(e: Event) => this._select(e, id)}
         >
@@ -693,7 +736,7 @@ export class DashboardSidebarEditor extends LitElement {
       `;
     }
     return html`
-      <div class="pv-cat">
+      <div class="pv-cat pv-drag">
         <div
           class="pv-cat-head ${this._selected === id ? 'sel' : ''}"
           data-id=${id}
@@ -723,7 +766,7 @@ export class DashboardSidebarEditor extends LitElement {
     const id = this._idFor(item);
     return html`
       <div
-        class="pv-node pv-subnode ${this._selected === id ? 'sel' : ''}"
+        class="pv-node pv-subnode pv-drag ${this._selected === id ? 'sel' : ''}"
         data-id=${id}
         @click=${(e: Event) => this._select(e, id)}
       >
@@ -760,7 +803,7 @@ export class DashboardSidebarEditor extends LitElement {
     if (cardMode) {
       return html`
         ${notes}
-        <div class="split ${this._previewCollapsed ? 'pv-collapsed' : ''}">
+        <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
           <div class="editor">
             ${controls}
             ${areaField(
@@ -780,23 +823,23 @@ export class DashboardSidebarEditor extends LitElement {
       `;
     }
     const buttons = footer?.buttons ?? [];
+    const addBtn = html`<div class="pv-add">
+      <button class="add-btn" @click=${() => this._addFooterButton()}>＋ Add button</button>
+    </div>`;
+    const selIndex = buttons.findIndex((b) => this._ids.get(b) === this._selected);
     return html`
       ${notes}
-      <div class="split ${this._previewCollapsed ? 'pv-collapsed' : ''}">
-        <div class="editor">
-          ${controls}
-          <button class="add-btn" @click=${() => this._addFooterButton()}>＋ Add button</button>
-          ${this._renderSelectedForm()}
-        </div>
+      <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
+        <div class="editor">${controls} ${this._renderSelectedForm()}</div>
         ${this._renderPreview(html`
           <div class="pv-list" data-sort="footer">
             ${repeat(
               buttons,
               (btn) => this._idFor(btn),
-              (btn) => this._renderFooterNode(btn),
+              (btn, i) => html`${this._renderFooterNode(btn)}${i === selIndex ? addBtn : nothing}`,
             )}
+            ${selIndex === -1 ? addBtn : nothing}
           </div>
-          ${buttons.length === 0 ? html`<p class="hint">No buttons yet.</p>` : nothing}
         `)}
       </div>
     `;
@@ -809,7 +852,7 @@ export class DashboardSidebarEditor extends LitElement {
     const id = this._idFor(btn);
     return html`
       <div
-        class="pv-node ${this._selected === id ? 'sel' : ''}"
+        class="pv-node pv-drag ${this._selected === id ? 'sel' : ''}"
         data-id=${id}
         @click=${(e: Event) => this._select(e, id)}
       >
@@ -831,6 +874,7 @@ export class DashboardSidebarEditor extends LitElement {
     if (sel.kind === 'footer') {
       return html`
         <div class="form">
+          <div class="form-type">Footer Button</div>
           ${footerButtonFields(
             sel.btn,
             (partial) => this._patchFooterButton(sel.index, partial),
@@ -853,6 +897,7 @@ export class DashboardSidebarEditor extends LitElement {
         this._patchItem(sel.region, sel.index, sel.itemIndex, partial);
       return html`
         <div class="form">
+          <div class="form-type">Item</div>
           ${blockFields({ ...sel.item, type: 'item' }, patch, this._ctx())}
           <button
             class="add-btn danger"
@@ -869,6 +914,7 @@ export class DashboardSidebarEditor extends LitElement {
     const patch: Patch = (partial) => this._patchBlock(sel.region, sel.index, partial);
     return html`
       <div class="form">
+        <div class="form-type">${titleCase(sel.block.type)}</div>
         ${blockFields(sel.block, patch, this._ctx())}
         ${
           sel.block.type === 'category'
@@ -906,7 +952,7 @@ export class DashboardSidebarEditor extends LitElement {
       this._previews.set(id, el);
     }
     el.hass = this.hass;
-    el.previewCollapsed = this._previewCollapsed;
+    el.previewCollapsed = this._tabCollapsed;
     const key = JSON.stringify(config);
     if (this._previewCfg.get(el) !== key) {
       el.setConfig(config);
@@ -1251,6 +1297,25 @@ export class DashboardSidebarEditor extends LitElement {
       display: flex;
       flex-direction: column;
       gap: 10px;
+    }
+
+    .form-type {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.6;
+    }
+
+    /* The inline add control that sits under the selected element in the list. */
+    .pv-add {
+      padding: 4px 4px 4px 24px;
+    }
+
+    .pv-add .add,
+    .pv-add .add-btn {
+      width: 100%;
+      margin: 0;
+      box-sizing: border-box;
     }
 
     .pv-list,

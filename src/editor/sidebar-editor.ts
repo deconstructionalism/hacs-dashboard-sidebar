@@ -347,12 +347,20 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Appends a new item to a category.
+   * Adds an item to a category, after the selected item when one is selected.
    */
   private _addItem(region: Region, index: number): void {
-    const item = defaultBlock('item') as ItemBlock;
-    this._category(region, index)?.items.push(item);
-    this._selected = this._idFor(item);
+    const cat = this._category(region, index);
+    if (cat) {
+      const item = defaultBlock('item') as ItemBlock;
+      const selItemIndex = cat.items.findIndex((it) => this._ids.get(it) === this._selected);
+      if (selItemIndex >= 0) {
+        cat.items.splice(selItemIndex + 1, 0, item);
+      } else {
+        cat.items.push(item);
+      }
+      this._selected = this._idFor(item);
+    }
     this._touch();
   }
 
@@ -703,6 +711,10 @@ export class DashboardSidebarEditor extends LitElement {
       ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
     </div>`;
     const selIndex = blocks.findIndex((b) => this._ids.get(b) === this._selected);
+    // A selected category item shows its own add control in the sublist, so the
+    // region-level add is suppressed in that case.
+    const sel = this._locate(this._selected);
+    const itemSelected = sel?.kind === 'item' && sel.region === region;
     return html`
       <div class="pv-list" data-sort=${region}>
         ${repeat(
@@ -712,7 +724,7 @@ export class DashboardSidebarEditor extends LitElement {
             ${this._renderPreviewNode(region, i, block)}${i === selIndex ? addMenu : nothing}
           `,
         )}
-        ${selIndex === -1 ? addMenu : nothing}
+        ${selIndex === -1 && !itemSelected ? addMenu : nothing}
       </div>
     `;
   }
@@ -752,7 +764,17 @@ export class DashboardSidebarEditor extends LitElement {
           ${repeat(
             block.items,
             (item) => this._idFor(item),
-            (item) => this._renderPreviewItem(item),
+            (item) => html`
+              ${this._renderPreviewItem(item)}${
+                this._idFor(item) === this._selected
+                  ? html`<div class="pv-add">
+                      <button class="add-btn" @click=${() => this._addItem(region, index)}>
+                        ＋ Add item
+                      </button>
+                    </div>`
+                  : nothing
+              }
+            `,
           )}
         </div>
       </div>
@@ -1308,7 +1330,7 @@ export class DashboardSidebarEditor extends LitElement {
 
     /* The inline add control that sits under the selected element in the list. */
     .pv-add {
-      padding: 4px 4px 4px 24px;
+      padding: 4px 0;
     }
 
     .pv-add .add,
@@ -1367,7 +1389,6 @@ export class DashboardSidebarEditor extends LitElement {
          border reaches the frame edge and the handle never sits on it. */
       padding: 2px 4px 2px 24px;
       border: 2px solid transparent;
-      border-radius: 8px;
       cursor: pointer;
     }
 

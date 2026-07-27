@@ -994,10 +994,7 @@ export class DashboardSidebarEditor extends LitElement {
    * element's type above the controls.
    */
   private _formHeader(typeLabel: string): TemplateResult {
-    return html`
-      <div class="form-title">Element Setting</div>
-      <div class="form-type">${typeLabel}</div>
-    `;
+    return html`<div class="form-title">Element Setting: ${typeLabel}</div>`;
   }
 
   /**
@@ -1504,11 +1501,6 @@ export class DashboardSidebarEditor extends LitElement {
       text-transform: uppercase;
       letter-spacing: 1px;
       opacity: 0.6;
-    }
-
-    .form-type {
-      font-size: 1.25rem;
-      font-weight: 600;
     }
 
     /* The inline add control that sits under the selected element in the list:

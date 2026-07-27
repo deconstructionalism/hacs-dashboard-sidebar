@@ -2521,6 +2521,13 @@ export class DashboardSidebarEditor extends LitElement {
       line-height: 1.4;
     }
 
+    /* Grow to fit the content, with the rows attribute as the minimum. */
+    .field textarea.autosize {
+      /* stylelint-disable-next-line property-no-unknown */
+      field-sizing: content;
+      resize: none;
+    }
+
     /* Match the select's height to the text inputs (native selects render
        shorter otherwise). */
     .field input[type='text'],

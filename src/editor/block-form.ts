@@ -510,16 +510,19 @@ export function areaField(
   value: string,
   onInput: (value: string) => void,
   opts?: FieldOpts,
-  extra?: { description?: string; mono?: boolean; minRows?: number },
+  extra?: { description?: string; mono?: boolean; autosize?: boolean; minRows?: number },
 ): TemplateResult {
   const minRows = extra?.minRows ?? 4;
-  // Auto-size to the content's line count, never below the minimum.
-  const rows = Math.max(minRows, value.split('\n').length);
+  const cls = [extra?.mono ? 'mono' : '', extra?.autosize ? 'autosize' : '']
+    .filter(Boolean)
+    .join(' ');
+  // With `.autosize` the CSS grows the box to fit the content (rows is the
+  // minimum); otherwise rows is a fixed height.
   return html`<label class="field ${opts?.error ? 'invalid' : ''}">
     <span>${label}</span>
     <textarea
-      class=${extra?.mono ? 'mono' : nothing}
-      rows=${rows}
+      class=${cls || nothing}
+      rows=${minRows}
       .value=${value}
       @input=${(e: Event) => onInput((e.target as HTMLTextAreaElement).value)}
       @blur=${(e: Event) => opts?.onBlur?.((e.target as HTMLTextAreaElement).value)}
@@ -854,7 +857,7 @@ export function actionFields(
                 }
               },
               fieldOpts(ctx, 'data', validateJsonField),
-              { description: 'Must be valid JSON.', mono: true, minRows: 3 },
+              { description: 'Must be valid JSON.', mono: true, autosize: true, minRows: 3 },
             )}
           `
         : nothing

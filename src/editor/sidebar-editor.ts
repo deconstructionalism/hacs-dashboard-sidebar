@@ -88,6 +88,14 @@ export class DashboardSidebarEditor extends LitElement {
   /** Viewport rect of the collapsed category icon anchoring the popover. */
   private _catPopoverRect: DOMRect | null = null;
 
+  /** Whether the add-element type menu is open. */
+  @state() private _addMenuOpen = false;
+
+  /** Anchor rect, offered types, and pick callback for the open add menu. */
+  private _addMenuRect: DOMRect | null = null;
+  private _addMenuTypes: BlockType[] = [];
+  private _addMenuPick: ((type: BlockType) => void) | null = null;
+
   /** Validation errors from the last save attempt. */
   @state() private _errors: string[] = [];
 
@@ -124,6 +132,7 @@ export class DashboardSidebarEditor extends LitElement {
       this._confirmingClose = false;
       this._collapsedTabs = new Set();
       this._catPopover = null;
+      this._addMenuOpen = false;
     }
   }
 
@@ -510,6 +519,7 @@ export class DashboardSidebarEditor extends LitElement {
                   this._tab = t.id;
                   this._fieldErrors = {};
                   this._catPopover = null;
+                  this._addMenuOpen = false;
                   this._selectFirst();
                 }}
               >
@@ -532,7 +542,7 @@ export class DashboardSidebarEditor extends LitElement {
         </footer>
         ${this._confirmingClose ? this._renderConfirmClose() : nothing}
       </div>
-      ${this._renderCatPopover()}
+      ${this._renderCatPopover()} ${this._renderAddMenuPopup()}
     `;
   }
 
@@ -691,6 +701,7 @@ export class DashboardSidebarEditor extends LitElement {
               }
               this._collapsedTabs = next;
               this._catPopover = null;
+              this._addMenuOpen = false;
             }}
           >
             <ha-icon
@@ -829,8 +840,8 @@ export class DashboardSidebarEditor extends LitElement {
       <div
         class="cat-pop-scrim"
         @click=${() => {
-        this._catPopover = null;
-      }}
+          this._catPopover = null;
+        }}
       ></div>
       <div class="cat-pop" style="top: ${rect.top}px; left: ${left}px">
         <div class="cat-pop-title">${cat.title || 'Category'}</div>
@@ -1089,25 +1100,59 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Renders an "+ Add" dropdown that inserts a block of the chosen type.
+   * Renders the add-element trigger: a dashed "+ Add Element" button (just "+"
+   * while collapsed) that opens a custom type menu, so the trigger label is
+   * never listed as a choice the way a native select's placeholder would be.
    */
   private _renderAddMenu(types: BlockType[], onPick: (type: BlockType) => void): TemplateResult {
     return html`
-      <select
+      <button
         class="add"
         title="Add element"
         aria-label="Add element"
-        @change=${(e: Event) => {
-          const sel = e.target as HTMLSelectElement;
-          if (sel.value) {
-            onPick(sel.value as BlockType);
-            sel.value = '';
-          }
+        @click=${(e: Event) => {
+          e.stopPropagation();
+          this._addMenuRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          this._addMenuTypes = types;
+          this._addMenuPick = onPick;
+          this._addMenuOpen = true;
         }}
       >
-        <option value="" hidden>＋ Add Element</option>
-        ${types.map((t) => html`<option value=${t}>${titleCase(t)}</option>`)}
-      </select>
+        ${this._tabCollapsed ? '＋' : '＋ Add Element'}
+      </button>
+    `;
+  }
+
+  /**
+   * Renders the add-element type menu, fixed-positioned under its trigger so it
+   * escapes the modal's clipping.
+   */
+  private _renderAddMenuPopup(): TemplateResult | typeof nothing {
+    const rect = this._addMenuRect;
+    if (!this._addMenuOpen || !rect) {
+      return nothing;
+    }
+    return html`
+      <div
+        class="menu-scrim"
+        @click=${() => {
+        this._addMenuOpen = false;
+      }}
+      ></div>
+      <div class="add-menu" style="top: ${rect.bottom + 4}px; left: ${Math.max(8, rect.left)}px">
+        ${this._addMenuTypes.map(
+          (t) =>
+            html`<button
+              class="add-menu-item"
+              @click=${() => {
+              this._addMenuPick?.(t);
+              this._addMenuOpen = false;
+            }}
+            >
+              ${titleCase(t)}
+            </button>`,
+        )}
+      </div>
     `;
   }
 
@@ -1410,16 +1455,17 @@ export class DashboardSidebarEditor extends LitElement {
       gap: 10px;
     }
 
+    /* Matches the PREVIEW label so the two columns' headers read as a pair. */
     .form-title {
-      font-size: 1.1rem;
-      font-weight: 600;
-    }
-
-    .form-type {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 1px;
       opacity: 0.6;
+    }
+
+    .form-type {
+      font-size: 1.25rem;
+      font-weight: 600;
     }
 
     /* The inline add control that sits under the selected element in the list:
@@ -1806,6 +1852,47 @@ export class DashboardSidebarEditor extends LitElement {
 
     .cat-pop-item {
       padding: 2px 12px;
+    }
+
+    /* Custom add-element type menu (fixed so it escapes the modal clipping). */
+    .menu-scrim {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+    }
+
+    .add-menu {
+      position: fixed;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      min-width: 150px;
+      max-height: 60vh;
+      overflow-y: auto;
+      padding: 4px;
+      border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
+      border-radius: 8px;
+      background-color: var(--primary-background-color, #fff);
+      background-image: linear-gradient(
+        var(--card-background-color, #fff),
+        var(--card-background-color, #fff)
+      );
+      box-shadow: 0 4px 16px rgb(0 0 0 / 40%);
+    }
+
+    .add-menu-item {
+      font: inherit;
+      text-align: left;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .add-menu-item:hover {
+      background: var(--secondary-background-color, rgb(0 0 0 / 8%));
     }
   `;
 }

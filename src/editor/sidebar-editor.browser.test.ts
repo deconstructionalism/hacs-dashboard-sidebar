@@ -72,9 +72,12 @@ describe('<dashboard-sidebar-editor>', () => {
     const el = await mount(cfg());
     await tab(el, 'Content');
     const before = root(el).querySelectorAll('.pv-list[data-sort="body"] > .pv-node').length;
-    const sel = root(el).querySelector('select.add') as HTMLSelectElement;
-    sel.value = 'divider';
-    sel.dispatchEvent(new Event('change'));
+    (root(el).querySelector('.pv-add .add') as HTMLButtonElement).click();
+    await el.updateComplete;
+    const divider = [...root(el).querySelectorAll('.add-menu-item')].find(
+      (b) => b.textContent?.trim() === 'Divider',
+    ) as HTMLButtonElement;
+    divider.click();
     await el.updateComplete;
     expect(root(el).querySelectorAll('.pv-list[data-sort="body"] > .pv-node').length).to.equal(
       before + 1,

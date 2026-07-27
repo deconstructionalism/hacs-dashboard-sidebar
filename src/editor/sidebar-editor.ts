@@ -589,7 +589,7 @@ export class DashboardSidebarEditor extends LitElement {
   private _renderSplit(region: Region): TemplateResult {
     const types = region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
     return html`
-      <div class="split ${this._previewCollapsed ? 'pv-collapsed' : ''}">
+      <div class="split">
         <div class="editor">
           ${this._editorNote(
             region === 'header'
@@ -749,7 +749,7 @@ export class DashboardSidebarEditor extends LitElement {
     `;
     if (cardMode) {
       return html`
-        <div class="split ${this._previewCollapsed ? 'pv-collapsed' : ''}">
+        <div class="split">
           <div class="editor">
             ${controls}
             ${areaField(
@@ -771,7 +771,7 @@ export class DashboardSidebarEditor extends LitElement {
     }
     const buttons = footer?.buttons ?? [];
     return html`
-      <div class="split ${this._previewCollapsed ? 'pv-collapsed' : ''}">
+      <div class="split">
         <div class="editor">
           ${controls}
           <button class="add-btn" @click=${() => this._addFooterButton()}>＋ Add button</button>
@@ -1106,44 +1106,29 @@ export class DashboardSidebarEditor extends LitElement {
       margin-bottom: 16px;
     }
 
+    /* Two equal halves at a constant modal width; the layout never reflows when
+       the preview collapses. Stacks on mobile via the media query below. */
     .split {
       display: flex;
       gap: 20px;
       align-items: stretch;
-      flex-wrap: wrap;
       flex: 1 1 auto;
       min-height: 0;
+    }
+
+    .editor,
+    .preview {
+      flex: 1 1 0;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
     }
 
     .editor {
-      flex: 0 0 300px;
-      min-width: 0;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
       gap: 10px;
       /* Scrolls independently of the preview. */
       overflow-y: auto;
-    }
-
-    /* The preview fills the rest of the modal; its content renders at whatever
-       width the column allows, not a fixed configured width. */
-    .preview {
-      flex: 1 1 220px;
-      min-width: 0;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Collapsed: the editor grows and the narrow icon-strip frame pins to the
-       right edge of the modal. */
-    .split.pv-collapsed .editor {
-      flex: 1 1 auto;
-    }
-
-    .split.pv-collapsed .preview {
-      flex: 0 0 auto;
     }
 
     .preview-head {

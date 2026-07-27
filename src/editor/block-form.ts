@@ -516,13 +516,17 @@ export function areaField(
   const cls = [extra?.mono ? 'mono' : '', extra?.autosize ? 'autosize' : '']
     .filter(Boolean)
     .join(' ');
-  // With `.autosize` the CSS grows the box to fit the content (rows is the
-  // minimum); otherwise rows is a fixed height.
+  // With `.autosize` the CSS grows the box to fit the content; `field-sizing`
+  // ignores `rows` for the minimum, so pin it with a min-height of `minRows`
+  // lines (plus the 12px padding + 2px border of the box). Otherwise rows is a
+  // fixed height.
+  const style = extra?.autosize ? `min-height: calc(${minRows}lh + 14px)` : undefined;
   return html`<label class="field ${opts?.error ? 'invalid' : ''}">
     <span>${label}</span>
     <textarea
       class=${cls || nothing}
       rows=${minRows}
+      style=${style ?? nothing}
       .value=${value}
       @input=${(e: Event) => onInput((e.target as HTMLTextAreaElement).value)}
       @blur=${(e: Event) => opts?.onBlur?.((e.target as HTMLTextAreaElement).value)}

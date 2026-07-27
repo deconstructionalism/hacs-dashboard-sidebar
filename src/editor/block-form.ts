@@ -1,7 +1,7 @@
 import type { HomeAssistant } from 'custom-card-helpers';
 import { html, nothing, type TemplateResult } from 'lit';
 
-import { DATE_TOKENS, TIME_TOKENS, invalidToken } from '../lib/format';
+import { formatClock, formatDate } from '../lib/format';
 import type { SidebarBlock } from '../lib/types';
 
 /** Merges a partial update into the object being edited, then re-renders. */
@@ -21,38 +21,6 @@ export interface ValidationCtx {
   errorFor: (key: string) => string | undefined;
   /** Validates a field's value on blur and records the result under its key. */
   onBlur: (key: string, value: string, validate: (value: string) => string | null) => void;
-}
-
-/** Named clock formats that are valid without being strftime patterns. */
-const CLOCK_ALIASES = new Set(['locale', 'iso', '24h', '12h']);
-
-/** Named date formats that are valid without being strftime patterns. */
-const DATE_ALIASES = new Set(['locale', 'iso']);
-
-/**
- * Validates a clock format: empty, a known alias, or an strftime pattern using
- * only time tokens.
- */
-export function validateClockFormat(value: string): string | null {
-  const v = value.trim();
-  if (!v || CLOCK_ALIASES.has(v)) {
-    return null;
-  }
-  const bad = invalidToken(v, TIME_TOKENS);
-  return bad ? `Unsupported time token ${bad}` : null;
-}
-
-/**
- * Validates a date format: empty, a known alias, or an strftime pattern using
- * only date tokens.
- */
-export function validateDateFormat(value: string): string | null {
-  const v = value.trim();
-  if (!v || DATE_ALIASES.has(v)) {
-    return null;
-  }
-  const bad = invalidToken(v, DATE_TOKENS);
-  return bad ? `Unsupported date token ${bad}` : null;
 }
 
 /**
@@ -158,19 +126,39 @@ export const TIME_HELP: Array<{ code: string; desc: string }> = [
   { code: '%%', desc: 'A literal percent sign' },
 ];
 
-/** Built-in date formats offered in the date Format dropdown (value = pattern). */
-export const DATE_PRESETS: Array<{ label: string; value: string }> = [
-  { label: 'Locale default', value: '' },
-  { label: 'Weekday, Month Day', value: '%A, %B %-d' },
-  { label: 'Weekday, Month Day, Year', value: '%A, %B %-d, %Y' },
-  { label: 'Month Day, Year', value: '%B %-d, %Y' },
-  { label: 'Short (Jul 27)', value: '%b %-d' },
-  { label: 'Numeric (7/27/2026)', value: '%-m/%-d/%Y' },
-  { label: 'ISO (2026-07-27)', value: '%Y-%m-%d' },
+/** Built-in date format patterns offered in the date Format dropdown. */
+export const DATE_PRESETS: string[] = [
+  '',
+  '%A, %B %-d',
+  '%A, %B %-d, %Y',
+  '%B %-d, %Y',
+  '%b %-d',
+  '%-m/%-d/%Y',
+  '%Y-%m-%d',
 ];
 
 /** Pattern values that map to a date preset, for detecting a custom pattern. */
-export const DATE_PRESET_VALUES = new Set(DATE_PRESETS.map((p) => p.value).filter(Boolean));
+export const DATE_PRESET_VALUES = new Set(DATE_PRESETS.filter(Boolean));
+
+/**
+ * Builds the clock Format dropdown options, each labelled with the current time
+ * rendered in that convention.
+ */
+function clockFormatOptions(): SelectOption[] {
+  const now = new Date();
+  const loc = navigator.language;
+  return (['24h', '12h'] as const).map((value) => ({ value, label: formatClock(now, value, loc) }));
+}
+
+/**
+ * Builds the date Format dropdown options, each labelled with today's date
+ * rendered in that preset (the empty preset shows the locale default).
+ */
+function dateFormatOptions(): SelectOption[] {
+  const now = new Date();
+  const loc = navigator.language;
+  return DATE_PRESETS.map((value) => ({ value, label: formatDate(now, value || 'locale', loc) }));
+}
 
 /**
  * Renders an optional time-zone dropdown listing every available IANA zone, with
@@ -633,7 +621,7 @@ function blockTypeFields(
         ${selectField(
           'Format',
           block.format ?? '24h',
-          ['24h', '12h'],
+          clockFormatOptions(),
           (v) => patch({ format: v }),
           { disabled: custom },
         )}
@@ -650,7 +638,7 @@ function blockTypeFields(
           'Custom Format',
           block.custom_format,
           (v) => patch({ custom_format: v || undefined }),
-          fieldOpts(ctx, 'custom_format', validateClockFormat),
+          undefined,
           TIME_HELP,
           'Optional strftime pattern; overrides Format above, e.g. %-I:%M:%S %p.',
         )}
@@ -659,14 +647,20 @@ function blockTypeFields(
     case 'date': {
       const custom = (block.custom_format ?? '').trim() !== '';
       return html`
-        ${selectField('Format', block.format ?? '', DATE_PRESETS, (v) => patch({ format: v || undefined }), { disabled: custom })}
+        ${selectField(
+          'Format',
+          block.format ?? '',
+          dateFormatOptions(),
+          (v) => patch({ format: v || undefined }),
+          { disabled: custom },
+        )}
         ${timezoneField(block.timezone, (v) => patch({ timezone: v || undefined }))}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
         ${formatField(
           'Custom Format',
           block.custom_format,
           (v) => patch({ custom_format: v || undefined }),
-          fieldOpts(ctx, 'custom_format', validateDateFormat),
+          undefined,
           DATE_HELP,
           'Optional strftime pattern; overrides Format above, e.g. %A, %B %-d.',
         )}

@@ -70,19 +70,15 @@ describe('validateConfig', () => {
     ).toContain('header[0].align: must be left, center, or right');
     expect(
       validateConfig({
-        header: [{ type: 'clock', custom_format: '%Y' }],
-      } as DashboardSidebarConfig),
-    ).toContain('header[0].custom_format: only allows time tokens, not %Y');
-    expect(
-      validateConfig({
         header: [{ type: 'clock', collapsed_format: '48h' }],
       } as unknown as DashboardSidebarConfig),
     ).toContain('header[0].collapsed_format: must be "12h" or "24h"');
+    // Cross-type tokens are allowed now (they render literally), not an error.
     expect(
       validateConfig({
-        header: [{ type: 'date', custom_format: '%H' }],
+        header: [{ type: 'clock', custom_format: '%Y' }],
       } as DashboardSidebarConfig),
-    ).toContain('header[0].custom_format: only allows date tokens, not %H');
+    ).toHaveLength(0);
   });
 
   it('validates items and category nesting', () => {

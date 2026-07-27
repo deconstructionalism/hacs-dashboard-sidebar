@@ -328,11 +328,6 @@ describe('<dashboard-sidebar> config species', () => {
         'a category can only contain items',
       ],
       [
-        'time token in date block',
-        { header: [{ type: 'date', format: '%H' }] },
-        'only allows date tokens',
-      ],
-      [
         'footer both modes',
         {
           body: [{ type: 'item', title: 'A', tap_action: TAP }],

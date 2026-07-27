@@ -1,11 +1,4 @@
-import { DATE_TOKENS, TIME_TOKENS, invalidToken } from './format';
 import type { DashboardSidebarConfig, ItemBlock, SidebarBlock } from './types';
-
-/** Clock-format aliases accepted in place of a strftime pattern. */
-const CLOCK_ALIASES = ['iso', '24h', '12h', 'locale'];
-
-/** Date-format aliases accepted in place of a strftime pattern. */
-const DATE_ALIASES = ['iso', 'locale'];
 
 /** Accepted alignment values. */
 const ALIGNS = ['left', 'center', 'right'];
@@ -139,33 +132,6 @@ function checkHooks(block: unknown, ctx: string, errors: string[]): void {
 }
 
 /**
- * Records an error when a clock or date format uses a token outside its domain.
- */
-function checkFormat(
-  value: unknown,
-  aliases: string[],
-  tokens: Set<string>,
-  kind: string,
-  ctx: string,
-  errors: string[],
-): void {
-  if (value === undefined) {
-    return;
-  }
-  if (typeof value !== 'string') {
-    errors.push(`${ctx}: must be a string`);
-    return;
-  }
-  if (aliases.includes(value)) {
-    return;
-  }
-  const bad = invalidToken(value, tokens);
-  if (bad) {
-    errors.push(`${ctx}: only allows ${kind} tokens, not ${bad}`);
-  }
-}
-
-/**
  * Validates a single item spec: known keys, a title, and a tap_action.
  */
 function validateItem(item: ItemBlock, ctx: string, errors: string[]): void {
@@ -210,15 +176,8 @@ function validateBlock(block: SidebarBlock, ctx: string, errors: string[]): void
       break;
     case 'clock': {
       const rec = block as unknown as Record<string, unknown>;
-      checkFormat(rec.format, CLOCK_ALIASES, TIME_TOKENS, 'time', `${ctx}.format`, errors);
-      checkFormat(
-        rec.custom_format,
-        CLOCK_ALIASES,
-        TIME_TOKENS,
-        'time',
-        `${ctx}.custom_format`,
-        errors,
-      );
+      // format/custom_format accept any strftime pattern; unknown tokens render
+      // literally, so they are not validated for token type.
       for (const key of ['hour_format', 'collapsed_format'] as const) {
         const val = rec[key];
         if (val !== undefined && !['12h', '24h'].includes(String(val))) {
@@ -230,15 +189,6 @@ function validateBlock(block: SidebarBlock, ctx: string, errors: string[]): void
     }
     case 'date': {
       const rec = block as unknown as Record<string, unknown>;
-      checkFormat(rec.format, DATE_ALIASES, DATE_TOKENS, 'date', `${ctx}.format`, errors);
-      checkFormat(
-        rec.custom_format,
-        DATE_ALIASES,
-        DATE_TOKENS,
-        'date',
-        `${ctx}.custom_format`,
-        errors,
-      );
       checkAlign(rec.align, `${ctx}.align`, errors);
       break;
     }

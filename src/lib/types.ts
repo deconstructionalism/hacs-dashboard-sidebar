@@ -185,7 +185,10 @@ export interface DashboardSidebarConfig {
   start_collapsed?: boolean;
   /** Hide the sidebar on narrow (mobile) viewports. */
   hide_on_mobile?: boolean;
-  /** Sidebar background: any CSS color. Defaults to the theme card background. */
+  /**
+   * Sidebar background: any CSS `background` value (color, gradient, image, …),
+   * applied as the `background` shorthand. Defaults to the theme card background.
+   */
   background?: string;
   /** Blocks pinned to the top, above the scrolling body. */
   header?: SidebarBlock[];

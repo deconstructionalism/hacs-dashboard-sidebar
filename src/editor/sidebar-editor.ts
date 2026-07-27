@@ -974,7 +974,7 @@ export class DashboardSidebarEditor extends LitElement {
           'Hide the sidebar entirely on narrow (phone-width) screens.',
         )}
         ${colorField(
-          'Background CSS Color',
+          'Background CSS',
           c.background,
           (v) => this._patchConfig({ background: v || undefined }),
           'Any valid CSS background, including gradients (e.g. linear-gradient(...)).',
@@ -2229,6 +2229,18 @@ export class DashboardSidebarEditor extends LitElement {
     .field.invalid input[type='text'],
     .field.invalid textarea {
       border-color: var(--error-color, #db4437);
+    }
+
+    /* Clearly show a disabled control (e.g. Format while a custom format is set). */
+    .field select:disabled,
+    .field input:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      background: var(--divider-color, rgb(0 0 0 / 6%));
+    }
+
+    .field-inline input:disabled ~ .check-label {
+      opacity: 0.4;
     }
 
     /* HA's code editor field: wrap it in the same bordered box as the other

@@ -199,9 +199,7 @@ export class DashboardSidebarEditor extends LitElement {
           '.cm-editor{padding-top:0!important}' +
           '.cm-scroller{padding-top:0!important}' +
           '.cm-content{border-top-style:none!important}' +
-          '.cm-activeLine{background-color:transparent!important}' +
-          // Let the autocomplete/info tooltips escape the scrollable panel.
-          '.cm-tooltip{position:fixed!important}';
+          '.cm-activeLine{background-color:transparent!important}';
         ed.shadowRoot.appendChild(style);
       });
     if (retry && !this._compactScheduled) {

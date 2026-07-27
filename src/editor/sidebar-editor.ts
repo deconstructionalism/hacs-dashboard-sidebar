@@ -285,7 +285,7 @@ export class DashboardSidebarEditor extends LitElement {
           '.code-editor-toolbar{display:none!important}' +
           '.cm-editor{padding-top:0!important}' +
           '.cm-scroller{padding-top:0!important}' +
-          '.cm-content{border-top-style:none!important}' +
+          '.cm-content{border-top-style:none!important;padding:8px 0!important}' +
           '.cm-activeLine{background-color:transparent!important}';
         ed.shadowRoot.appendChild(style);
       });

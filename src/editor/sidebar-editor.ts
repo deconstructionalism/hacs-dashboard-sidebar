@@ -1227,7 +1227,7 @@ export class DashboardSidebarEditor extends LitElement {
               this._selected = null;
             }}
           >
-            Delete button
+            Delete Button
           </button>
         </div>
       `;
@@ -1249,7 +1249,7 @@ export class DashboardSidebarEditor extends LitElement {
               this._selected = null;
             }}
           >
-            Delete item
+            Delete Item
           </button>
         </div>
       `;
@@ -1261,11 +1261,11 @@ export class DashboardSidebarEditor extends LitElement {
         ${
           sel.block.type === 'category'
             ? html`<button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
-                ＋ Add Sub-Item
+                ＋ Add Sub-Item Below
               </button>`
             : nothing
         }
-        ${this._renderAddMenu(this._typeItems(sel.region), '＋ Add Element Below')}
+        ${this._renderAddMenu(this._typeItems(sel.region), '＋ Add Element Below', true)}
         <button
           class="add-btn danger"
           @click=${() => {
@@ -1273,7 +1273,7 @@ export class DashboardSidebarEditor extends LitElement {
             this._selected = null;
           }}
         >
-          Delete element
+          Delete ${titleCase(sel.block.type)}
         </button>
       </div>
     `;
@@ -1325,10 +1325,11 @@ export class DashboardSidebarEditor extends LitElement {
   private _renderAddMenu(
     items: Array<{ label: string; run: () => void }>,
     label?: string,
+    solid = false,
   ): TemplateResult {
     return html`
       <button
-        class="add"
+        class="add ${solid ? 'solid' : ''}"
         title="Add element"
         aria-label="Add element"
         @click=${(e: Event) => {
@@ -1944,8 +1945,8 @@ export class DashboardSidebarEditor extends LitElement {
       color: var(--info-color, #2196f3);
     }
 
-    .add,
-    .add-btn {
+    /* Dashed "dropzone" add trigger, used for empty-area call-to-actions. */
+    .add {
       font: inherit;
       margin-top: 4px;
       padding: 6px 10px;
@@ -1954,6 +1955,28 @@ export class DashboardSidebarEditor extends LitElement {
       background: transparent;
       color: inherit;
       cursor: pointer;
+    }
+
+    /* Normal (solid) form action buttons: add-below, add sub-item, delete. */
+    .add-btn,
+    .add.solid {
+      font: inherit;
+      margin-top: 4px;
+      padding: 8px 12px;
+      border: 1px solid var(--divider-color, rgb(0 0 0 / 25%));
+      border-radius: 8px;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .add-btn:hover,
+    .add.solid:hover {
+      background: var(--secondary-background-color, rgb(0 0 0 / 6%));
+    }
+
+    .add-btn.danger:hover {
+      background: color-mix(in srgb, var(--error-color, #db4437) 12%, transparent);
     }
 
     .errors {

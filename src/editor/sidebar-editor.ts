@@ -1851,8 +1851,9 @@ export class DashboardSidebarEditor extends LitElement {
       margin-bottom: 16px;
     }
 
-    /* Two equal halves at a constant modal width; the layout never reflows when
-       the preview collapses. Stacks on mobile via the media query below. */
+    /* The editor fills the width; the preview shrinks to just the sidebar frame
+       so it never reserves half the modal. Stacks on mobile via the media query
+       below. */
     .split {
       display: flex;
       gap: 20px;
@@ -1863,14 +1864,20 @@ export class DashboardSidebarEditor extends LitElement {
 
     .editor,
     .preview {
-      flex: 1 1 0;
       min-width: 0;
       min-height: 0;
       display: flex;
       flex-direction: column;
     }
 
+    /* Shrink to the framed preview's own (capped) width. */
+    .preview {
+      flex: 0 0 auto;
+    }
+
+    /* Fill the space left of the preview. */
     .editor {
+      flex: 1 1 auto;
       gap: 10px;
       /* Scrolls independently of the preview. Inset the content on the right so
          an overlay scrollbar (macOS "show when scrolling") sits clear of the

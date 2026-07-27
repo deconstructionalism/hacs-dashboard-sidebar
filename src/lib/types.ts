@@ -46,6 +46,8 @@ export interface TitleBlock extends BlockCommon {
   text: MaybeTemplate;
   /** Horizontal alignment. Default center. */
   align?: Align;
+  /** Optional action performed when tapped. Not templatable. */
+  tap_action?: ActionConfig;
 }
 
 /** A digital clock block. */
@@ -61,6 +63,8 @@ export interface ClockBlock extends BlockCommon {
   timezone?: string;
   /** Horizontal alignment. Default center. */
   align?: Align;
+  /** Optional action performed when tapped. Not templatable. */
+  tap_action?: ActionConfig;
 }
 
 /** A date block. */
@@ -73,6 +77,8 @@ export interface DateBlock extends BlockCommon {
   timezone?: string;
   /** Horizontal alignment. Default center. */
   align?: Align;
+  /** Optional action performed when tapped. Not templatable. */
+  tap_action?: ActionConfig;
 }
 
 /** A horizontal rule block. */

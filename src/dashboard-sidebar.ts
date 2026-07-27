@@ -435,15 +435,24 @@ export class DashboardSidebar extends LitElement {
 
   /**
    * Runs a configured tap action through Home Assistant and closes popovers.
+   * No-ops when there is no action to run.
    */
-  private _runAction(cfg: { entity?: string; tap_action: ItemBlock['tap_action'] }): void {
+  private _runAction(cfg: { entity?: string; tap_action?: ItemBlock['tap_action'] }): void {
     // In a preview a click selects the element for editing (handled by the
     // editor) and must not fire the real action.
-    if (this.preview || !this.hass) {
+    if (this.preview || !this.hass || !cfg.tap_action) {
       return;
     }
     handleAction(this, this.hass, { entity: cfg.entity, tap_action: cfg.tap_action }, 'tap');
     this._closePopovers();
+  }
+
+  /**
+   * Whether a block has a tap action that actually does something.
+   */
+  private _actionable(block: { tap_action?: { action?: string } }): boolean {
+    const action = block.tap_action?.action;
+    return !!action && action !== 'none';
   }
 
   /**
@@ -808,11 +817,13 @@ export class DashboardSidebar extends LitElement {
     }
     const text = this._templates.resolve(block.text);
     const style = { 'text-align': block.align ?? 'center' };
+    const clickable = this._actionable(block) ? ' clickable' : '';
     return html`<div
-      class="app-title dashboard-sidebar-title${this._hookClass(block)}${this._selClass(loc)}"
+      class="app-title dashboard-sidebar-title${clickable}${this._hookClass(block)}${this._selClass(loc)}"
       id=${block.id ?? nothing}
       data-loc=${loc}
       style=${styleMap(style)}
+      @click=${() => this._runAction(block)}
     >
       ${text}
     </div>`;
@@ -847,11 +858,13 @@ export class DashboardSidebar extends LitElement {
       pattern = twelve ? (seconds ? '%-I:%M:%S %p' : '%-I:%M %p') : seconds ? '%H:%M:%S' : '%H:%M';
     }
     const now = zonedDate(this._now, block.timezone ?? '');
+    const clickable = this._actionable(block) ? ' clickable' : '';
     return html`<div
-      class="clock dashboard-sidebar-clock${this._hookClass(block)}${this._selClass(loc)}"
+      class="clock dashboard-sidebar-clock${clickable}${this._hookClass(block)}${this._selClass(loc)}"
       id=${block.id ?? nothing}
       data-loc=${loc}
       style=${styleMap(style)}
+      @click=${() => this._runAction(block)}
     >
       ${collapsed ? formatCollapsedClock(now, twelve) : formatClock(now, pattern, this._locale)}
     </div>`;
@@ -865,11 +878,13 @@ export class DashboardSidebar extends LitElement {
     const bf = typeof block.format === 'string' ? block.format : '';
     const format = bf.trim() || 'locale';
     const now = zonedDate(this._now, block.timezone ?? '');
+    const clickable = this._actionable(block) ? ' clickable' : '';
     return html`<div
-      class="date dashboard-sidebar-date${this._hookClass(block)}${this._selClass(loc)}"
+      class="date dashboard-sidebar-date${clickable}${this._hookClass(block)}${this._selClass(loc)}"
       id=${block.id ?? nothing}
       data-loc=${loc}
       style=${styleMap(style)}
+      @click=${() => this._runAction(block)}
     >
       ${collapsed ? formatCollapsedDate(now) : formatDate(now, format, this._locale)}
     </div>`;

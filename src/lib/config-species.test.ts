@@ -11,14 +11,20 @@ describe('validateConfig — every block and option together', () => {
       hide_on_mobile: true,
       background: '#111',
       header: [
-        { type: 'title', text: '{{ states("sun.sun") }}', align: 'left' },
+        {
+          type: 'title',
+          text: '{{ states("sun.sun") }}',
+          align: 'left',
+          tap_action: { action: 'navigate', navigation_path: '/' },
+        },
         {
           type: 'clock',
           format: '%-I:%M:%S %p',
           timezone: 'America/New_York',
           align: 'left',
+          tap_action: { action: 'more-info', entity: 'sun.sun' },
         },
-        { type: 'date', format: '%Y-%m-%d', align: 'left' },
+        { type: 'date', format: '%Y-%m-%d', align: 'left', tap_action: { action: 'none' } },
         { type: 'divider' },
         { type: 'markdown', content: '**hi**', align: 'center' },
         {

@@ -21,7 +21,7 @@ const COMMON = ['class', 'id'];
 
 /** Recognized block types, and the keys each one accepts. */
 const BLOCK_KEYS: Record<string, Set<string>> = {
-  title: new Set(['type', 'text', 'align', ...COMMON]),
+  title: new Set(['type', 'text', 'align', 'tap_action', ...COMMON]),
   clock: new Set([
     'type',
     'format',
@@ -29,9 +29,10 @@ const BLOCK_KEYS: Record<string, Set<string>> = {
     'hour_format',
     'collapsed_format',
     'align',
+    'tap_action',
     ...COMMON,
   ]),
-  date: new Set(['type', 'format', 'timezone', 'align', ...COMMON]),
+  date: new Set(['type', 'format', 'timezone', 'align', 'tap_action', ...COMMON]),
   divider: new Set(['type', ...COMMON]),
   item: new Set([
     'type',

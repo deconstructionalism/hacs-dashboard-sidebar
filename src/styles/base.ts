@@ -25,6 +25,11 @@ export const baseStyles = css`
     overflow: visible;
   }
 
+  /* A title/clock/date with a tap action shows it is interactive. */
+  .clickable {
+    cursor: pointer;
+  }
+
   /* Inert single-block preview embedded in the editor: no host box, no
      interaction, sized to its content. */
   :host([preview]) {

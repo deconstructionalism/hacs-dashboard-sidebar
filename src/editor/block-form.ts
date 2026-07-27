@@ -774,7 +774,8 @@ function parseJson(value: string): Record<string, unknown> | undefined {
 }
 
 /**
- * Renders the minimal tap-action editor for an item or footer button.
+ * Renders the tap-action editor for an item or footer button, inside a
+ * collapsed-by-default "Tap Action" section (sits above the Advanced section).
  */
 export function actionFields(
   action: {
@@ -792,7 +793,8 @@ export function actionFields(
   const kind = action?.action ?? 'none';
   const set = (partial: Record<string, unknown>): void =>
     patch({ tap_action: { ...action, action: kind, ...partial } });
-  return html`
+  return html`<details class="advanced">
+    <summary>Tap Action</summary>
     ${selectField(
       'Tap Action',
       kind,
@@ -866,7 +868,7 @@ export function actionFields(
           `
         : nothing
     }
-  `;
+  </details>`;
 }
 
 /**
@@ -891,17 +893,46 @@ export function footerButtonFields(
 }
 
 /**
+ * Renders the Timezone and Custom Format fields for a clock or date, shown in
+ * the Advanced section.
+ */
+function clockDateAdvanced(
+  block: { type: string; format?: string; timezone?: string },
+  patch: Patch,
+): TemplateResult {
+  const isClock = block.type === 'clock';
+  const raw = (block.format ?? '').trim();
+  const presets = isClock ? CLOCK_PRESET_VALUES : DATE_PRESET_VALUES;
+  const custom = raw !== '' && !presets.has(raw);
+  return html`
+    ${timezoneField(block.timezone, (v) => patch({ timezone: v || undefined }))}
+    ${formatField(
+      'Custom Format',
+      custom ? raw : '',
+      (v) => patch({ format: v.trim() || undefined }),
+      undefined,
+      isClock ? TIME_HELP : DATE_HELP,
+      isClock
+        ? 'Optional strftime pattern; overrides the Format dropdown, e.g. %-I:%M:%S %p.'
+        : 'Optional strftime pattern; overrides the Format dropdown, e.g. %A, %B %-d.',
+    )}
+  `;
+}
+
+/**
  * Renders the class/id (and, for items/categories, abbr) hooks under a native
- * collapsible Advanced section.
+ * collapsible Advanced section. `extra` is placed above the hooks (e.g. the
+ * clock/date Timezone and Custom Format fields).
  */
 function advancedFields(
   block: { class?: string; id?: string; abbr?: string; icon?: unknown },
   patch: Patch,
   withAbbr: boolean,
+  extra: TemplateResult | typeof nothing = nothing,
 ): TemplateResult {
   return html`<details class="advanced">
     <summary>Advanced</summary>
-    ${textField('CSS class', block.class, (v) => patch({ class: v || undefined }))}
+    ${extra} ${textField('CSS class', block.class, (v) => patch({ class: v || undefined }))}
     ${textField('CSS id', block.id, (v) => patch({ id: v || undefined }))}
     ${
       withAbbr
@@ -913,9 +944,13 @@ function advancedFields(
   </details>`;
 }
 
+/** Block types that carry a `tap_action`. */
+const ACTION_TYPES = new Set(['title', 'clock', 'date', 'item']);
+
 /**
- * Renders the editable fields for one block: its type-specific fields plus the
- * shared Advanced (class/id/abbr) section.
+ * Renders the editable fields for one block: its type-specific fields, a Tap
+ * Action section (for the types that support one), and the shared Advanced
+ * (Timezone/Custom Format for clock/date, plus class/id/abbr) section.
  */
 export function blockFields(
   block: SidebarBlock,
@@ -924,18 +959,28 @@ export function blockFields(
   hass?: HomeAssistant,
 ): TemplateResult {
   const withAbbr = block.type === 'item' || block.type === 'category';
-  return html`${blockTypeFields(block, patch, ctx, hass)}${advancedFields(block, patch, withAbbr)}`;
+  const action = ACTION_TYPES.has(block.type ?? '')
+    ? actionFields(
+        (block as { tap_action?: { action?: string } }).tap_action ?? {},
+        patch,
+        ctx,
+        hass,
+      )
+    : nothing;
+  const advancedExtra =
+    block.type === 'clock' || block.type === 'date' ? clockDateAdvanced(block, patch) : nothing;
+  return html`${blockTypeFields(block, patch, hass)}${action}${advancedFields(
+    block,
+    patch,
+    withAbbr,
+    advancedExtra,
+  )}`;
 }
 
 /**
  * Renders the type-specific fields for one block.
  */
-function blockTypeFields(
-  block: SidebarBlock,
-  patch: Patch,
-  ctx?: ValidationCtx,
-  hass?: HomeAssistant,
-): TemplateResult {
+function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant): TemplateResult {
   switch (block.type) {
     case 'title':
       return html`
@@ -947,9 +992,9 @@ function blockTypeFields(
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
       `;
     case 'clock': {
-      // Both the Format dropdown and Custom Format write the single `format`
-      // key. A pattern that is not one of the presets is treated as custom,
-      // which disables the dropdown and shows in the Custom Format field.
+      // The Format dropdown writes the single `format` key; Timezone and the
+      // Custom Format override live in the Advanced section. A pattern that is
+      // not one of the presets is custom, which disables the dropdown.
       const raw = (block.format ?? '').trim();
       const custom = raw !== '' && !CLOCK_PRESET_VALUES.has(raw);
       return html`
@@ -960,21 +1005,10 @@ function blockTypeFields(
           (v) => patch({ format: v }),
           { disabled: custom },
         )}
-        ${timezoneField(block.timezone, (v) => patch({ timezone: v || undefined }))}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
-        ${formatField(
-          'Custom Format',
-          custom ? raw : '',
-          (v) => patch({ format: v.trim() || undefined }),
-          undefined,
-          TIME_HELP,
-          'Optional strftime pattern; overrides Format above, e.g. %-I:%M:%S %p.',
-        )}
       `;
     }
     case 'date': {
-      // Both the Format dropdown and Custom Format write the single `format`
-      // key. Any pattern that is not one of the presets is treated as custom.
       const raw = (block.format ?? '').trim();
       const custom = raw !== '' && !DATE_PRESET_VALUES.has(raw);
       return html`
@@ -985,16 +1019,7 @@ function blockTypeFields(
           (v) => patch({ format: v || undefined }),
           { disabled: custom },
         )}
-        ${timezoneField(block.timezone, (v) => patch({ timezone: v || undefined }))}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
-        ${formatField(
-          'Custom Format',
-          custom ? raw : '',
-          (v) => patch({ format: v.trim() || undefined }),
-          undefined,
-          DATE_HELP,
-          'Optional strftime pattern; overrides Format above, e.g. %A, %B %-d.',
-        )}
       `;
     }
     case 'divider':
@@ -1008,7 +1033,6 @@ function blockTypeFields(
         })}
         ${iconField('Icon Template', block.icon, (v) => patch({ icon: v || undefined }), hass, TEMPLATE_HINT)}
         ${entityField('Entity', block.entity, (v) => patch({ entity: v || undefined }), hass, ENTITY_HINT)}
-        ${actionFields(block.tap_action as { action?: string }, patch, ctx, hass)}
       `;
     case 'category':
       return html`

@@ -1459,6 +1459,22 @@ export class DashboardSidebarEditor extends LitElement {
       flex: 1 1 auto;
       min-height: 0;
       overflow-y: auto;
+      /* Thin, overlaid scrollbar so it does not take width from the content. */
+      scrollbar-width: thin;
+      scrollbar-color: var(--divider-color, rgb(0 0 0 / 30%)) transparent;
+    }
+
+    .pv-frame::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .pv-frame::-webkit-scrollbar-thumb {
+      border-radius: 3px;
+      background: var(--divider-color, rgb(0 0 0 / 30%));
+    }
+
+    .pv-frame::-webkit-scrollbar-track {
+      background: transparent;
     }
 
     /* Collapsed preview: narrow to the icon-strip width, pinned to the right

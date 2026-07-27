@@ -42,6 +42,17 @@ import {
   yamlField,
 } from './block-form';
 
+/**
+ * The expanded preview frame is capped to this many pixels, and to this
+ * fraction of the viewport, so it fits the sidebar without dominating the modal.
+ * A configured width beyond the cap shows a disclaimer that the preview is
+ * narrower than the real width.
+ */
+const PREVIEW_CAP_PX = 380;
+
+/** See {@link PREVIEW_CAP_PX}. */
+const PREVIEW_CAP_VW = 42;
+
 /** Every block type, offered when adding to the header. */
 const ALL_TYPES: BlockType[] = [
   'title',
@@ -1135,12 +1146,20 @@ export class DashboardSidebarEditor extends LitElement {
     collapsedNote: string,
     menu: TemplateResult | typeof nothing = nothing,
   ): TemplateResult {
+    const belowBar = this._tabCollapsed
+      ? this._editorNote(collapsedNote)
+      : this._previewWidthCapped()
+        ? this._editorNote(
+            `The preview is capped to fit the editor, so it is narrower than the ` +
+              `${this._working.width ?? DEFAULT_WIDTH}px expanded width.`,
+          )
+        : nothing;
     return html`
       <div class="tab-notes">
         <p class="tab-note">${scrollNote}</p>
         ${menu}
       </div>
-      ${this._tabCollapsed ? this._editorNote(collapsedNote) : nothing}
+      ${belowBar}
     `;
   }
 
@@ -1261,7 +1280,16 @@ export class DashboardSidebarEditor extends LitElement {
       return bg;
     }
     const width = this._working.width ?? DEFAULT_WIDTH;
-    return `${bg} width: min(${width}px, 380px, 42vw);`;
+    return `${bg} width: min(${width}px, ${PREVIEW_CAP_PX}px, ${PREVIEW_CAP_VW}vw);`;
+  }
+
+  /**
+   * Whether the expanded preview frame is capped narrower than the configured
+   * width, so the preview does not show the full expanded width.
+   */
+  private _previewWidthCapped(): boolean {
+    const width = this._working.width ?? DEFAULT_WIDTH;
+    return width > Math.min(PREVIEW_CAP_PX, window.innerWidth * (PREVIEW_CAP_VW / 100));
   }
 
   /**

@@ -294,7 +294,7 @@ export class DashboardSidebarEditor extends LitElement {
         '.cm-gutters{display:none!important}' +
         '.cm-panels{display:none!important}' +
         '.code-editor-toolbar{display:none!important}' +
-        '.cm-editor{padding-top:0!important}' +
+        '.cm-editor{padding-top:0!important;border-radius:6px!important}' +
         '.cm-scroller{padding-top:0!important}' +
         '.cm-content{border-top-style:none!important;padding:8px 0!important}' +
         '.cm-activeLine{background-color:transparent!important}';

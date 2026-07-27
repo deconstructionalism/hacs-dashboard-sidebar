@@ -332,6 +332,28 @@ export class DashboardSidebarEditor extends LitElement {
         '.cm-activeLine{background-color:transparent!important}';
       ed.shadowRoot.appendChild(style);
     });
+    // The entity picker's height comes from its nested MDC text field; shrink it
+    // to the native-select height so it matches the other dropdowns.
+    this.renderRoot.querySelectorAll('.entity-field ha-entity-picker').forEach((picker) => {
+      const combo = picker.shadowRoot?.querySelector('ha-combo-box');
+      const tf = (combo?.shadowRoot?.querySelector('ha-textfield') ??
+        combo?.querySelector('ha-textfield') ??
+        picker.shadowRoot?.querySelector('ha-textfield')) as
+        (HTMLElement & { shadowRoot: ShadowRoot | null }) | null;
+      if (!tf?.shadowRoot) {
+        retry = true;
+        return;
+      }
+      if (this._compactedEditors.has(tf)) {
+        return;
+      }
+      this._compactedEditors.add(tf);
+      const style = document.createElement('style');
+      style.textContent =
+        '.mdc-text-field{height:34px!important}' +
+        '.mdc-text-field__input{padding-top:0!important;padding-bottom:0!important}';
+      tf.shadowRoot.appendChild(style);
+    });
     if (retry && !this._compactScheduled) {
       this._compactScheduled = true;
       requestAnimationFrame(() => {
@@ -2453,10 +2475,23 @@ export class DashboardSidebarEditor extends LitElement {
       border-color: var(--error-color, #db4437);
     }
 
-    /* HA's entity picker fills the field width like the other inputs. */
+    /* Flatten HA's entity picker (a filled MDC text field) into the same
+       bordered box as the native selects: drop the grey fill and the orange
+       underline, add a 1px border + radius, and compact the padding. */
     .entity-field ha-entity-picker {
       display: block;
       width: 100%;
+      border: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
+      border-radius: 6px;
+      overflow: hidden;
+      --mdc-text-field-fill-color: var(--card-background-color, #fff);
+      --mdc-text-field-idle-line-color: transparent;
+      --mdc-text-field-hover-line-color: transparent;
+      --mdc-text-field-focused-line-color: transparent;
+      --mdc-text-field-disabled-line-color: transparent;
+      --mdc-text-field-ink-color: var(--primary-text-color, #000);
+      --mdc-text-field-label-ink-color: var(--secondary-text-color, #666);
+      --text-field-padding: 0 8px;
     }
 
     /* HA's YAML editor field (manual card): match the bordered input box. */

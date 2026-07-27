@@ -239,8 +239,10 @@ export function intField(
 }
 
 /**
- * Renders a labelled color field: a native color swatch alongside a free-text
- * input, so any CSS color (hex, rgb, var(), name) can still be typed.
+ * Renders a labelled color field: a swatch button that opens the native picker
+ * alongside a free-text input, so any CSS color (hex, rgb, var(), name) can
+ * still be typed. The picker is opened programmatically via `showPicker()` so
+ * it reopens on every click regardless of the hidden input's focus state.
  */
 export function colorField(
   label: string,
@@ -248,29 +250,35 @@ export function colorField(
   onInput: (value: string) => void,
 ): TemplateResult {
   const swatch = /^#[0-9a-fA-F]{6}$/.test(value ?? '') ? (value as string) : '#000000';
-  return html`<label class="field">
+  return html`<div class="field">
     <span>${label}</span>
     <div class="color-row">
-      <input
+      <button
+        type="button"
         class="color-swatch"
-        type="color"
-        .value=${swatch}
-        @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
-        @change=${(e: Event) => {
-          const el = e.target as HTMLInputElement;
-          onInput(el.value);
-          // Blur once the OS picker commits, so the swatch reopens on the next
-          // click (a focused color input otherwise won't reopen its picker).
-          el.blur();
+        title="Pick a color"
+        aria-label="Pick a color"
+        style="background: ${value || 'transparent'}"
+        @click=${(e: Event) => {
+          const inp = (e.currentTarget as HTMLElement).querySelector('input');
+          (inp as (HTMLInputElement & { showPicker?: () => void }) | null)?.showPicker?.();
         }}
-      />
+      >
+        <input
+          type="color"
+          tabindex="-1"
+          aria-hidden="true"
+          .value=${swatch}
+          @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
+        />
+      </button>
       <input
         type="text"
         .value=${value ?? ''}
         @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
       />
     </div>
-  </label>`;
+  </div>`;
 }
 
 /**

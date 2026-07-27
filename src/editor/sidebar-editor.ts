@@ -581,10 +581,22 @@ export class DashboardSidebarEditor extends LitElement {
     return html`
       <div class="split ${this._previewCollapsed ? 'pv-collapsed' : ''}">
         <div class="editor">
+          <p class="editor-note">
+            ${
+              region === 'header'
+                ? 'The header is pinned to the top of the sidebar and does not scroll.'
+                : 'Content scrolls on its own when it is taller than the sidebar.'
+            }
+          </p>
           ${this._renderAddMenu(types, (type) => this._addBlock(region, type))}
           ${this._renderSelectedForm()}
         </div>
-        ${this._renderPreview(this._renderRegionPreview(region))}
+        ${this._renderPreview(
+          this._renderRegionPreview(region),
+          region === 'header'
+            ? 'Collapsed: only clock and date blocks show — titles are hidden.'
+            : 'Collapsed: items and categories show as icons — card blocks are hidden.',
+        )}
       </div>
     `;
   }
@@ -592,9 +604,10 @@ export class DashboardSidebarEditor extends LitElement {
   /**
    * Wraps preview content in the preview column: a "Preview" heading with an
    * expand/collapse toggle, and the sidebar frame (narrowed when collapsed) so
-   * the user can see both the expanded and collapsed looks.
+   * the user can see both the expanded and collapsed looks. An optional note is
+   * shown beneath the frame while collapsed, describing what shows in that state.
    */
-  private _renderPreview(content: TemplateResult): TemplateResult {
+  private _renderPreview(content: TemplateResult, collapsedNote?: string): TemplateResult {
     return html`
       <div class="preview">
         <div class="preview-head">
@@ -617,6 +630,11 @@ export class DashboardSidebarEditor extends LitElement {
           </button>
         </div>
         <div class="pv-frame ${this._previewCollapsed ? 'collapsed' : ''}">${content}</div>
+        ${
+          this._previewCollapsed && collapsedNote
+            ? html`<p class="pv-note">${collapsedNote}</p>`
+            : nothing
+        }
       </div>
     `;
   }
@@ -710,6 +728,9 @@ export class DashboardSidebarEditor extends LitElement {
     const footer = this._working.footer;
     const cardMode = footer?.card !== undefined;
     const controls = html`
+      <p class="editor-note">
+        The footer is pinned to the bottom of the sidebar and does not scroll.
+      </p>
       <div class="modes">
         <button class="mode ${cardMode ? '' : 'sel'}" @click=${() => this._setFooterMode(false)}>
           Buttons
@@ -737,6 +758,7 @@ export class DashboardSidebarEditor extends LitElement {
             this._previewEl('footer-card', {
               footer: { card: footer?.card ?? '', divider: false },
             }),
+            'Collapsed: the footer component is hidden.',
           )}
         </div>
       `;
@@ -749,16 +771,19 @@ export class DashboardSidebarEditor extends LitElement {
           <button class="add-btn" @click=${() => this._addFooterButton()}>＋ Add button</button>
           ${this._renderSelectedForm()}
         </div>
-        ${this._renderPreview(html`
-          <div class="pv-list" data-sort="footer">
-            ${repeat(
-              buttons,
-              (btn) => this._idFor(btn),
-              (btn) => this._renderFooterNode(btn),
-            )}
-          </div>
-          ${buttons.length === 0 ? html`<p class="hint">No buttons yet.</p>` : nothing}
-        `)}
+        ${this._renderPreview(
+          html`
+            <div class="pv-list" data-sort="footer">
+              ${repeat(
+                buttons,
+                (btn) => this._idFor(btn),
+                (btn) => this._renderFooterNode(btn),
+              )}
+            </div>
+            ${buttons.length === 0 ? html`<p class="hint">No buttons yet.</p>` : nothing}
+          `,
+          'Collapsed: footer buttons collapse into a single menu button.',
+        )}
       </div>
     `;
   }
@@ -1353,14 +1378,23 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     .color-swatch {
+      position: relative;
       width: 40px;
       height: 34px;
       flex: 0 0 auto;
-      padding: 2px;
+      padding: 0;
       border: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
       border-radius: 6px;
-      background: var(--card-background-color, #fff);
       cursor: pointer;
+      overflow: hidden;
+    }
+
+    .color-swatch input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      border: none;
     }
 
     .field input[type='text'],
@@ -1388,6 +1422,22 @@ export class DashboardSidebarEditor extends LitElement {
       font-size: 0.8rem;
       opacity: 0.6;
       margin: 4px 0;
+    }
+
+    .pv-note {
+      margin: 8px 0 0;
+      font-size: 0.75rem;
+      opacity: 0.6;
+      line-height: 1.3;
+    }
+
+    .editor-note {
+      margin: 0 0 4px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--divider-color, rgb(0 0 0 / 12%));
+      font-size: 0.8rem;
+      opacity: 0.7;
+      line-height: 1.35;
     }
 
     .add,

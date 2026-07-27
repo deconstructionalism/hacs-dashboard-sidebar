@@ -71,9 +71,11 @@ export function defaultBlock(type: BlockType): SidebarBlock {
         title: 'Category',
         items: [{ type: 'item', title: 'Item', tap_action: NO_ACTION }],
       };
+    case 'markdown':
+      return { type: 'markdown', content: 'Markdown **content**' };
     case 'card':
     default:
-      return { type: 'card', card: 'New card' };
+      return { type: 'card', card: { type: 'markdown', content: 'Card content' } };
   }
 }
 

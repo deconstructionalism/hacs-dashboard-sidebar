@@ -55,11 +55,12 @@ const BLOCK_KEYS: Record<string, Set<string>> = {
     'items',
     ...COMMON,
   ]),
+  markdown: new Set(['type', 'content', 'align', ...COMMON]),
   card: new Set(['type', 'card', 'align', 'background', ...COMMON]),
 };
 
 /** Recognized keys on the footer. */
-const FOOTER_KEYS = new Set(['divider', 'buttons', 'card']);
+const FOOTER_KEYS = new Set(['divider', 'buttons', 'card', 'markdown']);
 
 /** Recognized keys on a footer button. */
 const FOOTER_BUTTON_KEYS = new Set([
@@ -228,10 +229,16 @@ function validateBlock(block: SidebarBlock, ctx: string, errors: string[]): void
         }
       }
       break;
+    case 'markdown':
+      checkAlign((block as { align?: unknown }).align, `${ctx}.align`, errors);
+      if (typeof (block as { content?: unknown }).content !== 'string') {
+        errors.push(`${ctx}: markdown needs content`);
+      }
+      break;
     case 'card':
       checkAlign((block as { align?: unknown }).align, `${ctx}.align`, errors);
       if ((block as { card?: unknown }).card === undefined) {
-        errors.push(`${ctx}: card needs a card (markdown string or card config)`);
+        errors.push(`${ctx}: card needs a card config`);
       }
       break;
     default:
@@ -265,10 +272,19 @@ function validateFooter(footer: unknown, ctx: string, errors: string[]): void {
     return;
   }
   unknownKeys(footer, FOOTER_KEYS, ctx, errors);
-  const f = footer as { divider?: unknown; buttons?: unknown; card?: unknown };
+  const f = footer as {
+    divider?: unknown;
+    buttons?: unknown;
+    card?: unknown;
+    markdown?: unknown;
+  };
   checkBool(f.divider, `${ctx}.divider`, errors);
-  if (f.buttons !== undefined && f.card !== undefined) {
-    errors.push(`${ctx}: set either buttons or card, not both`);
+  const modes = [f.buttons, f.card, f.markdown].filter((v) => v !== undefined).length;
+  if (modes > 1) {
+    errors.push(`${ctx}: set only one of buttons, card, or markdown`);
+  }
+  if (f.markdown !== undefined) {
+    checkString(f.markdown, `${ctx}.markdown`, errors);
   }
   if (f.buttons !== undefined) {
     if (!Array.isArray(f.buttons)) {

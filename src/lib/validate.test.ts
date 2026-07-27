@@ -51,7 +51,9 @@ describe('validateConfig', () => {
   it('requires a valid block type and flags unknown block keys', () => {
     expect(
       validateConfig({ body: [{ text: 'x' }] } as unknown as DashboardSidebarConfig),
-    ).toContain('body[0]: needs a valid type (title, clock, date, divider, item, category, card)');
+    ).toContain(
+      'body[0]: needs a valid type (title, clock, date, divider, item, category, markdown, card)',
+    );
     expect(
       validateConfig({
         header: [{ type: 'title', text: 'x', foo: 1 }],
@@ -103,19 +105,25 @@ describe('validateConfig', () => {
     expect(validateConfig(nested)).toContain('body[0].items[0]: a category can only contain items');
   });
 
-  it('validates card blocks', () => {
+  it('validates markdown and card blocks', () => {
     expect(
       validateConfig({ body: [{ type: 'card' }] } as unknown as DashboardSidebarConfig),
-    ).toContain('body[0]: card needs a card (markdown string or card config)');
+    ).toContain('body[0]: card needs a card config');
+    expect(
+      validateConfig({ body: [{ type: 'markdown' }] } as unknown as DashboardSidebarConfig),
+    ).toContain('body[0]: markdown needs content');
   });
 
   it('validates the footer', () => {
     expect(
       validateConfig({
         ...valid(),
-        footer: { buttons: [{ icon: 'mdi:cog', tap_action: { action: 'toggle' } }], card: 'x' },
+        footer: {
+          buttons: [{ icon: 'mdi:cog', tap_action: { action: 'toggle' } }],
+          markdown: 'x',
+        },
       } as DashboardSidebarConfig),
-    ).toContain('footer: set either buttons or card, not both');
+    ).toContain('footer: set only one of buttons, card, or markdown');
     expect(
       validateConfig({ ...valid(), footer: { buttons: {} } } as unknown as DashboardSidebarConfig),
     ).toContain('footer.buttons: must be a list');

@@ -32,6 +32,7 @@ import type {
   DateBlock,
   FooterButtonConfig,
   ItemBlock,
+  MarkdownBlock,
   Region,
   SidebarBlock,
   TitleBlock,
@@ -221,10 +222,14 @@ export class DashboardSidebar extends LitElement {
     this._eachBlock((block, region, i) => {
       if (block.type === 'card') {
         specs.push([`${region}-${i}`, block.card]);
+      } else if (block.type === 'markdown') {
+        specs.push([`${region}-${i}`, { type: 'markdown', content: block.content }]);
       }
     });
     if (cfg?.footer?.card !== undefined) {
       specs.push(['footer', cfg.footer.card]);
+    } else if (cfg?.footer?.markdown !== undefined) {
+      specs.push(['footer', { type: 'markdown', content: cfg.footer.markdown }]);
     }
     if (specs.length === 0) {
       this._cards = new Map();
@@ -781,6 +786,8 @@ export class DashboardSidebar extends LitElement {
         return this._renderItemRow(block, collapsed, loc);
       case 'category':
         return this._renderCategory(block, region, index, collapsed);
+      case 'markdown':
+        return this._renderMarkdown(block, `${region}-${index}`, collapsed, loc);
       case 'card':
         return this._renderCardBlock(block, `${region}-${index}`, collapsed, loc);
       default:
@@ -864,8 +871,41 @@ export class DashboardSidebar extends LitElement {
   }
 
   /**
-   * Renders a card block wrapper, hidden while collapsed. String cards are
-   * shown chrome-less so they do not draw their own box inside the block.
+   * Renders a markdown block, hidden while collapsed. The markdown card is shown
+   * chrome-less so it does not draw its own box inside the block.
+   */
+  private _renderMarkdown(
+    block: MarkdownBlock,
+    key: string,
+    collapsed: boolean,
+    loc: string,
+  ): TemplateResult | typeof nothing {
+    if (collapsed) {
+      return nothing;
+    }
+    const el = this._cards.get(key);
+    if (!el) {
+      return nothing;
+    }
+    const align = block.align ?? 'left';
+    const style = {
+      'align-items': FLEX_ALIGN[align],
+      'text-align': align,
+      ...CHROMELESS_CARD,
+    };
+    return html`<div
+      class="content dashboard-sidebar-markdown${this._hookClass(block)}${this._selClass(loc)}"
+      id=${block.id ?? nothing}
+      data-loc=${loc}
+      style=${styleMap(style)}
+    >
+      ${el}
+    </div>`;
+  }
+
+  /**
+   * Renders a manual card block wrapper, hidden while collapsed. A legacy string
+   * card is shown chrome-less for back-compat; an object card keeps its chrome.
    */
   private _renderCardBlock(
     block: CardBlock,
@@ -1119,16 +1159,18 @@ export class DashboardSidebar extends LitElement {
       'no-divider': footer.divider === false,
     };
 
-    if (footer.card !== undefined) {
+    if (footer.card !== undefined || footer.markdown !== undefined) {
       const el = collapsed ? undefined : this._cards.get('footer');
       if (!el) {
         return nothing;
       }
-      const style = typeof footer.card === 'string' ? CHROMELESS_CARD : {};
+      const markdown = footer.markdown !== undefined;
+      const style = markdown || typeof footer.card === 'string' ? CHROMELESS_CARD : {};
+      const loc = markdown ? 'footer:markdown' : 'footer:card';
       return html`<div class=${classMap(footerClasses)}>
         <div
-          class="content dashboard-sidebar-content${this._selClass('footer:card')}"
-          data-loc="footer:card"
+          class="content dashboard-sidebar-content${this._selClass(loc)}"
+          data-loc=${loc}
           style=${styleMap(style)}
         >
           ${el}

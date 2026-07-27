@@ -2,7 +2,7 @@ import type { HomeAssistant } from 'custom-card-helpers';
 import { html, nothing, type TemplateResult } from 'lit';
 
 import { formatClock, formatDate } from '../lib/format';
-import type { SidebarBlock } from '../lib/types';
+import type { BlockType, SidebarBlock } from '../lib/types';
 
 /** Merges a partial update into the object being edited, then re-renders. */
 export type Patch = (partial: Record<string, unknown>) => void;
@@ -48,14 +48,6 @@ export function validateJsonField(value: string): string | null {
   } catch {
     return 'Invalid JSON';
   }
-}
-
-/**
- * Validates a card field: markdown is always fine; a value that opens with `{`
- * is treated as JSON and must parse.
- */
-export function validateCardField(value: string): string | null {
-  return value.trim().startsWith('{') ? validateJsonField(value) : null;
 }
 
 /**
@@ -303,6 +295,44 @@ export function areaField(
   </label>`;
 }
 
+/**
+ * Renders a YAML editor for a card config using Home Assistant's
+ * `<ha-yaml-editor>` (syntax highlighting and parse validation) when available,
+ * emitting the parsed object on each valid edit. Falls back to a plain textarea
+ * that accepts JSON, used in tests and outside HA.
+ */
+export function yamlField(
+  label: string,
+  value: unknown,
+  onChange: (value: unknown) => void,
+): TemplateResult {
+  if (customElements.get('ha-yaml-editor')) {
+    return html`<div class="field yaml-field">
+      <span>${label}</span>
+      <ha-yaml-editor
+        .defaultValue=${value}
+        @value-changed=${(e: CustomEvent<{ value: unknown; isValid: boolean }>) => {
+          if (e.detail.isValid) {
+            onChange(e.detail.value);
+          }
+        }}
+      ></ha-yaml-editor>
+    </div>`;
+  }
+  return areaField(label, value === undefined ? '' : JSON.stringify(value, null, 2), (v) => {
+    const trimmed = v.trim();
+    if (!trimmed) {
+      onChange(undefined);
+      return;
+    }
+    try {
+      onChange(JSON.parse(trimmed));
+    } catch {
+      // Keep the last valid value while the JSON is mid-edit.
+    }
+  });
+}
+
 /** A dropdown option: a raw string (shown title-cased) or an explicit label. */
 export type SelectOption = string | { label: string; value: string };
 
@@ -362,6 +392,19 @@ export function checkboxField(
  */
 export function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/** Display labels for block types where title-casing the id is not enough. */
+const TYPE_LABELS: Partial<Record<BlockType, string>> = {
+  card: 'Manual Card',
+  markdown: 'Markdown',
+};
+
+/**
+ * Returns the human display label for a block type.
+ */
+export function blockTypeLabel(type: BlockType): string {
+  return TYPE_LABELS[type] ?? titleCase(type);
 }
 
 /**
@@ -706,33 +749,20 @@ function blockTypeFields(
         )}
         ${checkboxField('Guide line', block.guide_line ?? true, (v) => patch({ guide_line: v }))}
       `;
+    case 'markdown':
+      return html`
+        ${codeField('Content', block.content, (v) => patch({ content: v }), hass, {
+          entities: true,
+          icons: true,
+        })}
+        ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
+      `;
     case 'card':
       return html`
-        ${areaField(
-          'Card (markdown, or JSON card config)',
-          typeof block.card === 'string' ? block.card : JSON.stringify(block.card, null, 2),
-          (v) => patch({ card: parseCard(v) }),
-          fieldOpts(ctx, 'card', validateCardField),
-        )}
+        ${yamlField('Card (YAML)', block.card, (v) => patch({ card: v }))}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
       `;
     default:
       return html``;
   }
-}
-
-/**
- * Parses a card field: JSON when it parses to an object, otherwise the raw
- * string (treated as markdown).
- */
-function parseCard(value: string): string | Record<string, unknown> {
-  const trimmed = value.trim();
-  if (trimmed.startsWith('{')) {
-    try {
-      return JSON.parse(trimmed) as Record<string, unknown>;
-    } catch {
-      return value;
-    }
-  }
-  return value;
 }

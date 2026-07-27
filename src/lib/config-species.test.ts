@@ -21,7 +21,13 @@ describe('validateConfig — every block and option together', () => {
         },
         { type: 'date', format: '%Y-%m-%d', align: 'left' },
         { type: 'divider' },
-        { type: 'card', card: '**hi**', align: 'center', background: 'rgba(0,0,0,0.1)' },
+        { type: 'markdown', content: '**hi**', align: 'center' },
+        {
+          type: 'card',
+          card: { type: 'entities', entities: ['light.a'] },
+          align: 'center',
+          background: 'rgba(0,0,0,0.1)',
+        },
       ],
       body: [
         {

@@ -124,24 +124,42 @@ export interface CategoryBlock extends BlockCommon {
   items: ItemBlock[];
 }
 
-/** A manual component: a markdown string or any Lovelace card. */
+/** A markdown block: Home Assistant markdown with Jinja templating. */
+export interface MarkdownBlock extends BlockCommon {
+  /** Block discriminator. */
+  type: 'markdown';
+  /** Markdown content; Jinja templates resolve at runtime. Templatable. */
+  content: MaybeTemplate;
+  /** Horizontal alignment. Default left. */
+  align?: Align;
+}
+
+/** A manual card block: any Lovelace card, authored as YAML. */
 export interface CardBlock extends BlockCommon {
   /** Block discriminator. */
   type: 'card';
-  /** A markdown string, or any Lovelace card config. */
-  card: string | LovelaceCardConfig;
+  /** Any Lovelace card config. */
+  card: LovelaceCardConfig;
   /** Horizontal alignment of the card. Default left. */
   align?: Align;
-  /** Card background, any CSS color. */
+  /** Card background, any CSS `background` value. */
   background?: string;
 }
 
 /** Any block that can appear in the header or body region. */
 export type SidebarBlock =
-  TitleBlock | ClockBlock | DateBlock | DividerBlock | ItemBlock | CategoryBlock | CardBlock;
+  | TitleBlock
+  | ClockBlock
+  | DateBlock
+  | DividerBlock
+  | ItemBlock
+  | CategoryBlock
+  | MarkdownBlock
+  | CardBlock;
 
 /** The discriminator value of every block kind. */
-export type BlockType = 'title' | 'clock' | 'date' | 'divider' | 'item' | 'category' | 'card';
+export type BlockType =
+  'title' | 'clock' | 'date' | 'divider' | 'item' | 'category' | 'markdown' | 'card';
 
 /** An icon button in the footer's button bar. */
 export interface FooterButtonConfig extends BlockCommon {
@@ -158,17 +176,20 @@ export interface FooterButtonConfig extends BlockCommon {
 }
 
 /**
- * The bottom bar. Either an ordered set of icon buttons (with overflow into a
- * dots menu) or a single custom card. The two are mutually exclusive; a card
- * footer shows no dots menu and is hidden while collapsed.
+ * The bottom bar. Exactly one of `buttons`, `card`, or `markdown`: an ordered
+ * set of icon buttons (with overflow into a dots menu), a single manual card,
+ * or a markdown block. A card or markdown footer shows no dots menu and is
+ * hidden while collapsed.
  */
 export interface FooterConfig {
   /** Whether the footer shows its top divider bar. Default true. */
   divider?: boolean;
-  /** Ordered icon buttons. Mutually exclusive with `card`. */
+  /** Ordered icon buttons. Mutually exclusive with `card`/`markdown`. */
   buttons?: FooterButtonConfig[];
-  /** A markdown string or any card, replacing the buttons. */
-  card?: string | LovelaceCardConfig;
+  /** A manual Lovelace card, replacing the buttons. */
+  card?: LovelaceCardConfig;
+  /** Markdown content with Jinja templating, replacing the buttons. Templatable. */
+  markdown?: MaybeTemplate;
 }
 
 /** The full configuration read from the Lovelace `dashboard_sidebar` key. */

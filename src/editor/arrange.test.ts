@@ -55,6 +55,7 @@ describe('factories', () => {
       'divider',
       'item',
       'category',
+      'markdown',
       'card',
     ];
     types_.forEach((t) => {

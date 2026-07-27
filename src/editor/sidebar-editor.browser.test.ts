@@ -224,7 +224,7 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(preview(el)?.shadowRoot?.querySelector('[data-loc="body:1.0"]')).to.not.exist;
   });
 
-  it('offers a Button/Component picker and no tab menu for an empty footer', async () => {
+  it('offers a Buttons/Manual Card/Markdown picker and no tab menu for an empty footer', async () => {
     const el = await mount({ ...cfg(), footer: undefined });
     await tab(el, 'Footer');
     expect(root(el).querySelector('.empty-state')).to.exist;
@@ -234,8 +234,9 @@ describe('<dashboard-sidebar-editor>', () => {
     const labels = [...root(el).querySelectorAll('.add-menu-item')].map((b) =>
       b.textContent?.trim(),
     );
-    expect(labels).to.include('Button');
-    expect(labels).to.include('Component');
+    expect(labels).to.include('Buttons');
+    expect(labels).to.include('Manual Card');
+    expect(labels).to.include('Markdown');
   });
 
   it('re-disables Save after toggling a boolean setting off again', async () => {
@@ -254,17 +255,18 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(save().disabled).to.equal(true);
   });
 
-  it('toggles the footer to a custom component through the tab menu', async () => {
+  it('switches the footer to markdown through the tab menu', async () => {
     const el = await mount(cfg());
     await tab(el, 'Footer');
     (root(el).querySelector('.tab-notes .tool') as HTMLButtonElement).click();
     await el.updateComplete;
-    const toComponent = [...root(el).querySelectorAll('.add-menu-item')].find((b) =>
-      b.textContent?.includes('Component'),
+    const toMarkdown = [...root(el).querySelectorAll('.add-menu-item')].find((b) =>
+      b.textContent?.includes('Markdown'),
     ) as HTMLButtonElement;
-    toComponent.click();
+    toMarkdown.click();
     await el.updateComplete;
-    expect(root(el).querySelector('textarea')).to.exist;
+    // The markdown editor falls back to a plain input/textarea outside HA.
+    expect(root(el).querySelector('.editor .field')).to.exist;
   });
 
   it('saves a valid config through onSave and closes', async () => {

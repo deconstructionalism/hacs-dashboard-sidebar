@@ -247,40 +247,78 @@ describe('<dashboard-sidebar> config species', () => {
     });
   });
 
-  describe('footer card', () => {
-    it('renders a single card with no dots menu', async () => {
+  describe('footer content', () => {
+    it('renders a footer markdown block with no dots menu', async () => {
       const el = await mount({
         body: [{ type: 'item', title: 'A', tap_action: TAP }],
-        footer: { card: '**foot**' },
+        footer: { markdown: '**foot**' },
       });
       const footer = root(el).querySelector('.dashboard-sidebar-footer');
       expect(footer?.querySelector('.stub-card')).to.exist;
       expect(root(el).querySelector('.dashboard-sidebar-footer-more')).to.not.exist;
+      expect(createdCards[0]).to.deep.equal({ type: 'markdown', content: '**foot**' });
+    });
+
+    it('renders a footer manual card', async () => {
+      const el = await mount({
+        body: [{ type: 'item', title: 'A', tap_action: TAP }],
+        footer: { card: { type: 'entities', entities: ['light.a'] } },
+      });
+      const footer = root(el).querySelector('.dashboard-sidebar-footer');
+      expect(footer?.querySelector('.stub-card')).to.exist;
+      expect(createdCards[0]).to.deep.equal({ type: 'entities', entities: ['light.a'] });
     });
 
     it('is hidden when the sidebar is collapsed', async () => {
       const el = await mount({
         start_collapsed: true,
         body: [{ type: 'item', title: 'A', tap_action: TAP }],
-        footer: { card: 'x' },
+        footer: { markdown: 'x' },
       });
       expect(root(el).querySelector('.dashboard-sidebar-footer')).to.not.exist;
     });
   });
 
-  describe('card blocks', () => {
-    it('renders a card block with alignment and background', async () => {
+  describe('markdown blocks', () => {
+    it('renders a markdown block with alignment', async () => {
       const el = await mount({
-        body: [{ type: 'card', card: '**hi**', align: 'center', background: 'rgba(0,0,0,0.1)' }],
+        body: [{ type: 'markdown', content: '**hi**', align: 'center' }],
       });
-      const content = root(el).querySelector('.dashboard-sidebar-content') as HTMLElement;
+      const content = root(el).querySelector('.dashboard-sidebar-markdown') as HTMLElement;
       expect(content.querySelector('.stub-card')).to.exist;
       expect(content.style.textAlign).to.equal('center');
       expect(createdCards[0]).to.deep.equal({ type: 'markdown', content: '**hi**' });
     });
 
+    it('hides markdown blocks when collapsed', async () => {
+      const el = await mount({ start_collapsed: true, body: [{ type: 'markdown', content: 'x' }] });
+      expect(root(el).querySelector('.dashboard-sidebar-markdown')).to.not.exist;
+    });
+  });
+
+  describe('card blocks', () => {
+    it('renders a manual card block with alignment and background', async () => {
+      const el = await mount({
+        body: [
+          {
+            type: 'card',
+            card: { type: 'entities', entities: ['light.a'] },
+            align: 'center',
+            background: 'rgba(0,0,0,0.1)',
+          },
+        ],
+      });
+      const content = root(el).querySelector('.dashboard-sidebar-content') as HTMLElement;
+      expect(content.querySelector('.stub-card')).to.exist;
+      expect(content.style.textAlign).to.equal('center');
+      expect(createdCards[0]).to.deep.equal({ type: 'entities', entities: ['light.a'] });
+    });
+
     it('hides card blocks when collapsed', async () => {
-      const el = await mount({ start_collapsed: true, body: [{ type: 'card', card: 'x' }] });
+      const el = await mount({
+        start_collapsed: true,
+        body: [{ type: 'card', card: { type: 'entities', entities: [] } }],
+      });
       expect(root(el).querySelector('.dashboard-sidebar-content')).to.not.exist;
     });
   });
@@ -331,9 +369,9 @@ describe('<dashboard-sidebar> config species', () => {
         'footer both modes',
         {
           body: [{ type: 'item', title: 'A', tap_action: TAP }],
-          footer: { buttons: [], card: 'x' },
+          footer: { buttons: [], markdown: 'x' },
         },
-        'either buttons or card',
+        'set only one of buttons, card, or markdown',
       ],
     ];
 

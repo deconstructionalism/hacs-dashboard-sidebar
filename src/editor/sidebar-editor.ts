@@ -1568,10 +1568,11 @@ export class DashboardSidebarEditor extends LitElement {
 
     .editor {
       gap: 10px;
-      /* Scrolls independently of the preview. A reserved, thin scrollbar gutter
-         keeps the bar in its own lane so it never overlaps the form controls. */
+      /* Scrolls independently of the preview. Inset the content on the right so
+         an overlay scrollbar (macOS "show when scrolling") sits clear of the
+         form controls instead of over them, plus a thin styled bar. */
       overflow-y: auto;
-      scrollbar-gutter: stable;
+      padding-right: 12px;
       scrollbar-width: thin;
       scrollbar-color: var(--divider-color, rgb(0 0 0 / 30%)) transparent;
     }
@@ -1874,6 +1875,8 @@ export class DashboardSidebarEditor extends LitElement {
     .field input[type='text'],
     .field select,
     .field textarea {
+      box-sizing: border-box;
+      width: 100%;
       font: inherit;
       padding: 6px 8px;
       border: 1px solid var(--divider-color, rgb(0 0 0 / 20%));

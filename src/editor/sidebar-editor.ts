@@ -1193,10 +1193,8 @@ export class DashboardSidebarEditor extends LitElement {
 
     .pv-frame {
       box-sizing: border-box;
-      /* Left gutter so the drag handles aren't flush against the frame edge. */
-      padding: 8px 0 8px 16px;
+      padding: 8px 0;
       border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
-      border-radius: 10px;
       background: var(--card-background-color, #fff);
       /* Fill the preview height and scroll on its own, below the fixed heading. */
       flex: 1 1 auto;
@@ -1278,7 +1276,7 @@ export class DashboardSidebarEditor extends LitElement {
     .drag,
     .idrag {
       position: absolute;
-      left: 1px;
+      left: 6px;
       top: 50%;
       transform: translateY(-50%);
       cursor: grab;
@@ -1300,7 +1298,9 @@ export class DashboardSidebarEditor extends LitElement {
       position: relative;
       display: flex;
       align-items: center;
-      padding: 2px 4px;
+      /* Left padding holds the drag handle inside the element, so the selected
+         border reaches the frame edge and the handle never sits on it. */
+      padding: 2px 4px 2px 24px;
       border: 2px solid transparent;
       border-radius: 8px;
       cursor: pointer;

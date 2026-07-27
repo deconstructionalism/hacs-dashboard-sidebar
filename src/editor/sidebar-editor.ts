@@ -2320,7 +2320,9 @@ export class DashboardSidebarEditor extends LitElement {
       gap: 8px;
       box-sizing: border-box;
       width: 100%;
-      padding: 8px 12px;
+      /* Left/right padding matches the inputs (8px) so the text left-aligns with
+         other fields and the clear button lines up with the select arrows. */
+      padding: 8px;
       border: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
       border-radius: 6px;
       background: var(--card-background-color, #fff);
@@ -2351,8 +2353,8 @@ export class DashboardSidebarEditor extends LitElement {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 28px;
+      width: 20px;
+      height: 20px;
       padding: 0;
       border: none;
       border-radius: 6px;

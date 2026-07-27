@@ -353,7 +353,14 @@ export function selectField(
     <span>${label}</span>
     <select
       ?disabled=${opts?.disabled ?? false}
-      @change=${(e: Event) => onChange((e.target as HTMLSelectElement).value)}
+      @change=${(e: Event) => {
+        const el = e.target as HTMLSelectElement;
+        // Blur before the re-render re-applies `?selected`: mutating the options
+        // of the just-used (focused) select is what leaves Chrome needing an
+        // extra click to reopen it. Blurring settles it so the next click opens.
+        el.blur();
+        onChange(el.value);
+      }}
     >
       ${options.map((o) => {
         const n = norm(o);

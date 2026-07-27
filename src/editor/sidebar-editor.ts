@@ -589,7 +589,7 @@ export class DashboardSidebarEditor extends LitElement {
   private _renderSplit(region: Region): TemplateResult {
     const types = region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
     return html`
-      <div class="split">
+      <div class="split ${this._previewCollapsed ? 'pv-collapsed' : ''}">
         <div class="editor">
           ${this._editorNote(
             region === 'header'
@@ -749,7 +749,7 @@ export class DashboardSidebarEditor extends LitElement {
     `;
     if (cardMode) {
       return html`
-        <div class="split">
+        <div class="split ${this._previewCollapsed ? 'pv-collapsed' : ''}">
           <div class="editor">
             ${controls}
             ${areaField(
@@ -771,7 +771,7 @@ export class DashboardSidebarEditor extends LitElement {
     }
     const buttons = footer?.buttons ?? [];
     return html`
-      <div class="split">
+      <div class="split ${this._previewCollapsed ? 'pv-collapsed' : ''}">
         <div class="editor">
           ${controls}
           <button class="add-btn" @click=${() => this._addFooterButton()}>＋ Add button</button>
@@ -1131,6 +1131,22 @@ export class DashboardSidebarEditor extends LitElement {
       overflow-y: auto;
     }
 
+    /* Collapsed (non-mobile): the editor grows to fill and the preview shrinks
+       to just what the icon strip needs, pinned to the modal's right edge. No
+       flex-wrap, so it never drops below. */
+    .split.pv-collapsed .editor {
+      flex: 1 1 auto;
+    }
+
+    .split.pv-collapsed .preview {
+      flex: 0 0 auto;
+    }
+
+    .split.pv-collapsed .preview-head {
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
     .preview-head {
       display: flex;
       align-items: center;
@@ -1417,6 +1433,8 @@ export class DashboardSidebarEditor extends LitElement {
 
     .pv-note {
       margin: 8px 0 0;
+      /* Keeps the collapsed preview column from stretching to fit the note. */
+      max-width: 220px;
       font-size: 0.75rem;
       opacity: 0.6;
       line-height: 1.3;

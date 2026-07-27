@@ -144,6 +144,74 @@ export function textField(
   </label>`;
 }
 
+/** strftime tokens supported in a clock format, for the format field's help. */
+export const TIME_HELP: Array<{ code: string; desc: string }> = [
+  { code: '%H', desc: 'Hour, 24-hour (00-23)' },
+  { code: '%I', desc: 'Hour, 12-hour (01-12)' },
+  { code: '%M', desc: 'Minute (00-59)' },
+  { code: '%S', desc: 'Second (00-59)' },
+  { code: '%p', desc: 'AM or PM' },
+  { code: '%P', desc: 'am or pm (lowercase)' },
+  { code: '%Z', desc: 'Time zone name' },
+  { code: '%z', desc: 'UTC offset (+0100)' },
+  { code: '%-', desc: 'Prefix to drop leading zero (%-I)' },
+  { code: '%%', desc: 'A literal percent sign' },
+];
+
+/** strftime tokens supported in a date format, for the format field's help. */
+export const DATE_HELP: Array<{ code: string; desc: string }> = [
+  { code: '%Y', desc: 'Year, 4-digit (2026)' },
+  { code: '%y', desc: 'Year, 2-digit (26)' },
+  { code: '%m', desc: 'Month number (01-12)' },
+  { code: '%B', desc: 'Month name (July)' },
+  { code: '%b', desc: 'Month, short (Jul)' },
+  { code: '%d', desc: 'Day of month (01-31)' },
+  { code: '%e', desc: 'Day of month, space-padded' },
+  { code: '%A', desc: 'Weekday name (Monday)' },
+  { code: '%a', desc: 'Weekday, short (Mon)' },
+  { code: '%j', desc: 'Day of year (001-366)' },
+  { code: '%-', desc: 'Prefix to drop leading zero (%-d)' },
+  { code: '%%', desc: 'A literal percent sign' },
+];
+
+/**
+ * Renders a format (strftime) field: a labelled text input with an info button
+ * that reveals the supported tokens, and an explanation below the input.
+ */
+export function formatField(
+  label: string,
+  value: string | undefined,
+  onInput: (value: string) => void,
+  opts: FieldOpts | undefined,
+  tokens: Array<{ code: string; desc: string }>,
+  description: string,
+): TemplateResult {
+  return html`<div class="field format-field ${opts?.error ? 'invalid' : ''}">
+    <span class="field-head">
+      ${label}
+      <details class="format-help">
+        <summary title="Format tokens" aria-label="Format tokens">
+          <ha-icon icon="mdi:information-outline"></ha-icon>
+        </summary>
+        <div class="format-help-pop">
+          ${tokens.map(
+            (t) =>
+              html`<div class="format-token"><code>${t.code}</code><span>${t.desc}</span></div>`,
+          )}
+        </div>
+      </details>
+    </span>
+    <input
+      type="text"
+      .value=${value ?? ''}
+      @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
+      @blur=${(e: Event) => opts?.onBlur?.((e.target as HTMLInputElement).value)}
+    />
+    ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
+    <small class="field-desc">${description}</small>
+  </div>`;
+}
+
 /**
  * Renders a field backed by Home Assistant's `<ha-code-editor>` (CodeMirror)
  * when it and `hass` are available, giving inline autocomplete for Jinja
@@ -221,7 +289,9 @@ export function selectField(
   return html`<label class="field">
     <span>${label}</span>
     <select @change=${(e: Event) => onChange((e.target as HTMLSelectElement).value)}>
-      ${options.map((opt) => html`<option value=${opt} ?selected=${opt === value}>${opt}</option>`)}
+      ${options.map(
+        (opt) => html`<option value=${opt} ?selected=${opt === value}>${titleCase(opt)}</option>`,
+      )}
     </select>
   </label>`;
 }
@@ -264,6 +334,7 @@ export function intField(
   value: number | undefined,
   onInput: (value: number | undefined) => void,
   opts?: FieldOpts,
+  description?: string,
 ): TemplateResult {
   return html`<label class="field ${opts?.error ? 'invalid' : ''}">
     <span>${label}</span>
@@ -280,6 +351,7 @@ export function intField(
       @blur=${(e: Event) => opts?.onBlur?.((e.target as HTMLInputElement).value)}
     />
     ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
+    ${description ? html`<small class="field-desc">${description}</small>` : nothing}
   </label>`;
 }
 
@@ -294,6 +366,7 @@ export function colorField(
   label: string,
   value: string | undefined,
   onInput: (value: string) => void,
+  description?: string,
 ): TemplateResult {
   const swatch = /^#[0-9a-fA-F]{6}$/.test(value ?? '') ? (value as string) : '#000000';
   return html`<div class="field">
@@ -319,6 +392,7 @@ export function colorField(
         @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
       />
     </div>
+    ${description ? html`<small class="field-desc">${description}</small>` : nothing}
   </div>`;
 }
 
@@ -511,24 +585,28 @@ function blockTypeFields(
       `;
     case 'clock':
       return html`
-        ${textField(
-          'Format (strftime)',
+        ${formatField(
+          'Format',
           block.format,
           (v) => patch({ format: v || undefined }),
           fieldOpts(ctx, 'format', validateClockFormat),
+          TIME_HELP,
+          'Optional strftime pattern for the clock, e.g. %-I:%M %p. Leave blank to use the hour format below.',
         )}
-        ${selectField('Collapsed', block.collapsed_format ?? '24h', ['24h', '12h'], (v) =>
-          patch({ collapsed_format: v }),
+        ${selectField('Hour format', block.hour_format ?? '24h', ['24h', '12h'], (v) =>
+          patch({ hour_format: v }),
         )}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
       `;
     case 'date':
       return html`
-        ${textField(
-          'Format (strftime)',
+        ${formatField(
+          'Format',
           block.format,
           (v) => patch({ format: v || undefined }),
           fieldOpts(ctx, 'format', validateDateFormat),
+          DATE_HELP,
+          'Optional strftime pattern for the date, e.g. %A, %B %-d. Leave blank for the locale default.',
         )}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
       `;

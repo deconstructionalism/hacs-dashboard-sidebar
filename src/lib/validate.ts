@@ -29,7 +29,7 @@ const COMMON = ['class', 'id'];
 /** Recognized block types, and the keys each one accepts. */
 const BLOCK_KEYS: Record<string, Set<string>> = {
   title: new Set(['type', 'text', 'align', ...COMMON]),
-  clock: new Set(['type', 'format', 'collapsed_format', 'align', ...COMMON]),
+  clock: new Set(['type', 'format', 'hour_format', 'collapsed_format', 'align', ...COMMON]),
   date: new Set(['type', 'format', 'align', ...COMMON]),
   divider: new Set(['type', ...COMMON]),
   item: new Set([
@@ -207,11 +207,11 @@ function validateBlock(block: SidebarBlock, ctx: string, errors: string[]): void
         `${ctx}.format`,
         errors,
       );
-      if (
-        (block as { collapsed_format?: unknown }).collapsed_format !== undefined &&
-        !['12h', '24h'].includes(String((block as { collapsed_format?: unknown }).collapsed_format))
-      ) {
-        errors.push(`${ctx}.collapsed_format: must be "12h" or "24h"`);
+      for (const key of ['hour_format', 'collapsed_format'] as const) {
+        const val = (block as unknown as Record<string, unknown>)[key];
+        if (val !== undefined && !['12h', '24h'].includes(String(val))) {
+          errors.push(`${ctx}.${key}: must be "12h" or "24h"`);
+        }
       }
       checkAlign((block as { align?: unknown }).align, `${ctx}.align`, errors);
       break;

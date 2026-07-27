@@ -10,6 +10,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type {
   BlockType,
   CategoryBlock,
+  ClockHourFormat,
   DashboardSidebarConfig,
   FooterButtonConfig,
   ItemBlock,
@@ -18,7 +19,7 @@ import type {
 } from '../lib/types';
 import type { DashboardSidebar } from '../dashboard-sidebar';
 import '../dashboard-sidebar';
-import { PREVIEW_REORDER_EVENT, PREVIEW_SELECT_EVENT } from '../lib/const';
+import { DEFAULT_WIDTH, PREVIEW_REORDER_EVENT, PREVIEW_SELECT_EVENT } from '../lib/const';
 import { validateConfig } from '../lib/validate';
 import { defaultBlock, defaultFooterButton } from './arrange';
 import {
@@ -141,7 +142,8 @@ export class DashboardSidebarEditor extends LitElement {
   protected willUpdate(changed: PropertyValues): void {
     if (changed.has('config')) {
       this._working = this.config ? (structuredClone(this.config) as DashboardSidebarConfig) : {};
-      this._initialJson = JSON.stringify(this.config ?? {});
+      this._migrateConfig(this._working);
+      this._initialJson = JSON.stringify(this._working);
       this._fieldErrors = {};
       this._selected = null;
       this._confirmingClose = false;
@@ -151,6 +153,27 @@ export class DashboardSidebarEditor extends LitElement {
       this._elementMenuOpen = false;
       this._tabMenuOpen = false;
     }
+  }
+
+  /**
+   * Migrates deprecated config shapes in place: renames a clock's old
+   * `collapsed_format` to `hour_format`.
+   */
+  private _migrateConfig(config: DashboardSidebarConfig): void {
+    const fix = (blocks?: SidebarBlock[]): void => {
+      blocks?.forEach((block) => {
+        if (block.type !== 'clock') {
+          return;
+        }
+        const rec = block as unknown as Record<string, unknown>;
+        if (block.hour_format === undefined && rec.collapsed_format !== undefined) {
+          block.hour_format = rec.collapsed_format as ClockHourFormat;
+        }
+        delete rec.collapsed_format;
+      });
+    };
+    fix(config.header);
+    fix(config.body);
   }
 
   /**
@@ -898,10 +921,16 @@ export class DashboardSidebarEditor extends LitElement {
           ],
           (v) => this._patchConfig({ position: v }),
         )}
-        ${intField('Expanded Width (px)', c.width, (v) => this._patchConfig({ width: v }), {
-          error: this._fieldErrors['width'],
-          onBlur: (v) => this._validateField('width', v, validateWidth),
-        })}
+        ${intField(
+          'Expanded Width (px)',
+          c.width,
+          (v) => this._patchConfig({ width: v }),
+          {
+            error: this._fieldErrors['width'],
+            onBlur: (v) => this._validateField('width', v, validateWidth),
+          },
+          `Defaults to ${DEFAULT_WIDTH}px when left empty.`,
+        )}
         ${checkboxField(
           'Start Collapsed',
           c.start_collapsed ?? false,
@@ -916,8 +945,11 @@ export class DashboardSidebarEditor extends LitElement {
           (v) => this._patchConfig({ hide_on_mobile: v || undefined }),
           'Hide the sidebar entirely on narrow (phone-width) screens.',
         )}
-        ${colorField('Background CSS Color', c.background, (v) =>
-          this._patchConfig({ background: v || undefined }),
+        ${colorField(
+          'Background CSS Color',
+          c.background,
+          (v) => this._patchConfig({ background: v || undefined }),
+          'Any valid CSS background, including gradients (e.g. linear-gradient(...)).',
         )}
       </section>
     `;
@@ -2050,6 +2082,81 @@ export class DashboardSidebarEditor extends LitElement {
       line-height: 1.3;
     }
 
+    /* Format field: the label row with an info disclosure that reveals the
+       supported strftime tokens in a floating list. */
+    .field-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .format-help {
+      position: relative;
+      display: inline-flex;
+    }
+
+    .format-help > summary {
+      display: inline-flex;
+      align-items: center;
+      list-style: none;
+      cursor: pointer;
+      opacity: 0.6;
+    }
+
+    .format-help > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .format-help[open] > summary,
+    .format-help > summary:hover {
+      opacity: 1;
+    }
+
+    .format-help ha-icon {
+      --mdc-icon-size: 16px;
+    }
+
+    .format-help-pop {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: max-content;
+      max-width: 18rem;
+      max-height: 15rem;
+      overflow-y: auto;
+      padding: 8px 10px;
+      border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
+      border-radius: 8px;
+      background-color: var(--primary-background-color, #fff);
+      background-image: linear-gradient(
+        var(--card-background-color, #fff),
+        var(--card-background-color, #fff)
+      );
+      box-shadow: 0 4px 16px rgb(0 0 0 / 40%);
+      font-size: 0.8rem;
+      font-weight: 400;
+    }
+
+    .format-token {
+      display: flex;
+      gap: 10px;
+    }
+
+    .format-token code {
+      flex: 0 0 auto;
+      min-width: 2.4em;
+      color: var(--primary-color, #03a9f4);
+      font-family: var(--ha-font-family-code, monospace);
+    }
+
+    .format-token span {
+      opacity: 0.85;
+    }
+
     .color-row {
       display: flex;
       align-items: center;
@@ -2082,6 +2189,13 @@ export class DashboardSidebarEditor extends LitElement {
       border-radius: 6px;
       background: var(--card-background-color, #fff);
       color: inherit;
+    }
+
+    /* Match the select's height to the text inputs (native selects render
+       shorter otherwise). */
+    .field input[type='text'],
+    .field select {
+      height: 34px;
     }
 
     .field.invalid input[type='text'],

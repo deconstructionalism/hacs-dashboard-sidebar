@@ -815,6 +815,11 @@ export class DashboardSidebar extends LitElement {
    */
   private _renderClock(block: ClockBlock, collapsed: boolean, loc: string): TemplateResult {
     const style = { 'text-align': block.align ?? 'center' };
+    // hour_format drives both views; read the old collapsed_format as a fallback
+    // for configs saved before the rename. An explicit strftime `format` still
+    // overrides the expanded view.
+    const hourFormat =
+      block.hour_format ?? (block as { collapsed_format?: string }).collapsed_format ?? '24h';
     return html`<div
       class="clock dashboard-sidebar-clock${this._hookClass(block)}${this._selClass(loc)}"
       id=${block.id ?? nothing}
@@ -823,8 +828,8 @@ export class DashboardSidebar extends LitElement {
     >
       ${
         collapsed
-          ? formatCollapsedClock(this._now, block.collapsed_format === '12h')
-          : formatClock(this._now, block.format ?? 'locale', this._locale)
+          ? formatCollapsedClock(this._now, hourFormat === '12h')
+          : formatClock(this._now, block.format || hourFormat, this._locale)
       }
     </div>`;
   }

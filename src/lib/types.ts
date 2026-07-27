@@ -24,8 +24,8 @@ export type TimeFormat = string;
  */
 export type DateFormat = string;
 
-/** Collapsed-clock rendering: 24-hour, or 12-hour with no AM/PM suffix. */
-export type CollapsedClockFormat = '12h' | '24h';
+/** Clock hour convention applied to both the expanded and collapsed views. */
+export type ClockHourFormat = '12h' | '24h';
 
 /** CSS targeting hooks shared by every block and footer button. */
 export interface BlockCommon {
@@ -52,10 +52,10 @@ export interface TitleBlock extends BlockCommon {
 export interface ClockBlock extends BlockCommon {
   /** Block discriminator. */
   type: 'clock';
-  /** Expanded clock format. See {@link TimeFormat}. */
+  /** Optional strftime pattern; overrides `hour_format` when set. */
   format?: TimeFormat;
-  /** Clock style used while collapsed. Default 24h. */
-  collapsed_format?: CollapsedClockFormat;
+  /** 12/24-hour convention for both views. Default 24h. */
+  hour_format?: ClockHourFormat;
   /** Horizontal alignment. Default center. */
   align?: Align;
 }

@@ -12,7 +12,7 @@ describe('validateConfig — every block and option together', () => {
       background: '#111',
       header: [
         { type: 'title', text: '{{ states("sun.sun") }}', align: 'left' },
-        { type: 'clock', format: '%-I:%M:%S %p', collapsed_format: '12h', align: 'left' },
+        { type: 'clock', format: '%-I:%M:%S %p', hour_format: '12h', align: 'left' },
         { type: 'date', format: '%A, %B %-d', align: 'left' },
         { type: 'divider' },
         { type: 'card', card: '**hi**', align: 'center', background: 'rgba(0,0,0,0.1)' },

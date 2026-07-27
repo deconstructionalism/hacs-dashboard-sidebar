@@ -1045,10 +1045,7 @@ export class DashboardSidebarEditor extends LitElement {
           this._tabMenuOpen = false;
         }}
       ></div>
-      <div
-        class="add-menu"
-        style="top: ${rect.bottom + 4}px; right: ${Math.max(8, window.innerWidth - rect.right)}px"
-      >
+      <div class="add-menu" style=${this._menuStyle(rect, 'right')}>
         <button
           class="add-menu-item"
           @click=${() => {
@@ -1277,10 +1274,7 @@ export class DashboardSidebarEditor extends LitElement {
           this._elementMenuOpen = false;
         }}
       ></div>
-      <div
-        class="add-menu"
-        style="top: ${rect.bottom + 4}px; right: ${Math.max(8, window.innerWidth - rect.right)}px"
-      >
+      <div class="add-menu" style=${this._menuStyle(rect, 'right')}>
         ${this._renderElementMenuItems(category)}
       </div>
     `;
@@ -1483,7 +1477,29 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Renders the add menu, fixed-positioned under its trigger so it escapes the
+   * Fixed-position style for a menu anchored to a trigger rect: drops below the
+   * trigger, or flips above it when there is more room up, and caps its height
+   * to the available space (the menu scrolls internally past that). `align`
+   * pins the menu's left or right edge to the trigger.
+   */
+  private _menuStyle(rect: DOMRect, align: 'left' | 'right'): string {
+    const margin = 8;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const below = spaceBelow >= spaceAbove;
+    const maxHeight = Math.max(120, (below ? spaceBelow : spaceAbove) - margin - 4);
+    const vertical = below
+      ? `top: ${rect.bottom + 4}px`
+      : `bottom: ${window.innerHeight - rect.top + 4}px`;
+    const horizontal =
+      align === 'right'
+        ? `right: ${Math.max(margin, window.innerWidth - rect.right)}px`
+        : `left: ${Math.max(margin, rect.left)}px`;
+    return `${vertical}; ${horizontal}; max-height: ${maxHeight}px`;
+  }
+
+  /**
+   * Renders the add menu, fixed-positioned near its trigger so it escapes the
    * modal's clipping.
    */
   private _renderAddMenuPopup(): TemplateResult | typeof nothing {
@@ -1498,7 +1514,7 @@ export class DashboardSidebarEditor extends LitElement {
           this._addMenuOpen = false;
         }}
       ></div>
-      <div class="add-menu" style="top: ${rect.bottom + 4}px; left: ${Math.max(8, rect.left)}px">
+      <div class="add-menu" style=${this._menuStyle(rect, 'left')}>
         ${this._addMenuItems.map(
           (item) =>
             html`<button

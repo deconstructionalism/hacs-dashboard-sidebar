@@ -404,7 +404,7 @@ export function titleCase(value: string): string {
 /** Display labels for block types where title-casing the id is not enough. */
 const TYPE_LABELS: Partial<Record<BlockType, string>> = {
   card: 'Manual Card',
-  markdown: 'Markdown',
+  markdown: 'Text',
 };
 
 /**
@@ -758,7 +758,7 @@ function blockTypeFields(
       `;
     case 'markdown':
       return html`
-        ${codeField('Content', block.content, (v) => patch({ content: v }), hass, {
+        ${codeField('Content Template', block.content, (v) => patch({ content: v }), hass, {
           entities: true,
           icons: true,
         })}

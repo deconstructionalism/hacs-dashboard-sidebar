@@ -224,7 +224,7 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(preview(el)?.shadowRoot?.querySelector('[data-loc="body:1.0"]')).to.not.exist;
   });
 
-  it('offers a Buttons/Manual Card/Markdown picker and no tab menu for an empty footer', async () => {
+  it('offers a Buttons/Manual Card/Text picker and no tab menu for an empty footer', async () => {
     const el = await mount({ ...cfg(), footer: undefined });
     await tab(el, 'Footer');
     expect(root(el).querySelector('.empty-state')).to.exist;
@@ -236,7 +236,7 @@ describe('<dashboard-sidebar-editor>', () => {
     );
     expect(labels).to.include('Buttons');
     expect(labels).to.include('Manual Card');
-    expect(labels).to.include('Markdown');
+    expect(labels).to.include('Text');
   });
 
   it('re-disables Save after toggling a boolean setting off again', async () => {
@@ -261,7 +261,7 @@ describe('<dashboard-sidebar-editor>', () => {
     (root(el).querySelector('.tab-notes .tool') as HTMLButtonElement).click();
     await el.updateComplete;
     const toMarkdown = [...root(el).querySelectorAll('.add-menu-item')].find((b) =>
-      b.textContent?.includes('Markdown'),
+      b.textContent?.includes('Text'),
     ) as HTMLButtonElement;
     toMarkdown.click();
     await el.updateComplete;

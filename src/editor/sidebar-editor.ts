@@ -1156,7 +1156,7 @@ export class DashboardSidebarEditor extends LitElement {
       [
         ['buttons', 'Buttons'],
         ['card', 'Manual Card'],
-        ['markdown', 'Markdown'],
+        ['markdown', 'Text'],
       ] as const
     ).filter(([m]) => m !== mode);
     return html`
@@ -1319,7 +1319,7 @@ export class DashboardSidebarEditor extends LitElement {
           this._renderAddMenu([
             { label: 'Buttons', run: () => this._addFooterButton() },
             { label: 'Manual Card', run: () => this._setFooterMode('card') },
-            { label: 'Markdown', run: () => this._setFooterMode('markdown') },
+            { label: 'Text', run: () => this._setFooterMode('markdown') },
           ]),
         )}
       `;
@@ -1346,10 +1346,16 @@ export class DashboardSidebarEditor extends LitElement {
         ${notes}
         <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
           <div class="editor">
-            ${codeField('Content', footer?.markdown, (v) => this._setFooterMarkdown(v), this.hass, {
-              entities: true,
-              icons: true,
-            })}
+            ${codeField(
+              'Content Template',
+              footer?.markdown,
+              (v) => this._setFooterMarkdown(v),
+              this.hass,
+              {
+                entities: true,
+                icons: true,
+              },
+            )}
           </div>
           ${this._renderPreview(
             html`${this._renderGhost('up')}

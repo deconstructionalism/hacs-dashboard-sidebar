@@ -1,4 +1,9 @@
-import type { HomeAssistant, LovelaceCardConfig } from 'custom-card-helpers';
+import {
+  type ActionConfig,
+  type HomeAssistant,
+  type LovelaceCardConfig,
+  handleAction,
+} from 'custom-card-helpers';
 import { LitElement, css, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
@@ -392,6 +397,40 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
+   * The selected element's entity/tap action when it has one (items and footer
+   * buttons), or null — used to offer "Test action" in the overflow menu.
+   */
+  private _actionable(): { entity?: string; tap_action: ActionConfig } | null {
+    const sel = this._locate(this._selected);
+    if (!sel) {
+      return null;
+    }
+    if (sel.kind === 'footer') {
+      return sel.btn;
+    }
+    if (sel.kind === 'item') {
+      return sel.item;
+    }
+    if (sel.kind === 'block' && sel.block.type === 'item') {
+      return sel.block;
+    }
+    return null;
+  }
+
+  /**
+   * Runs the selected element's tap action against the live Home Assistant, so
+   * its behavior can be tested from the editor without a preview click firing it.
+   */
+  private _testAction(): void {
+    const cfg = this._actionable();
+    if (!cfg || !this.hass) {
+      return;
+    }
+    handleAction(this, this.hass, { entity: cfg.entity, tap_action: cfg.tap_action }, 'tap');
+    this._elementMenuOpen = false;
+  }
+
+  /**
    * Merges a partial update into the top-level sidebar settings.
    */
   private _patchConfig(partial: Record<string, unknown>): void {
@@ -746,15 +785,16 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Renders the full-width notes row above the split: the tab's scroll-behavior
-   * note, plus the collapsed-state note when the preview is collapsed.
+   * Renders the full-width notes above the split: the tab's scroll-behavior note
+   * (with its divider line), then the collapsed-state note below that line when
+   * the preview is collapsed.
    */
   private _renderTabNotes(scrollNote: string, collapsedNote: string): TemplateResult {
     return html`
       <div class="tab-notes">
         <p class="tab-note">${scrollNote}</p>
-        ${this._tabCollapsed ? this._editorNote(collapsedNote) : nothing}
       </div>
+      ${this._tabCollapsed ? this._editorNote(collapsedNote) : nothing}
     `;
   }
 
@@ -943,7 +983,13 @@ export class DashboardSidebarEditor extends LitElement {
         class="add-menu"
         style="top: ${rect.bottom + 4}px; left: ${Math.max(8, rect.right - 180)}px"
       >
-        <p class="menu-empty">No actions yet.</p>
+        ${
+          this._actionable() && this.hass
+            ? html`<button class="add-menu-item" @click=${() => this._testAction()}>
+                Test action
+              </button>`
+            : html`<p class="menu-empty">No actions yet.</p>`
+        }
       </div>
     `;
   }
@@ -1370,7 +1416,9 @@ export class DashboardSidebarEditor extends LitElement {
 
     .pv-frame {
       box-sizing: border-box;
-      padding: 0;
+      /* A little vertical room so the first/last element's selection outline is
+         not clipped by the scroll container's edge. */
+      padding: 4px 0;
       border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
       background: var(--card-background-color, #fff);
       /* Fill the preview height and scroll on its own, below the fixed heading. */
@@ -1633,7 +1681,7 @@ export class DashboardSidebarEditor extends LitElement {
       display: flex;
       align-items: flex-start;
       gap: 10px;
-      margin: 0;
+      margin: 0 0 12px;
       padding: 10px 12px;
       border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
       border-left: 3px solid var(--info-color, #2196f3);

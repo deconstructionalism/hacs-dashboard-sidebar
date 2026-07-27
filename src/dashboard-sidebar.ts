@@ -420,7 +420,9 @@ export class DashboardSidebar extends LitElement {
    * Runs a configured tap action through Home Assistant and closes popovers.
    */
   private _runAction(cfg: { entity?: string; tap_action: ItemBlock['tap_action'] }): void {
-    if (!this.hass) {
+    // In a preview a click selects the element for editing (handled by the
+    // editor) and must not fire the real action.
+    if (this.preview || !this.hass) {
       return;
     }
     handleAction(this, this.hass, { entity: cfg.entity, tap_action: cfg.tap_action }, 'tap');

@@ -285,29 +285,99 @@ export function codeField(
 export const TEMPLATE_HINT =
   'Use Home Assistant markdown with Jinja to style and interpolate values from HA.';
 
+/** id of the shared entity `<datalist>` the editor renders once per modal. */
+export const ENTITY_DATALIST_ID = 'dsb-entity-options';
+
 /**
- * Renders an entity field: HA's `<ha-entity-picker>` combobox (autocompletes
- * existing entities by `domain.name`) when available, else the templatable code
- * field so an entity can still be typed.
+ * Renders an entity field: a native text input backed by the shared entity
+ * `<datalist>`, so it autocompletes existing `domain.name` ids while matching
+ * the plain look of the other inputs. {@link entityDatalist} must be rendered
+ * once in the same tree.
  */
 export function entityField(
   label: string,
   value: string | undefined,
   onChange: (value: string) => void,
-  hass?: HomeAssistant,
 ): TemplateResult {
-  if (hass && customElements.get('ha-entity-picker')) {
-    return html`<div class="field entity-field">
-      <span>${label}</span>
-      <ha-entity-picker
-        .hass=${hass}
-        .value=${value ?? ''}
-        allow-custom-entity
-        @value-changed=${(e: CustomEvent<{ value: string }>) => onChange(e.detail.value)}
-      ></ha-entity-picker>
-    </div>`;
+  return html`<label class="field">
+    <span>${label}</span>
+    <input
+      type="text"
+      list=${ENTITY_DATALIST_ID}
+      autocomplete="off"
+      spellcheck="false"
+      placeholder="domain.entity"
+      .value=${value ?? ''}
+      @input=${(e: Event) => onChange((e.target as HTMLInputElement).value)}
+    />
+  </label>`;
+}
+
+/**
+ * Builds the shared entity `<datalist>` from the current Home Assistant states,
+ * with each entity's friendly name as the option label. Rendered once by the
+ * editor; every {@link entityField} references it by {@link ENTITY_DATALIST_ID}.
+ */
+export function entityDatalist(hass?: HomeAssistant): TemplateResult {
+  const states = (hass?.states ?? {}) as Record<
+    string,
+    { attributes?: { friendly_name?: string } }
+  >;
+  const ids = Object.keys(states).sort();
+  return html`<datalist id=${ENTITY_DATALIST_ID}>
+    ${ids.map((id) => {
+      const name = states[id]?.attributes?.friendly_name;
+      return html`<option value=${id} label=${name ?? nothing}></option>`;
+    })}
+  </datalist>`;
+}
+
+/** id of the shared service `<datalist>` the editor renders once per modal. */
+export const SERVICE_DATALIST_ID = 'dsb-service-options';
+
+/**
+ * Renders a service field: a native text input backed by the shared service
+ * `<datalist>`, autocompleting `domain.service` while keeping the plain input
+ * look. {@link serviceDatalist} must be rendered once in the same tree.
+ */
+export function serviceField(
+  label: string,
+  value: string | undefined,
+  onInput: (value: string) => void,
+  opts?: FieldOpts,
+): TemplateResult {
+  return html`<label class="field ${opts?.error ? 'invalid' : ''}">
+    <span>${label}</span>
+    <input
+      type="text"
+      list=${SERVICE_DATALIST_ID}
+      autocomplete="off"
+      spellcheck="false"
+      placeholder="domain.service"
+      .value=${value ?? ''}
+      @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
+      @blur=${(e: Event) => opts?.onBlur?.((e.target as HTMLInputElement).value)}
+    />
+    ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
+  </label>`;
+}
+
+/**
+ * Builds the shared service `<datalist>` (every `domain.service`) from the
+ * current Home Assistant service registry. Rendered once by the editor; every
+ * {@link serviceField} references it by {@link SERVICE_DATALIST_ID}.
+ */
+export function serviceDatalist(hass?: HomeAssistant): TemplateResult {
+  const services = (hass?.services ?? {}) as Record<string, Record<string, unknown>>;
+  const ids: string[] = [];
+  for (const domain of Object.keys(services).sort()) {
+    for (const service of Object.keys(services[domain]).sort()) {
+      ids.push(`${domain}.${service}`);
+    }
   }
-  return codeField(label, value, onChange, hass, { entities: true });
+  return html`<datalist id=${SERVICE_DATALIST_ID}>
+    ${ids.map((id) => html`<option value=${id}></option>`)}
+  </datalist>`;
 }
 
 /**
@@ -595,7 +665,6 @@ export function actionFields(
   },
   patch: Patch,
   ctx?: ValidationCtx,
-  hass?: HomeAssistant,
 ): TemplateResult {
   const kind = action?.action ?? 'none';
   const set = (partial: Record<string, unknown>): void =>
@@ -612,19 +681,19 @@ export function actionFields(
     ${kind === 'url' ? textField('URL', action.url_path, (v) => set({ url_path: v })) : nothing}
     ${
       kind === 'toggle' || kind === 'more-info'
-        ? entityField('Entity', action.entity, (v) => set({ entity: v || undefined }), hass)
+        ? entityField('Entity', action.entity, (v) => set({ entity: v || undefined }))
         : nothing
     }
     ${
       kind === 'call-service'
         ? html`
-            ${textField(
+            ${serviceField(
               'Service (domain.service)',
               action.service,
               (v) => set({ service: v }),
               fieldOpts(ctx, 'service', validateService),
             )}
-            ${entityField('Target entity', action.entity, (v) => set({ entity: v || undefined }), hass)}
+            ${entityField('Target entity', action.entity, (v) => set({ entity: v || undefined }))}
             ${areaField(
               'Service data (JSON)',
               action.data ? JSON.stringify(action.data, null, 2) : '',
@@ -653,8 +722,8 @@ export function footerButtonFields(
       icons: true,
       description: TEMPLATE_HINT,
     })}
-    ${entityField('Entity', btn.entity, (v) => patch({ entity: v || undefined }), hass)}
-    ${actionFields(btn.tap_action ?? {}, patch, ctx, hass)}
+    ${entityField('Entity', btn.entity, (v) => patch({ entity: v || undefined }))}
+    ${actionFields(btn.tap_action ?? {}, patch, ctx)}
   `;
 }
 
@@ -775,8 +844,8 @@ function blockTypeFields(
           description: TEMPLATE_HINT,
         })}
         ${iconField('Icon Template', block.icon, (v) => patch({ icon: v || undefined }), hass, TEMPLATE_HINT)}
-        ${entityField('Entity', block.entity, (v) => patch({ entity: v || undefined }), hass)}
-        ${actionFields(block.tap_action as { action?: string }, patch, ctx, hass)}
+        ${entityField('Entity', block.entity, (v) => patch({ entity: v || undefined }))}
+        ${actionFields(block.tap_action as { action?: string }, patch, ctx)}
       `;
     case 'category':
       return html`

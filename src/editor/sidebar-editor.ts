@@ -6,6 +6,7 @@ import {
 } from 'custom-card-helpers';
 import { LitElement, css, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { guard } from 'lit/directives/guard.js';
 
 import type {
   BlockType,
@@ -33,10 +34,12 @@ import {
   checkboxField,
   codeField,
   colorField,
+  entityDatalist,
   footerButtonFields,
   iconChoiceField,
   intField,
   type Patch,
+  serviceDatalist,
   TEMPLATE_HINT,
   type ValidationCtx,
   validateWidth,
@@ -270,12 +273,10 @@ export class DashboardSidebarEditor extends LitElement {
    */
   protected firstUpdated(): void {
     void this._ensureCodeEditor();
-    // The YAML editor and entity picker are lazily registered by HA; re-render
-    // once each defines so their fields upgrade from the fallback inputs.
-    for (const tag of ['ha-yaml-editor', 'ha-entity-picker']) {
-      if (!customElements.get(tag)) {
-        void customElements.whenDefined(tag).then(() => this.requestUpdate());
-      }
+    // The YAML editor is lazily registered by HA; re-render once it defines so
+    // the manual-card field upgrades from its textarea fallback.
+    if (!customElements.get('ha-yaml-editor')) {
+      void customElements.whenDefined('ha-yaml-editor').then(() => this.requestUpdate());
     }
   }
 
@@ -331,28 +332,6 @@ export class DashboardSidebarEditor extends LitElement {
         '.cm-content{border-top-style:none!important;padding:8px 0!important}' +
         '.cm-activeLine{background-color:transparent!important}';
       ed.shadowRoot.appendChild(style);
-    });
-    // The entity picker's height comes from its nested MDC text field; shrink it
-    // to the native-select height so it matches the other dropdowns.
-    this.renderRoot.querySelectorAll('.entity-field ha-entity-picker').forEach((picker) => {
-      const combo = picker.shadowRoot?.querySelector('ha-combo-box');
-      const tf = (combo?.shadowRoot?.querySelector('ha-textfield') ??
-        combo?.querySelector('ha-textfield') ??
-        picker.shadowRoot?.querySelector('ha-textfield')) as
-        (HTMLElement & { shadowRoot: ShadowRoot | null }) | null;
-      if (!tf?.shadowRoot) {
-        retry = true;
-        return;
-      }
-      if (this._compactedEditors.has(tf)) {
-        return;
-      }
-      this._compactedEditors.add(tf);
-      const style = document.createElement('style');
-      style.textContent =
-        '.mdc-text-field{height:34px!important}' +
-        '.mdc-text-field__input{padding-top:0!important;padding-bottom:0!important}';
-      tf.shadowRoot.appendChild(style);
     });
     if (retry && !this._compactScheduled) {
       this._compactScheduled = true;
@@ -963,12 +942,25 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
+   * Renders the shared entity and service `<datalist>`s that the native
+   * autocomplete inputs reference. Guarded on the entity/service counts so the
+   * (potentially large) option lists are not rebuilt on every keystroke.
+   */
+  private _renderDatalists(): TemplateResult {
+    const states = this.hass?.states ?? {};
+    const services = this.hass?.services ?? {};
+    const sig = `${Object.keys(states).length}:${Object.keys(services).length}`;
+    return html`${guard([sig], () => html`${entityDatalist(this.hass)}${serviceDatalist(this.hass)}`)}`;
+  }
+
+  /**
    * Renders the modal shell: the three sections, errors, and actions.
    */
   protected render(): TemplateResult {
     return html`
       <div class="backdrop" @click=${this._close}></div>
       <div class="panel" role="dialog" aria-label="Edit Dashboard Sidebar">
+        ${this._renderDatalists()}
         <header>
           <h2>Edit Dashboard Sidebar</h2>
           <button class="icon" title="Close" @click=${this._close}>✕</button>
@@ -2473,25 +2465,6 @@ export class DashboardSidebarEditor extends LitElement {
 
     .code-field.invalid ha-code-editor {
       border-color: var(--error-color, #db4437);
-    }
-
-    /* Flatten HA's entity picker (a filled MDC text field) into the same
-       bordered box as the native selects: drop the grey fill and the orange
-       underline, add a 1px border + radius, and compact the padding. */
-    .entity-field ha-entity-picker {
-      display: block;
-      width: 100%;
-      border: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
-      border-radius: 6px;
-      overflow: hidden;
-      --mdc-text-field-fill-color: var(--card-background-color, #fff);
-      --mdc-text-field-idle-line-color: transparent;
-      --mdc-text-field-hover-line-color: transparent;
-      --mdc-text-field-focused-line-color: transparent;
-      --mdc-text-field-disabled-line-color: transparent;
-      --mdc-text-field-ink-color: var(--primary-text-color, #000);
-      --mdc-text-field-label-ink-color: var(--secondary-text-color, #666);
-      --text-field-padding: 0 8px;
     }
 
     /* HA's YAML editor field (manual card): match the bordered input box. */

@@ -239,10 +239,11 @@ export function intField(
 }
 
 /**
- * Renders a labelled color field: a swatch button that opens the native picker
- * alongside a free-text input, so any CSS color (hex, rgb, var(), name) can
- * still be typed. The picker is opened programmatically via `showPicker()` so
- * it reopens on every click regardless of the hidden input's focus state.
+ * Renders a labelled color field: a native color swatch alongside a free-text
+ * input, so any CSS color (hex, rgb, var(), name) can still be typed. The
+ * swatch opens the picker via `showPicker()` (cancelling the native open) so it
+ * reopens on every click regardless of focus, falling back to the native open
+ * where `showPicker` is unavailable.
  */
 export function colorField(
   label: string,
@@ -253,25 +254,20 @@ export function colorField(
   return html`<div class="field">
     <span>${label}</span>
     <div class="color-row">
-      <button
-        type="button"
+      <input
         class="color-swatch"
-        title="Pick a color"
+        type="color"
         aria-label="Pick a color"
-        style="background: ${value || 'transparent'}"
+        .value=${swatch}
         @click=${(e: Event) => {
-          const inp = (e.currentTarget as HTMLElement).querySelector('input');
-          (inp as (HTMLInputElement & { showPicker?: () => void }) | null)?.showPicker?.();
+          const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void };
+          if (typeof el.showPicker === 'function') {
+            e.preventDefault();
+            el.showPicker();
+          }
         }}
-      >
-        <input
-          type="color"
-          tabindex="-1"
-          aria-hidden="true"
-          .value=${swatch}
-          @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
-        />
-      </button>
+        @input=${(e: Event) => onInput((e.target as HTMLInputElement).value)}
+      />
       <input
         type="text"
         .value=${value ?? ''}

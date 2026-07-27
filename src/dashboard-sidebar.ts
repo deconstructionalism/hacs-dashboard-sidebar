@@ -823,24 +823,29 @@ export class DashboardSidebar extends LitElement {
    */
   private _renderClock(block: ClockBlock, collapsed: boolean, loc: string): TemplateResult {
     const style = { 'text-align': block.align ?? 'center' };
-    // `format` is either the 12/24-hour convention or a custom strftime pattern.
-    // Read legacy keys (`hour_format`, `collapsed_format`) for configs saved
-    // before the rename.
-    const legacy = block as ClockBlock & { hour_format?: string; collapsed_format?: string };
-    const raw = typeof legacy.format === 'string' ? legacy.format : '';
-    const isCustom = raw !== '' && raw !== '12h' && raw !== '24h';
-    const hour =
-      raw === '12h' || raw === '24h'
-        ? raw
-        : (legacy.hour_format ?? legacy.collapsed_format ?? '24h');
-    const twelve = hour === '12h';
-    const builtin = twelve
-      ? block.show_seconds
-        ? '%-I:%M:%S %p'
-        : '%-I:%M %p'
-      : block.show_seconds
-        ? '%H:%M:%S'
-        : '%H:%M';
+    // `format` is an strftime pattern for the time. Legacy configs may still hold
+    // the `12h`/`24h` convention plus the old `show_seconds`/`hour_format`/
+    // `collapsed_format` keys; fold those into a pattern here.
+    const legacy = block as ClockBlock & {
+      hour_format?: string;
+      collapsed_format?: string;
+      show_seconds?: boolean;
+    };
+    const raw = typeof legacy.format === 'string' ? legacy.format.trim() : '';
+    let pattern: string;
+    let twelve: boolean;
+    if (raw !== '' && raw !== '12h' && raw !== '24h') {
+      pattern = raw;
+      twelve = /%-?[Il]|%p|%P/.test(raw);
+    } else {
+      const hour =
+        raw === '12h' || raw === '24h'
+          ? raw
+          : (legacy.hour_format ?? legacy.collapsed_format ?? '24h');
+      twelve = hour === '12h';
+      const seconds = legacy.show_seconds ?? false;
+      pattern = twelve ? (seconds ? '%-I:%M:%S %p' : '%-I:%M %p') : seconds ? '%H:%M:%S' : '%H:%M';
+    }
     const now = zonedDate(this._now, block.timezone ?? '');
     return html`<div
       class="clock dashboard-sidebar-clock${this._hookClass(block)}${this._selClass(loc)}"
@@ -848,7 +853,7 @@ export class DashboardSidebar extends LitElement {
       data-loc=${loc}
       style=${styleMap(style)}
     >
-      ${collapsed ? formatCollapsedClock(now, twelve) : formatClock(now, isCustom ? raw : builtin, this._locale)}
+      ${collapsed ? formatCollapsedClock(now, twelve) : formatClock(now, pattern, this._locale)}
     </div>`;
   }
 

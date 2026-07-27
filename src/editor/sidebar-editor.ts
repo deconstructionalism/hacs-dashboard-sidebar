@@ -183,34 +183,44 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Migrates deprecated clock/date shapes in place. A single `format` key now
-   * holds either the built-in dropdown value or a custom strftime pattern; the
-   * old `custom_format`, `hour_format`, and `collapsed_format` keys are folded
-   * into it.
+   * Migrates deprecated clock/date shapes in place. The clock's single `format`
+   * key now holds an strftime pattern; the old `custom_format`, `show_seconds`,
+   * `hour_format`, `collapsed_format`, and the `12h`/`24h` conventions are folded
+   * into a pattern.
    */
   private _migrateConfig(config: DashboardSidebarConfig): void {
     const fixClock = (rec: Record<string, unknown>): void => {
       const cf = typeof rec.custom_format === 'string' ? rec.custom_format.trim() : '';
-      const old = typeof rec.format === 'string' ? rec.format : '';
+      const old = typeof rec.format === 'string' ? rec.format.trim() : '';
       const legacyHour = rec.hour_format ?? rec.collapsed_format;
+      const seconds = rec.show_seconds === true;
+      let pattern = '';
       if (cf) {
-        rec.format = cf;
-        if (rec.show_seconds === undefined && /%S/.test(cf)) {
-          rec.show_seconds = true;
-        }
+        pattern = cf;
       } else if (old.includes('%')) {
-        // Already a custom strftime pattern in `format`; leave it in place.
-        if (rec.show_seconds === undefined && /%S/.test(old)) {
-          rec.show_seconds = true;
-        }
-      } else if (old !== '12h' && old !== '24h') {
-        if (legacyHour === '12h' || legacyHour === '24h') {
-          rec.format = legacyHour;
-        } else {
-          delete rec.format;
+        pattern = old;
+      } else {
+        const hour =
+          old === '12h' || old === '24h'
+            ? old
+            : legacyHour === '12h' || legacyHour === '24h'
+              ? legacyHour
+              : '';
+        if (hour === '12h') {
+          pattern = seconds ? '%-I:%M:%S %p' : '%-I:%M %p';
+        } else if (hour === '24h') {
+          pattern = seconds ? '%H:%M:%S' : '%H:%M';
+        } else if (seconds) {
+          pattern = '%H:%M:%S';
         }
       }
+      if (pattern) {
+        rec.format = pattern;
+      } else {
+        delete rec.format;
+      }
       delete rec.custom_format;
+      delete rec.show_seconds;
       delete rec.hour_format;
       delete rec.collapsed_format;
     };

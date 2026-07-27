@@ -25,7 +25,6 @@ const BLOCK_KEYS: Record<string, Set<string>> = {
   clock: new Set([
     'type',
     'format',
-    'show_seconds',
     'timezone',
     'hour_format',
     'collapsed_format',

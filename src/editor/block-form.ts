@@ -132,21 +132,23 @@ export const DATE_PRESETS: string[] = [
 /** Pattern values that map to a date preset, for detecting a custom pattern. */
 export const DATE_PRESET_VALUES = new Set(DATE_PRESETS.filter(Boolean));
 
+/** The default clock pattern (24-hour, no seconds) when `format` is empty. */
+export const DEFAULT_CLOCK_FORMAT = '%H:%M';
+
+/** Built-in time patterns offered in the clock Format dropdown. */
+export const CLOCK_PRESETS: string[] = ['%-I:%M %p', '%H:%M', '%-I:%M:%S %p', '%H:%M:%S'];
+
+/** Pattern values that map to a clock preset, for detecting a custom pattern. */
+export const CLOCK_PRESET_VALUES = new Set(CLOCK_PRESETS);
+
 /**
  * Builds the clock Format dropdown options, each labelled with the current time
- * rendered in that convention. Labels include seconds when `seconds` is set, so
- * the dropdown preview matches the Show seconds toggle.
+ * rendered in that pattern.
  */
-function clockFormatOptions(seconds: boolean): SelectOption[] {
+function clockFormatOptions(): SelectOption[] {
   const now = new Date();
   const loc = navigator.language;
-  const pattern: Record<'24h' | '12h', string> = seconds
-    ? { '24h': '%H:%M:%S', '12h': '%-I:%M:%S %p' }
-    : { '24h': '%H:%M', '12h': '%-I:%M %p' };
-  return (['24h', '12h'] as const).map((value) => ({
-    value,
-    label: formatClock(now, pattern[value], loc),
-  }));
+  return CLOCK_PRESETS.map((value) => ({ value, label: formatClock(now, value, loc) }));
 }
 
 /**
@@ -714,24 +716,17 @@ function blockTypeFields(
       `;
     case 'clock': {
       // Both the Format dropdown and Custom Format write the single `format`
-      // key. A value that is not a 12h/24h preset is treated as custom, which
-      // disables the dropdown and shows in the Custom Format field.
+      // key. A pattern that is not one of the presets is treated as custom,
+      // which disables the dropdown and shows in the Custom Format field.
       const raw = (block.format ?? '').trim();
-      const custom = raw !== '' && raw !== '12h' && raw !== '24h';
+      const custom = raw !== '' && !CLOCK_PRESET_VALUES.has(raw);
       return html`
         ${selectField(
           'Format',
-          custom ? '24h' : raw || '24h',
-          clockFormatOptions(block.show_seconds ?? false),
+          custom ? DEFAULT_CLOCK_FORMAT : raw || DEFAULT_CLOCK_FORMAT,
+          clockFormatOptions(),
           (v) => patch({ format: v }),
           { disabled: custom },
-        )}
-        ${checkboxField(
-          'Show seconds',
-          block.show_seconds ?? false,
-          (v) => patch({ show_seconds: v || undefined }),
-          undefined,
-          custom,
         )}
         ${timezoneField(block.timezone, (v) => patch({ timezone: v || undefined }))}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}

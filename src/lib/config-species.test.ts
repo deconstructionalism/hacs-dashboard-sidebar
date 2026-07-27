@@ -14,8 +14,7 @@ describe('validateConfig — every block and option together', () => {
         { type: 'title', text: '{{ states("sun.sun") }}', align: 'left' },
         {
           type: 'clock',
-          format: '12h',
-          show_seconds: true,
+          format: '%-I:%M:%S %p',
           timezone: 'America/New_York',
           align: 'left',
         },

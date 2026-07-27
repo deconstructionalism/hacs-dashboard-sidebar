@@ -199,7 +199,10 @@ export class DashboardSidebarEditor extends LitElement {
           '.cm-editor{padding-top:0!important}' +
           '.cm-scroller{padding-top:0!important}' +
           '.cm-content{border-top-style:none!important}' +
-          '.cm-activeLine{background-color:transparent!important}';
+          '.cm-activeLine{background-color:transparent!important}' +
+          // Cap the completion info box so it fits the panel instead of
+          // overflowing (and being clipped by) the scroll area.
+          '.cm-completionInfo{max-width:14rem!important;max-height:11rem!important;overflow:auto!important}';
         ed.shadowRoot.appendChild(style);
       });
     if (retry && !this._compactScheduled) {

@@ -2312,6 +2312,37 @@ export class DashboardSidebarEditor extends LitElement {
       line-height: 1.3;
     }
 
+    /* The resolved entity name shown under an entity field, with a clear button. */
+    .field-selected {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+      font-size: 0.8rem;
+      color: var(--secondary-text-color, #666);
+    }
+
+    .field-clear {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      padding: 0;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: inherit;
+      font-size: 0.85rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .field-clear:hover {
+      background: var(--secondary-background-color, rgb(0 0 0 / 8%));
+      color: var(--primary-text-color, #000);
+    }
+
     /* Non-blocking advisory (e.g. an out-of-range width): amber, not red. */
     .field-warn {
       font-size: 0.75rem;

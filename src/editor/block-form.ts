@@ -291,14 +291,22 @@ export const ENTITY_DATALIST_ID = 'dsb-entity-options';
 /**
  * Renders an entity field: a native text input backed by the shared entity
  * `<datalist>`, so it autocompletes existing `domain.name` ids while matching
- * the plain look of the other inputs. {@link entityDatalist} must be rendered
- * once in the same tree.
+ * the plain look of the other inputs. When a value is set, its friendly name is
+ * shown below with a clear button. {@link entityDatalist} must be rendered once
+ * in the same tree.
  */
 export function entityField(
   label: string,
   value: string | undefined,
   onChange: (value: string) => void,
+  hass?: HomeAssistant,
 ): TemplateResult {
+  const id = (value ?? '').trim();
+  const states = (hass?.states ?? {}) as Record<
+    string,
+    { attributes?: { friendly_name?: string } }
+  >;
+  const name = id ? (states[id]?.attributes?.friendly_name ?? id) : '';
   return html`<label class="field">
     <span>${label}</span>
     <input
@@ -310,6 +318,22 @@ export function entityField(
       .value=${value ?? ''}
       @input=${(e: Event) => onChange((e.target as HTMLInputElement).value)}
     />
+    ${
+      id
+        ? html`<div class="field-selected">
+            <span>${name}</span>
+            <button
+              type="button"
+              class="field-clear"
+              title="Clear"
+              aria-label="Clear"
+              @click=${() => onChange('')}
+            >
+              ✕
+            </button>
+          </div>`
+        : nothing
+    }
   </label>`;
 }
 
@@ -665,6 +689,7 @@ export function actionFields(
   },
   patch: Patch,
   ctx?: ValidationCtx,
+  hass?: HomeAssistant,
 ): TemplateResult {
   const kind = action?.action ?? 'none';
   const set = (partial: Record<string, unknown>): void =>
@@ -681,7 +706,7 @@ export function actionFields(
     ${kind === 'url' ? textField('URL', action.url_path, (v) => set({ url_path: v })) : nothing}
     ${
       kind === 'toggle' || kind === 'more-info'
-        ? entityField('Entity', action.entity, (v) => set({ entity: v || undefined }))
+        ? entityField('Entity', action.entity, (v) => set({ entity: v || undefined }), hass)
         : nothing
     }
     ${
@@ -693,7 +718,7 @@ export function actionFields(
               (v) => set({ service: v }),
               fieldOpts(ctx, 'service', validateService),
             )}
-            ${entityField('Target entity', action.entity, (v) => set({ entity: v || undefined }))}
+            ${entityField('Target entity', action.entity, (v) => set({ entity: v || undefined }), hass)}
             ${areaField(
               'Service data (JSON)',
               action.data ? JSON.stringify(action.data, null, 2) : '',
@@ -722,8 +747,8 @@ export function footerButtonFields(
       icons: true,
       description: TEMPLATE_HINT,
     })}
-    ${entityField('Entity', btn.entity, (v) => patch({ entity: v || undefined }))}
-    ${actionFields(btn.tap_action ?? {}, patch, ctx)}
+    ${entityField('Entity', btn.entity, (v) => patch({ entity: v || undefined }), hass)}
+    ${actionFields(btn.tap_action ?? {}, patch, ctx, hass)}
   `;
 }
 
@@ -844,8 +869,8 @@ function blockTypeFields(
           description: TEMPLATE_HINT,
         })}
         ${iconField('Icon Template', block.icon, (v) => patch({ icon: v || undefined }), hass, TEMPLATE_HINT)}
-        ${entityField('Entity', block.entity, (v) => patch({ entity: v || undefined }))}
-        ${actionFields(block.tap_action as { action?: string }, patch, ctx)}
+        ${entityField('Entity', block.entity, (v) => patch({ entity: v || undefined }), hass)}
+        ${actionFields(block.tap_action as { action?: string }, patch, ctx, hass)}
       `;
     case 'category':
       return html`

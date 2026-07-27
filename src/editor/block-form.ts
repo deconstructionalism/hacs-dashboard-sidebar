@@ -381,11 +381,29 @@ export function entityDatalist(hass?: HomeAssistant): TemplateResult {
 export const SERVICE_DATALIST_ID = 'dsb-service-options';
 
 /**
+ * The localized description for a service, which HA keeps in the lazily-loaded
+ * `services` translation category rather than on the service registry entry.
+ * Falls back to any registry name/description.
+ */
+function serviceDescription(
+  hass: HomeAssistant | undefined,
+  domain: string,
+  service: string,
+): string | undefined {
+  const localized = hass?.localize?.(`component.${domain}.services.${service}.description`);
+  const entry = (
+    hass?.services as
+      Record<string, Record<string, { name?: string; description?: string }>> | undefined
+  )?.[domain]?.[service];
+  return localized || entry?.description || entry?.name || undefined;
+}
+
+/**
  * Renders a service field: a native text input backed by the shared service
  * `<datalist>`, autocompleting `domain.service` while keeping the plain input
  * look. Once the value resolves to a real service it becomes a card (id over the
- * service name) with a clear button. {@link serviceDatalist} must be rendered
- * once in the same tree.
+ * service description) with a clear button. {@link serviceDatalist} must be
+ * rendered once in the same tree.
  */
 export function serviceField(
   label: string,
@@ -402,7 +420,7 @@ export function serviceField(
   >;
   const entry = domain && service ? services[domain]?.[service] : undefined;
   if (entry) {
-    return pickedCard(label, id, entry.description ?? entry.name, () => onInput(''));
+    return pickedCard(label, id, serviceDescription(hass, domain, service), () => onInput(''));
   }
   return html`<label class="field ${opts?.error ? 'invalid' : ''}">
     <span>${label}</span>
@@ -426,15 +444,14 @@ export function serviceField(
  * {@link serviceField} references it by {@link SERVICE_DATALIST_ID}.
  */
 export function serviceDatalist(hass?: HomeAssistant): TemplateResult {
-  const services = (hass?.services ?? {}) as Record<
-    string,
-    Record<string, { name?: string; description?: string }>
-  >;
+  const services = (hass?.services ?? {}) as Record<string, Record<string, unknown>>;
   const options: Array<{ id: string; label?: string }> = [];
   for (const domain of Object.keys(services).sort()) {
     for (const service of Object.keys(services[domain]).sort()) {
-      const entry = services[domain][service];
-      options.push({ id: `${domain}.${service}`, label: entry?.description ?? entry?.name });
+      options.push({
+        id: `${domain}.${service}`,
+        label: serviceDescription(hass, domain, service),
+      });
     }
   }
   return html`<datalist id=${SERVICE_DATALIST_ID}>

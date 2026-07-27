@@ -278,6 +278,32 @@ export class DashboardSidebarEditor extends LitElement {
     if (!customElements.get('ha-yaml-editor')) {
       void customElements.whenDefined('ha-yaml-editor').then(() => this.requestUpdate());
     }
+    this._loadServiceTranslations();
+  }
+
+  /**
+   * Service names/descriptions live in HA's lazily-loaded `services` translation
+   * category, not on the registry. Load them and fold the resulting localize
+   * into `hass` so the service fields can show descriptions.
+   */
+  private _loadServiceTranslations(): void {
+    const load = (
+      this.hass as unknown as {
+        loadBackendTranslation?: (category: string) => Promise<unknown>;
+      }
+    )?.loadBackendTranslation;
+    if (typeof load !== 'function') {
+      return;
+    }
+    void Promise.resolve(load.call(this.hass, 'services'))
+      .then((localize) => {
+        if (this.hass && typeof localize === 'function') {
+          this.hass = { ...this.hass, localize: localize as HomeAssistant['localize'] };
+        }
+      })
+      .catch(() => {
+        // Translations could not be loaded; fields fall back to registry values.
+      });
   }
 
   /**
@@ -950,7 +976,12 @@ export class DashboardSidebarEditor extends LitElement {
     const states = this.hass?.states ?? {};
     const services = this.hass?.services ?? {};
     const sig = `${Object.keys(states).length}:${Object.keys(services).length}`;
-    return html`${guard([sig], () => html`${entityDatalist(this.hass)}${serviceDatalist(this.hass)}`)}`;
+    // Include the localize identity so the service labels rebuild once the
+    // service translations load (which replaces hass without changing counts).
+    return html`${guard(
+      [sig, this.hass?.localize],
+      () => html`${entityDatalist(this.hass)}${serviceDatalist(this.hass)}`,
+    )}`;
   }
 
   /**

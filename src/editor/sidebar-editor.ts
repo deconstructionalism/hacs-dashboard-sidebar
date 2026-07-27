@@ -867,8 +867,7 @@ export class DashboardSidebarEditor extends LitElement {
     const preview =
       region === 'header'
         ? this._renderPreview(
-            html`${this._renderRegionPreview(region)}
-              <div class="pv-hatch"></div>`,
+            html`${this._renderRegionPreview(region)}${this._renderGhost('down')}`,
             true,
           )
         : this._renderPreview(this._renderRegionPreview(region));
@@ -982,6 +981,25 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
+   * Renders faded skeleton rows standing in for the content beside a pinned
+   * region: fading up (toward the top) above a footer, or down (toward the
+   * bottom) below a header.
+   */
+  private _renderGhost(fade: 'up' | 'down'): TemplateResult {
+    const widths = [72, 54, 84, 48, 66, 60, 78, 50];
+    return html`
+      <div class="pv-ghost fade-${fade}">
+        ${widths.map(
+          (w) =>
+            html`<div class="ghost-row">
+              <span class="ghost-icon"></span><span class="ghost-bar" style="width: ${w}%"></span>
+            </div>`,
+        )}
+      </div>
+    `;
+  }
+
+  /**
    * Wraps preview content in the preview column: a "Preview" heading with an
    * expand/collapse toggle, and the sidebar frame (narrowed when collapsed) so
    * the user can see both the expanded and collapsed looks.
@@ -1079,10 +1097,10 @@ export class DashboardSidebarEditor extends LitElement {
             )}
           </div>
           ${this._renderPreview(
-            html`<div class="pv-hatch"></div>
-              ${this._previewEl('footer-card', {
-                footer: { card: footer?.card ?? '', divider: false },
-              })}`,
+            html`${this._renderGhost('up')}
+            ${this._previewEl('footer-card', {
+              footer: { card: footer?.card ?? '', divider: false },
+            })}`,
             true,
           )}
         </div>
@@ -1094,12 +1112,12 @@ export class DashboardSidebarEditor extends LitElement {
       <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
         <div class="editor">${this._renderSelectedForm()}</div>
         ${this._renderPreview(
-          // Cross-hatch the space above so the footer sits pinned to the bottom,
-          // as it does live, instead of floating in a large empty box.
-          html`<div class="pv-hatch"></div>
-            ${this._previewEl('footer', {
-              footer: { buttons, divider: footer?.divider ?? true },
-            })}`,
+          // Faded placeholders above stand in for content so the footer sits
+          // pinned to the bottom, as it does live, not in a large empty box.
+          html`${this._renderGhost('up')}
+          ${this._previewEl('footer', {
+            footer: { buttons, divider: footer?.divider ?? true },
+          })}`,
           true,
         )}
       </div>
@@ -1697,30 +1715,55 @@ export class DashboardSidebarEditor extends LitElement {
       align-self: flex-end;
     }
 
-    /* Column frame used by the footer preview: a cross-hatched filler stands in
-       for the content above so the footer sits pinned to the bottom, as it does
-       live, instead of floating in a large empty box. */
+    /* Column frame used by the header/footer previews so the region can be
+       pinned to one edge with a faded placeholder filling the rest. */
     .pv-frame.pv-col {
       display: flex;
       flex-direction: column;
     }
 
-    .pv-hatch {
+    /* Skeleton placeholder rows standing in for the content beside a pinned
+       region, faded out toward the far edge. */
+    .pv-ghost {
       flex: 1 1 auto;
       min-height: 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 10px 16px;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .pv-ghost.fade-up {
+      justify-content: flex-end;
+      mask-image: linear-gradient(to top, #000 15%, transparent 95%);
+    }
+
+    .pv-ghost.fade-down {
+      justify-content: flex-start;
+      mask-image: linear-gradient(to bottom, #000 15%, transparent 95%);
+    }
+
+    .ghost-row {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ghost-icon {
+      flex: 0 0 auto;
+      width: 22px;
+      height: 22px;
       border-radius: 6px;
-      opacity: 0.5;
-      background-image:
-        repeating-linear-gradient(
-          45deg,
-          var(--divider-color, rgb(0 0 0 / 20%)) 0 1px,
-          transparent 1px 9px
-        ),
-        repeating-linear-gradient(
-          -45deg,
-          var(--divider-color, rgb(0 0 0 / 20%)) 0 1px,
-          transparent 1px 9px
-        );
+      background: var(--divider-color, rgb(0 0 0 / 15%));
+    }
+
+    .ghost-bar {
+      height: 12px;
+      border-radius: 6px;
+      background: var(--divider-color, rgb(0 0 0 / 15%));
     }
 
     /* The region preview renders at its natural height instead of filling the

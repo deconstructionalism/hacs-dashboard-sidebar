@@ -66,7 +66,14 @@ const BLOCK_KEYS: Record<string, Set<string>> = {
 };
 
 /** Recognized keys on the footer. */
-const FOOTER_KEYS = new Set(['divider', 'buttons', 'card', 'markdown', 'markdown_color']);
+const FOOTER_KEYS = new Set([
+  'divider',
+  'buttons',
+  'card',
+  'markdown',
+  'markdown_color',
+  ...ACTIONS,
+]);
 
 /** Recognized keys on a footer button. */
 const FOOTER_BUTTON_KEYS = new Set([

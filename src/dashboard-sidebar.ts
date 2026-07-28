@@ -1148,10 +1148,13 @@ export class DashboardSidebar extends LitElement {
       return nothing;
     }
     const align = block.align ?? 'left';
+    // The markdown card's text color comes from --primary-text-color (its inner
+    // ha-card sets `color` from it), so override that variable, not just color.
+    const textColor = block.text_color ? this._templates.resolve(block.text_color) : '';
     const style = {
       'align-items': FLEX_ALIGN[align],
       'text-align': align,
-      ...(block.text_color ? { color: this._templates.resolve(block.text_color) } : {}),
+      ...(textColor ? { color: textColor, '--primary-text-color': textColor } : {}),
       ...CHROMELESS_CARD,
     };
     return html`<div
@@ -1447,18 +1450,31 @@ export class DashboardSidebar extends LitElement {
         return nothing;
       }
       const markdown = footer.markdown !== undefined;
+      const mdColor =
+        markdown && footer.markdown_color ? this._templates.resolve(footer.markdown_color) : '';
       const style = {
         ...(markdown || typeof footer.card === 'string' ? CHROMELESS_CARD : {}),
-        ...(markdown && footer.markdown_color
-          ? { color: this._templates.resolve(footer.markdown_color) }
-          : {}),
+        ...(mdColor ? { color: mdColor, '--primary-text-color': mdColor } : {}),
       };
       const loc = markdown ? 'footer:markdown' : 'footer:card';
+      // The text (markdown) footer can carry tap/hold/double-tap actions.
+      const mdActions: ActionEl = markdown
+        ? {
+            tap_action: footer.tap_action,
+            hold_action: footer.hold_action,
+            double_tap_action: footer.double_tap_action,
+          }
+        : {};
+      const actionable = markdown && this._actionable(mdActions);
       return html`<div class=${classMap(footerClasses)}>
         <div
-          class="content dashboard-sidebar-content${this._selClass(loc)}"
+          class="content dashboard-sidebar-content${actionable ? ' clickable' : ''}${this._selClass(loc)}"
           data-loc=${loc}
           style=${styleMap(style)}
+          @pointerdown=${actionable ? () => this._onActionDown(mdActions) : nothing}
+          @pointerup=${actionable ? this._cancelHold : nothing}
+          @pointercancel=${actionable ? this._cancelHold : nothing}
+          @click=${actionable ? () => this._onActionClick(mdActions) : nothing}
         >
           ${el}
         </div>

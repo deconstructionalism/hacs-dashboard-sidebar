@@ -298,7 +298,7 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(preview(el)?.shadowRoot?.querySelector('[data-loc="body:1.0"]')).to.not.exist;
   });
 
-  it('offers a Buttons/Manual Card/Text picker and no tab menu for an empty footer', async () => {
+  it('offers a Button Row/Manual Card/Text picker and no tab menu for an empty footer', async () => {
     const el = await mount({ ...cfg(), footer: undefined });
     await tab(el, 'Footer');
     expect(root(el).querySelector('.empty-state')).to.exist;
@@ -308,7 +308,7 @@ describe('<dashboard-sidebar-editor>', () => {
     const labels = [...root(el).querySelectorAll('.add-menu-item')].map((b) =>
       b.textContent?.trim(),
     );
-    expect(labels).to.include('Buttons');
+    expect(labels).to.include('Button Row');
     expect(labels).to.include('Manual Card');
     expect(labels).to.include('Text');
   });
@@ -365,6 +365,38 @@ describe('<dashboard-sidebar-editor>', () => {
     await el.updateComplete;
     // The markdown editor falls back to a plain input/textarea outside HA.
     expect(root(el).querySelector('.editor .field')).to.exist;
+  });
+
+  it('seeds a starter button when changing to a button row', async () => {
+    // Start from a text footer so "Change to > Button Row" is offered.
+    const el = await mount({ ...cfg(), footer: { markdown: 'hi' } });
+    await tab(el, 'Footer');
+    let saved: DashboardSidebarConfig | undefined;
+    el.onSave = (c) => {
+      saved = c;
+    };
+    (root(el).querySelector('.tab-notes .tool') as HTMLButtonElement).click();
+    await el.updateComplete;
+    (
+      [...root(el).querySelectorAll('.add-menu-item')].find((b) =>
+        b.textContent?.includes('Change to'),
+      ) as HTMLButtonElement
+    ).click();
+    await el.updateComplete;
+    (
+      [...root(el).querySelectorAll('.add-menu-item.submenu-item')].find((b) =>
+        b.textContent?.includes('Button Row'),
+      ) as HTMLButtonElement
+    ).click();
+    await settle(el);
+    // The button's edit form shows, and saving yields one starter button.
+    expect(root(el).querySelector('.form-title')?.textContent).to.contain('Button');
+    await tab(el, 'Settings');
+    (root(el).querySelector('.settings input[type="checkbox"]') as HTMLInputElement).click();
+    await el.updateComplete;
+    (root(el).querySelector('footer .primary') as HTMLButtonElement).click();
+    expect(saved?.footer?.buttons?.length).to.equal(1);
+    expect(saved?.footer?.markdown).to.equal(undefined);
   });
 
   it('toggles the footer between UI and YAML editing from the tab menu', async () => {

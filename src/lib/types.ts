@@ -233,6 +233,12 @@ export interface FooterConfig {
   markdown?: MaybeTemplate;
   /** Optional text color for the markdown footer, any CSS color. Templatable. */
   markdown_color?: MaybeTemplate;
+  /** Action fired when the text (markdown) footer is tapped. Not templatable. */
+  tap_action?: ActionConfig;
+  /** Action fired when the text (markdown) footer is held. Not templatable. */
+  hold_action?: ActionConfig;
+  /** Action fired when the text (markdown) footer is double-tapped. Not templatable. */
+  double_tap_action?: ActionConfig;
 }
 
 /** The full configuration read from the Lovelace `dashboard_sidebar` key. */

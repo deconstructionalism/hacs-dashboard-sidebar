@@ -328,7 +328,7 @@ describe('<dashboard-sidebar> config species', () => {
       expect(root(el).querySelector('.dashboard-sidebar-footer')).to.not.exist;
     });
 
-    it('applies a text color to the markdown footer', async () => {
+    it('applies a text color to the markdown footer via --primary-text-color', async () => {
       const el = await mount({
         body: [{ type: 'item', title: 'A', tap_action: TAP }],
         footer: { markdown: 'x', markdown_color: 'teal' },
@@ -337,6 +337,18 @@ describe('<dashboard-sidebar> config species', () => {
         '.dashboard-sidebar-footer .dashboard-sidebar-content',
       ) as HTMLElement;
       expect(content.style.color).to.equal('teal');
+      expect(content.style.getPropertyValue('--primary-text-color')).to.equal('teal');
+    });
+
+    it('makes the markdown footer clickable when it has a tap action', async () => {
+      const el = await mount({
+        body: [{ type: 'item', title: 'A', tap_action: TAP }],
+        footer: { markdown: 'x', tap_action: TAP },
+      });
+      const content = root(el).querySelector(
+        '.dashboard-sidebar-footer .dashboard-sidebar-content',
+      ) as HTMLElement;
+      expect(content.classList.contains('clickable')).to.equal(true);
     });
 
     it('drops the footer divider bar for a card/markdown footer', async () => {
@@ -359,6 +371,15 @@ describe('<dashboard-sidebar> config species', () => {
       expect(content.querySelector('.stub-card')).to.exist;
       expect(content.style.textAlign).to.equal('center');
       expect(createdCards[0]).to.deep.equal({ type: 'markdown', content: '**hi**' });
+    });
+
+    it('applies a text color via --primary-text-color', async () => {
+      const el = await mount({
+        body: [{ type: 'markdown', content: 'x', text_color: 'tomato' }],
+      });
+      const content = root(el).querySelector('.dashboard-sidebar-markdown') as HTMLElement;
+      expect(content.style.color).to.equal('tomato');
+      expect(content.style.getPropertyValue('--primary-text-color')).to.equal('tomato');
     });
 
     it('hides markdown blocks when collapsed', async () => {

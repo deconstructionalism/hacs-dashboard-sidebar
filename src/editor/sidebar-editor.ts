@@ -29,6 +29,7 @@ import {
 } from '../lib/validate';
 import { defaultBlock, defaultFooterButton } from './arrange';
 import {
+  actionSections,
   blockFields,
   blockTypeLabel,
   checkboxField,
@@ -1000,14 +1001,18 @@ export class DashboardSidebarEditor extends LitElement {
    */
   private _setFooterMode(mode: 'buttons' | 'card' | 'markdown'): void {
     const divider = this._working.footer?.divider;
+    // Switching to a button row seeds one starter button so the footer is not
+    // left in its empty state.
+    const starter = defaultFooterButton();
     const base =
       mode === 'card'
         ? { card: { type: 'markdown', content: 'Card content' } as LovelaceCardConfig }
         : mode === 'markdown'
           ? { markdown: 'Markdown **content**' }
-          : { buttons: [] as FooterButtonConfig[] };
+          : { buttons: [starter] };
     this._working.footer = { ...base, divider };
     this._footerYaml = false;
+    this._selected = mode === 'buttons' ? this._idFor(starter) : this._selected;
     this._touch();
   }
 
@@ -1077,14 +1082,19 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Sets the footer markdown content, keeping the divider and text color.
+   * Sets the footer markdown content, keeping the divider, text color, and any
+   * configured actions.
    */
   private _setFooterMarkdown(content: string): void {
-    this._working.footer = {
-      markdown: content,
-      markdown_color: this._working.footer?.markdown_color,
-      divider: this._working.footer?.divider,
-    };
+    this._patchFooter({ markdown: content });
+  }
+
+  /**
+   * Merges a partial update into the footer config.
+   */
+  private _patchFooter(partial: Record<string, unknown>): void {
+    const footer = this._working.footer ?? (this._working.footer = {});
+    Object.assign(footer, partial);
     this._touch();
   }
 
@@ -1427,7 +1437,7 @@ export class DashboardSidebarEditor extends LitElement {
     const dividerShown = this._working.footer?.divider ?? true;
     const others = (
       [
-        ['buttons', 'Buttons'],
+        ['buttons', 'Button Row'],
         ['card', 'Manual Card'],
         ['markdown', 'Text'],
       ] as const
@@ -1620,7 +1630,7 @@ export class DashboardSidebarEditor extends LitElement {
         ${notes}
         ${this._renderEmptyState(
           this._renderAddMenu([
-            { label: 'Buttons', run: () => this._addFooterButton() },
+            { label: 'Button Row', run: () => this._addFooterButton() },
             { label: 'Manual Card', run: () => this._setFooterMode('card') },
             { label: 'Text', run: () => this._setFooterMode('markdown') },
           ]),
@@ -1689,6 +1699,12 @@ export class DashboardSidebarEditor extends LitElement {
               'Text Color Template',
               footer?.markdown_color,
               (v) => this._setFooterMarkdownColor(v),
+              this.hass,
+            )}
+            ${actionSections(
+              (this._working.footer ?? {}) as Record<string, unknown>,
+              (p) => this._patchFooter(p),
+              undefined,
               this.hass,
             )}
           </div>

@@ -90,8 +90,17 @@ const ACTION_OPTIONS: SelectOption[] = [
   { value: 'call-service', label: 'Call Service' },
 ];
 
+/** Per-action explanation shown under the Tap Action dropdown. */
+const TAP_ACTION_HINTS: Record<string, string> = {
+  none: 'Nothing happens when this is tapped.',
+  toggle: 'Toggles the target entity on or off.',
+  'more-info': "Opens the entity's more-info dialog.",
+  navigate: 'Navigates to another dashboard path.',
+  url: 'Opens a web address in a new tab.',
+  'call-service': 'Calls a Home Assistant service.',
+};
+
 /** Explanations shown under the tap-action fields. */
-const TAP_ACTION_HINT = 'What happens when this is tapped.';
 const ENTITY_HINT = 'Entity targeted by the toggle and more-info actions.';
 const SERVICE_HINT = 'The service to call, written as domain.service.';
 const TARGET_ENTITY_HINT = 'Entity the service is called on.';
@@ -800,7 +809,7 @@ export function actionFields(
       kind,
       ACTION_OPTIONS,
       (v) => patch({ tap_action: { ...action, action: v } }),
-      { description: TAP_ACTION_HINT },
+      { description: TAP_ACTION_HINTS[kind] },
     )}
     ${
       kind === 'navigate'

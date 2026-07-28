@@ -1658,11 +1658,9 @@ export class DashboardSidebarEditor extends LitElement {
   private _toggleYamlMode(): void {
     const toYaml = !this._yamlActive();
     this._yamlEditId = toYaml ? this._selected : null;
-    // Entering YAML starts from the last valid value, so clear any stale error;
-    // leaving to the UI keeps it so the invalid edit is still flagged.
-    if (toYaml) {
-      this._yamlError = null;
-    }
+    // Entering YAML surfaces any existing schema errors of the element up front;
+    // leaving clears the editor error (the UI banner re-derives it live).
+    this._yamlError = toYaml ? this._selectedSchemaErrors().join(' • ') || null : null;
     this._elementMenuOpen = false;
   }
 
@@ -1743,12 +1741,35 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * A banner shown above the UI form when the element's YAML is invalid, so the
-   * error follows the user back from the YAML editor.
+   * The schema problems of the currently selected element, checked against its
+   * type's rules. Empty when the element is valid.
+   */
+  private _selectedSchemaErrors(): string[] {
+    const sel = this._locate(this._selected);
+    if (!sel) {
+      return [];
+    }
+    if (sel.kind === 'footer') {
+      return validateFooterButtonConfig(sel.btn);
+    }
+    if (sel.kind === 'item') {
+      return validateItemConfig(sel.item);
+    }
+    return validateBlockConfig(sel.block);
+  }
+
+  /**
+   * A banner shown above the UI form when the selected element is invalid (e.g.
+   * a YAML edit introduced a bad key), validated live from the applied element
+   * so it always reflects what is actually in the config.
    */
   private _uiYamlBanner(): TemplateResult | typeof nothing {
-    return this._yamlError && !this._yamlActive()
-      ? html`<div class="yaml-banner">${this._yamlError} The YAML edit was not applied.</div>`
+    if (this._yamlActive()) {
+      return nothing;
+    }
+    const errors = this._selectedSchemaErrors();
+    return errors.length
+      ? html`<div class="yaml-banner">This element has errors: ${errors.join(' • ')}</div>`
       : nothing;
   }
 

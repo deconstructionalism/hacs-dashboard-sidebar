@@ -2,7 +2,6 @@ import {
   type ActionConfig,
   type HomeAssistant,
   type LovelaceCardConfig,
-  handleAction,
   hasAction,
 } from 'custom-card-helpers';
 import { LitElement, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
@@ -12,6 +11,7 @@ import { repeat } from 'lit/directives/repeat.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import Sortable from 'sortablejs';
 
+import { runAction } from './lib/action';
 import { applyCardMod } from './lib/card-mod';
 import {
   EDIT_EVENT,
@@ -464,21 +464,17 @@ export class DashboardSidebar extends LitElement {
    * Fires the tap/hold/double-tap action through Home Assistant. No-ops in a
    * preview (where a click selects the element for editing instead).
    */
-  private _fireAction(cfg: ActionEl, action: 'tap' | 'hold' | 'double_tap'): void {
+  private _fireAction(cfg: ActionEl, gesture: 'tap' | 'hold' | 'double_tap'): void {
     if (this.preview || !this.hass) {
       return;
     }
-    handleAction(
-      this,
-      this.hass,
-      {
-        entity: cfg.entity,
-        tap_action: cfg.tap_action,
-        hold_action: cfg.hold_action,
-        double_tap_action: cfg.double_tap_action,
-      },
-      action,
-    );
+    const action =
+      gesture === 'hold'
+        ? cfg.hold_action
+        : gesture === 'double_tap'
+          ? cfg.double_tap_action
+          : cfg.tap_action;
+    runAction(this, this.hass, action, cfg.entity);
     this._closePopovers();
   }
 

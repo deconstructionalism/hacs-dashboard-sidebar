@@ -1,6 +1,7 @@
-import { type HomeAssistant, fireEvent } from 'custom-card-helpers';
+import type { HomeAssistant } from 'custom-card-helpers';
 import { html, nothing, type TemplateResult } from 'lit';
 
+import { runAction } from '../lib/action';
 import { formatClock, formatDate } from '../lib/format';
 import type { BlockType, SidebarBlock } from '../lib/types';
 
@@ -808,10 +809,11 @@ export function actionFields(
     patch({ [key]: { ...action, action: kind, ...partial } });
   // toggle/more-info/call-service actions can be safely fired to test them
   // (none/navigate/url are skipped). Only offer the button when it has what it
-  // needs: an entity for toggle/more-info, or a service for call-service.
+  // needs: an entity for toggle/more-info (the action's own or the element's),
+  // or a service for call-service.
   const canTest =
     hass !== undefined &&
-    ((kind === 'toggle' || kind === 'more-info' ? !!entity : false) ||
+    ((kind === 'toggle' || kind === 'more-info' ? !!(action.entity ?? entity) : false) ||
       (kind === 'call-service' ? !!action.service : false));
   return html`<details class="advanced">
     <summary>${summary}</summary>
@@ -893,38 +895,13 @@ export function actionFields(
         ? html`<button
             type="button"
             class="add-btn"
-            @click=${(e: Event) => runTestAction(e.currentTarget as HTMLElement, hass!, action, entity)}
+            @click=${(e: Event) => runAction(e.currentTarget as HTMLElement, hass!, action, entity)}
           >
             Test Action
           </button>`
         : nothing
     }
   </details>`;
-}
-
-/**
- * Fires an action once, for the Test Action button. Uses modern service/target
- * and more-info calls directly (rather than the bundled handleAction).
- */
-function runTestAction(
-  node: HTMLElement,
-  hass: HomeAssistant,
-  action: { action?: string; service?: string; entity?: string; data?: Record<string, unknown> },
-  entity: string | undefined,
-): void {
-  if (action.action === 'toggle') {
-    if (entity) {
-      void hass.callService('homeassistant', 'toggle', { entity_id: entity });
-    }
-  } else if (action.action === 'more-info') {
-    if (entity) {
-      fireEvent(node, 'hass-more-info', { entityId: entity });
-    }
-  } else if (action.action === 'call-service' && action.service) {
-    const [domain, service] = action.service.split('.', 2);
-    const target = action.entity ? { entity_id: action.entity } : undefined;
-    void hass.callService(domain, service, action.data, target);
-  }
 }
 
 /**

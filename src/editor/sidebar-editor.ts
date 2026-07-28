@@ -1664,6 +1664,7 @@ export class DashboardSidebarEditor extends LitElement {
         ${notes}
         <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
           <div class="editor">
+            ${this._footerContentHeader('Manual Card')}
             ${yamlField('YAML Config', footer?.card, (v) => this._setFooterCard(v))}
           </div>
           ${this._renderPreview(
@@ -1684,6 +1685,7 @@ export class DashboardSidebarEditor extends LitElement {
         ${notes}
         <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
           <div class="editor">
+            ${this._footerContentHeader('Text')}
             ${codeField(
               'Content Template',
               footer?.markdown,
@@ -1739,6 +1741,17 @@ export class DashboardSidebarEditor extends LitElement {
         )}
       </div>
     `;
+  }
+
+  /**
+   * Renders a title-only form header for the footer's single card/text element,
+   * matching the "Element Settings: <type>" heading other elements show but
+   * without the move/menu tools (there is nothing to reorder).
+   */
+  private _footerContentHeader(label: string): TemplateResult {
+    return html`<div class="form-head">
+      <div class="form-title">Element Settings: ${label}</div>
+    </div>`;
   }
 
   /**

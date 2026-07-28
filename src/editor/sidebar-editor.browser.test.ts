@@ -399,6 +399,16 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(saved?.footer?.markdown).to.equal(undefined);
   });
 
+  it('shows an Element Settings header for the card and text footers', async () => {
+    const card = await mount({ ...cfg(), footer: { card: { type: 'markdown', content: 'x' } } });
+    await tab(card, 'Footer');
+    expect(root(card).querySelector('.form-title')?.textContent).to.contain('Manual Card');
+
+    const text = await mount({ ...cfg(), footer: { markdown: 'x' } });
+    await tab(text, 'Footer');
+    expect(root(text).querySelector('.form-title')?.textContent).to.contain('Text');
+  });
+
   it('toggles the footer between UI and YAML editing from the tab menu', async () => {
     const el = await mount(cfg());
     await tab(el, 'Footer');

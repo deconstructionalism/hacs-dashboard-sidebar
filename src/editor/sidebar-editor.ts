@@ -719,8 +719,9 @@ export class DashboardSidebarEditor extends LitElement {
 
   /**
    * Selects the element a preview click identified, resetting field errors when
-   * the selection changes. Choosing a category sub-item from the collapsed
-   * popover expands the preview so the item is visible where it was selected.
+   * the selection changes. A category sub-item chosen from the collapsed
+   * popover is selected in place, without expanding the preview, the same as a
+   * footer button chosen from the collapsed footer menu.
    */
   private _onPreviewSelect(loc: string): void {
     const id = this._idForLoc(loc);
@@ -733,11 +734,6 @@ export class DashboardSidebarEditor extends LitElement {
       this._yamlError = null;
     }
     this._selected = id;
-    if (this._tabCollapsed && loc.includes('.')) {
-      const next = new Set(this._collapsedTabs);
-      next.delete(this._tab);
-      this._collapsedTabs = next;
-    }
   }
 
   /**
@@ -836,12 +832,10 @@ export class DashboardSidebarEditor extends LitElement {
     if (!sel) {
       return;
     }
-    if (sel.kind === 'item') {
-      const cat = this._working[sel.region]?.[sel.index];
-      this._selected = cat ? this._idFor(cat) : null;
-      return;
-    }
-    if (sel.kind === 'footer' || this._visibleCollapsed(sel.block)) {
+    // A category child or a footer button stays selected when collapsing: both
+    // remain reachable in the collapsed preview (a category's popover, the
+    // footer dots menu), just as when selected there directly.
+    if (sel.kind === 'item' || sel.kind === 'footer' || this._visibleCollapsed(sel.block)) {
       return;
     }
     const blocks = this._working[sel.region] ?? [];

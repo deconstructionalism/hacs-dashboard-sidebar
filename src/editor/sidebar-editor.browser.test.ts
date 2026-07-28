@@ -491,16 +491,19 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(root(el).querySelector('.empty-state')).to.exist;
   });
 
-  it('collapsing a selected sub-item selects its parent category', async () => {
+  it('keeps a selected sub-item selected when collapsing', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');
     await clickLoc(el, 'body:1.0'); // the "Kitchen" sub-item
     (root(el).querySelector('.pv-toggle') as HTMLButtonElement).click();
     await settle(el);
-    expect(root(el).querySelector('.form-title')?.textContent).to.contain('Category');
+    // The child stays selected (reachable via the collapsed category popover),
+    // rather than jumping selection to its parent category.
+    expect(root(el).querySelector('.pv-frame.collapsed')).to.exist;
+    expect(root(el).querySelector('.form-title')?.textContent).to.contain('Item');
   });
 
-  it('selecting a sub-item from the collapsed popover expands the preview', async () => {
+  it('selects a sub-item from the collapsed popover without expanding', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');
     (root(el).querySelector('.pv-toggle') as HTMLButtonElement).click(); // collapse
@@ -514,8 +517,8 @@ describe('<dashboard-sidebar-editor>', () => {
       }),
     );
     await settle(el);
-    // Choosing the hidden sub-item expands the preview and selects the item.
-    expect(root(el).querySelector('.pv-frame.collapsed')).to.not.exist;
+    // The item is selected in place; the preview stays collapsed.
+    expect(root(el).querySelector('.pv-frame.collapsed')).to.exist;
     expect(root(el).querySelector('.form-title')?.textContent).to.contain('Item');
   });
 

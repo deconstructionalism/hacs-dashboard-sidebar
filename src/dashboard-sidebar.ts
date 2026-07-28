@@ -128,6 +128,13 @@ export class DashboardSidebar extends LitElement {
   /** Whether the footer overflow popover is open. */
   @state() private _footerOpen = false;
 
+  /**
+   * Measured pixel width of the footer button bar, used to decide how many
+   * buttons fit before overflowing. Zero until first measured, when the config
+   * width is used as an estimate instead.
+   */
+  @state() private _footerBarWidth = 0;
+
   /** The active hover tooltip for a collapsed row, or null. */
   @state() private _tooltip: { text: string; rect: DOMRect } | null = null;
 
@@ -169,6 +176,12 @@ export class DashboardSidebar extends LitElement {
 
   /** Pending close of the preview's hover popover, for hover-intent bridging. */
   private _previewPopoverTimer?: number;
+
+  /** Observes the footer bar so its overflow count tracks the real width. */
+  private _footerResize?: ResizeObserver;
+
+  /** The footer element currently observed for width, to avoid re-observing. */
+  private _observedFooter?: HTMLElement;
 
   /**
    * Document-level click handler that closes any open popover when the click
@@ -306,6 +319,8 @@ export class DashboardSidebar extends LitElement {
     this._stopTick();
     this._cancelPopoverClose();
     this._templates.clear();
+    this._footerResize?.disconnect();
+    this._observedFooter = undefined;
   }
 
   /**
@@ -331,6 +346,53 @@ export class DashboardSidebar extends LitElement {
     }
     this._applyCardMod();
     this._wirePreviewSort();
+    this._observeFooter();
+  }
+
+  /**
+   * Points the footer ResizeObserver at the current footer bar (which Lit may
+   * recreate across renders) and takes an immediate measurement, so the number
+   * of inline buttons tracks the real bar width in a capped preview just as it
+   * does live.
+   */
+  private _observeFooter(): void {
+    // Live hosts are sized to the configured width, so the config-width math is
+    // exact there. Only a preview frame caps the sidebar narrower than its
+    // width, so only there does the real bar width need measuring.
+    if (!this.preview) {
+      return;
+    }
+    const bar = (this.renderRoot as ParentNode).querySelector<HTMLElement>(
+      '.footer.dashboard-sidebar-footer',
+    );
+    if (!bar) {
+      this._observedFooter = undefined;
+      return;
+    }
+    if (!this._footerResize) {
+      this._footerResize = new ResizeObserver(() => this._measureFooter());
+    }
+    if (this._observedFooter !== bar) {
+      this._footerResize.disconnect();
+      this._footerResize.observe(bar);
+      this._observedFooter = bar;
+    }
+    this._measureFooter();
+  }
+
+  /**
+   * Records the footer bar's inner width, ignoring sub-pixel jitter, so a
+   * changed width re-renders with the correct inline/overflow split.
+   */
+  private _measureFooter(): void {
+    const bar = this._observedFooter;
+    if (!bar) {
+      return;
+    }
+    const width = Math.round(bar.clientWidth);
+    if (width > 0 && width !== this._footerBarWidth) {
+      this._footerBarWidth = width;
+    }
   }
 
   /**
@@ -1324,8 +1386,11 @@ export class DashboardSidebar extends LitElement {
     // the same in a preview as live (the preview keeps a container hook so its
     // inline buttons stay selectable/draggable).
     const container = this.preview ? 'footer' : nothing;
-    const width = this._config?.width ?? 240;
-    const maxFit = Math.max(1, Math.floor((width - 24 + 4) / 44)); // 40px button + 4px gap
+    // Prefer the measured bar width (correct even when a preview frame caps the
+    // sidebar narrower than its configured width); fall back to the config
+    // width less the sidebar's 12px insets until the first measurement lands.
+    const width = (this.preview && this._footerBarWidth) || (this._config?.width ?? 240) - 24;
+    const maxFit = Math.max(1, Math.floor((width + 4) / 44)); // 40px button + 4px gap
     if (buttons.length <= maxFit) {
       return html`<div class=${classMap(footerClasses)} data-container=${container}>
         ${repeat(

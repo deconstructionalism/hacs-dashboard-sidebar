@@ -2080,6 +2080,13 @@ export class DashboardSidebarEditor extends LitElement {
       border-color: transparent;
     }
 
+    /* When open, space the fields inside the section like the top-level form. */
+    .advanced[open] {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
     .advanced {
       margin-top: 4px;
     }
@@ -2088,7 +2095,6 @@ export class DashboardSidebarEditor extends LitElement {
       cursor: pointer;
       font-size: 0.8rem;
       opacity: 0.7;
-      margin-bottom: 4px;
     }
 
     .region {

@@ -145,15 +145,35 @@ export const TIME_HELP: Array<{ code: string; desc: string }> = [
   { code: '%%', desc: 'A literal percent sign' },
 ];
 
-/** Built-in date format patterns offered in the date Format dropdown. */
+/**
+ * Built-in date format patterns offered in the date Format dropdown. Curated to
+ * cover the conventions people actually use — US month-first and the day-first
+ * order used across most of the world, dotted European style, the ISO 8601
+ * standard, plus short/long/full variants of each. Examples for 2026-07-27:
+ *   ''               Locale default (follows the browser locale)
+ *   %Y-%m-%d         2026-07-27          ISO 8601 (unambiguous)
+ *   %-m/%-d/%Y       7/27/2026           US, numeric
+ *   %-d/%-m/%Y       27/7/2026           Day-first, numeric (most of the world)
+ *   %-d.%-m.%Y       27.7.2026           Dotted (much of Europe)
+ *   %b %-d           Jul 27              Short
+ *   %a, %b %-d       Mon, Jul 27         Short with weekday
+ *   %B %-d, %Y       July 27, 2026       Long, US
+ *   %-d %B %Y        27 July 2026        Long, day-first
+ *   %A, %B %-d, %Y   Monday, July 27, 2026     Full, US
+ *   %A, %-d %B %Y    Monday, 27 July 2026      Full, day-first
+ */
 export const DATE_PRESETS: string[] = [
   '',
-  '%A, %B %-d',
-  '%A, %B %-d, %Y',
-  '%B %-d, %Y',
-  '%b %-d',
-  '%-m/%-d/%Y',
   '%Y-%m-%d',
+  '%-m/%-d/%Y',
+  '%-d/%-m/%Y',
+  '%-d.%-m.%Y',
+  '%b %-d',
+  '%a, %b %-d',
+  '%B %-d, %Y',
+  '%-d %B %Y',
+  '%A, %B %-d, %Y',
+  '%A, %-d %B %Y',
 ];
 
 /** Pattern values that map to a date preset, for detecting a custom pattern. */

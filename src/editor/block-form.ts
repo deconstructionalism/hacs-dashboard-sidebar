@@ -763,6 +763,23 @@ export function colorField(
 }
 
 /**
+ * Renders a color field as a template code editor (like the Text Template
+ * field), so a CSS color or a Jinja template can be entered with entity
+ * autocompletion. No color-swatch picker.
+ */
+export function colorTemplateField(
+  label: string,
+  value: string | undefined,
+  onInput: (value: string) => void,
+  hass?: HomeAssistant,
+): TemplateResult {
+  return codeField(label, value, onInput, hass, {
+    entities: true,
+    description: COLOR_HINT,
+  });
+}
+
+/**
  * Renders a labelled single-choice group of icon buttons.
  */
 export function iconChoiceField(
@@ -944,7 +961,7 @@ export function footerButtonFields(
 ): TemplateResult {
   return html`
     ${iconField('Icon Template', btn.icon, (v) => patch({ icon: v }), hass, TEMPLATE_HINT)}
-    ${colorField('Icon Color', btn.icon_color, (v) => patch({ icon_color: v || undefined }), COLOR_HINT)}
+    ${colorTemplateField('Icon Color Template', btn.icon_color, (v) => patch({ icon_color: v || undefined }), hass)}
     ${codeField('Title Template', btn.title, (v) => patch({ title: v || undefined }), hass, {
       entities: true,
       icons: true,
@@ -1070,7 +1087,7 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
           description: TEMPLATE_HINT,
         })}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
-        ${colorField('Text Color', block.text_color, (v) => patch({ text_color: v || undefined }), COLOR_HINT)}
+        ${colorTemplateField('Text Color Template', block.text_color, (v) => patch({ text_color: v || undefined }), hass)}
       `;
     case 'clock': {
       // The Format dropdown writes the single `format` key; Timezone and the
@@ -1087,7 +1104,7 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
           { disabled: custom },
         )}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
-        ${colorField('Text Color', block.text_color, (v) => patch({ text_color: v || undefined }), COLOR_HINT)}
+        ${colorTemplateField('Text Color Template', block.text_color, (v) => patch({ text_color: v || undefined }), hass)}
       `;
     }
     case 'date': {
@@ -1102,12 +1119,12 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
           { disabled: custom },
         )}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
-        ${colorField('Text Color', block.text_color, (v) => patch({ text_color: v || undefined }), COLOR_HINT)}
+        ${colorTemplateField('Text Color Template', block.text_color, (v) => patch({ text_color: v || undefined }), hass)}
       `;
     }
     case 'divider':
       return html`
-        ${colorField('Color', block.color, (v) => patch({ color: v || undefined }), COLOR_HINT)}
+        ${colorTemplateField('Color Template', block.color, (v) => patch({ color: v || undefined }), hass)}
       `;
     case 'item':
       return html`
@@ -1118,8 +1135,8 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
         })}
         ${iconField('Icon Template', block.icon, (v) => patch({ icon: v || undefined }), hass, TEMPLATE_HINT)}
         ${entityField('Entity', block.entity, (v) => patch({ entity: v || undefined }), hass, ENTITY_HINT)}
-        ${colorField('Text Color', block.text_color, (v) => patch({ text_color: v || undefined }), COLOR_HINT)}
-        ${colorField('Icon Color', block.icon_color, (v) => patch({ icon_color: v || undefined }), COLOR_HINT)}
+        ${colorTemplateField('Text Color Template', block.text_color, (v) => patch({ text_color: v || undefined }), hass)}
+        ${colorTemplateField('Icon Color Template', block.icon_color, (v) => patch({ icon_color: v || undefined }), hass)}
       `;
     case 'category':
       return html`
@@ -1129,8 +1146,8 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
           description: TEMPLATE_HINT,
         })}
         ${iconField('Icon Template', block.icon, (v) => patch({ icon: v || undefined }), hass, TEMPLATE_HINT)}
-        ${colorField('Text Color', block.text_color, (v) => patch({ text_color: v || undefined }), COLOR_HINT)}
-        ${colorField('Icon Color', block.icon_color, (v) => patch({ icon_color: v || undefined }), COLOR_HINT)}
+        ${colorTemplateField('Text Color Template', block.text_color, (v) => patch({ text_color: v || undefined }), hass)}
+        ${colorTemplateField('Icon Color Template', block.icon_color, (v) => patch({ icon_color: v || undefined }), hass)}
         ${checkboxField('Start collapsed', block.start_collapsed ?? true, (v) =>
           patch({ start_collapsed: v }),
         )}
@@ -1144,7 +1161,7 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
           description: TEMPLATE_HINT,
         })}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
-        ${colorField('Text Color', block.text_color, (v) => patch({ text_color: v || undefined }), COLOR_HINT)}
+        ${colorTemplateField('Text Color Template', block.text_color, (v) => patch({ text_color: v || undefined }), hass)}
       `;
     case 'card':
       return html`${yamlField('YAML Config', block.card, (v) => patch({ card: v }))}`;

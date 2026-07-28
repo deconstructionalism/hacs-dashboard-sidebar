@@ -34,7 +34,7 @@ import {
   checkboxField,
   codeField,
   colorField,
-  COLOR_HINT,
+  colorTemplateField,
   entityDatalist,
   footerButtonFields,
   iconChoiceField,
@@ -1691,11 +1691,11 @@ export class DashboardSidebarEditor extends LitElement {
                 description: TEMPLATE_HINT,
               },
             )}
-            ${colorField(
-              'Text Color',
+            ${colorTemplateField(
+              'Text Color Template',
               footer?.markdown_color,
               (v) => this._setFooterMarkdownColor(v),
-              COLOR_HINT,
+              this.hass,
             )}
           </div>
           ${this._renderPreview(

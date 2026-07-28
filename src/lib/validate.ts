@@ -293,23 +293,27 @@ function validateFooter(footer: unknown, ctx: string, errors: string[]): void {
     if (!Array.isArray(f.buttons)) {
       errors.push(`${ctx}.buttons: must be a list`);
     } else {
-      f.buttons.forEach((btn, i) => {
-        const bctx = `${ctx}.buttons[${i}]`;
-        if (!btn || typeof btn !== 'object') {
-          errors.push(`${bctx}: must be a mapping`);
-          return;
-        }
-        unknownKeys(btn, FOOTER_BUTTON_KEYS, bctx, errors);
-        if (typeof (btn as { icon?: unknown }).icon !== 'string') {
-          errors.push(`${bctx}: needs an icon`);
-        }
-        if (!(btn as { tap_action?: unknown }).tap_action) {
-          errors.push(`${bctx}: needs a tap_action`);
-        }
-        checkHooks(btn, bctx, errors);
-      });
+      f.buttons.forEach((btn, i) => validateFooterButton(btn, `${ctx}.buttons[${i}]`, errors));
     }
   }
+}
+
+/**
+ * Validates a single footer button: known keys, an icon, and a tap_action.
+ */
+function validateFooterButton(btn: unknown, ctx: string, errors: string[]): void {
+  if (!btn || typeof btn !== 'object') {
+    errors.push(`${ctx}: must be a mapping`);
+    return;
+  }
+  unknownKeys(btn, FOOTER_BUTTON_KEYS, ctx, errors);
+  if (typeof (btn as { icon?: unknown }).icon !== 'string') {
+    errors.push(`${ctx}: needs an icon`);
+  }
+  if (!(btn as { tap_action?: unknown }).tap_action) {
+    errors.push(`${ctx}: needs a tap_action`);
+  }
+  checkHooks(btn, ctx, errors);
 }
 
 /**
@@ -338,4 +342,45 @@ export function validateConfig(config: DashboardSidebarConfig): string[] {
   }
   validateFooter(config.footer, 'footer', errors);
   return errors;
+}
+
+/**
+ * Strips the leading context path (e.g. `element` / `element.align`) from each
+ * message, for surfacing single-element errors without the placeholder prefix.
+ */
+function stripCtx(errors: string[]): string[] {
+  return errors.map((e) => e.replace(/^element[.:]?\s*/, ''));
+}
+
+/**
+ * Validates one header/body block against its type's schema, returning the
+ * problems found. Used to check a YAML-edited element live.
+ */
+export function validateBlockConfig(block: unknown): string[] {
+  const errors: string[] = [];
+  validateBlock(block as SidebarBlock, 'element', errors);
+  return stripCtx(errors);
+}
+
+/**
+ * Validates one category child item against the item schema.
+ */
+export function validateItemConfig(item: unknown): string[] {
+  const errors: string[] = [];
+  const type = (item as { type?: unknown })?.type;
+  if (type === 'category' || type === 'divider') {
+    errors.push('a category can only contain items');
+  } else {
+    validateItem(item as ItemBlock, 'element', errors);
+  }
+  return stripCtx(errors);
+}
+
+/**
+ * Validates one footer button against the footer-button schema.
+ */
+export function validateFooterButtonConfig(btn: unknown): string[] {
+  const errors: string[] = [];
+  validateFooterButton(btn, 'element', errors);
+  return stripCtx(errors);
 }

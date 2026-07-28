@@ -26,7 +26,12 @@ import {
   PREVIEW_REORDER_EVENT,
   PREVIEW_SELECT_EVENT,
 } from '../lib/const';
-import { validateConfig } from '../lib/validate';
+import {
+  validateBlockConfig,
+  validateConfig,
+  validateFooterButtonConfig,
+  validateItemConfig,
+} from '../lib/validate';
 import { defaultBlock, defaultFooterButton } from './arrange';
 import {
   blockFields,
@@ -1683,9 +1688,21 @@ export class DashboardSidebarEditor extends LitElement {
   /**
    * Renders a YAML editor for the whole element (via HA's `<ha-yaml-editor>`,
    * with a JSON textarea fallback), emitting the parsed object on each valid
-   * edit.
+   * edit. `validate` checks the parsed value against the element's schema and
+   * its problems are surfaced alongside YAML parse errors.
    */
-  private _yamlEditor(value: unknown, onChange: (value: unknown) => void): TemplateResult {
+  private _yamlEditor(
+    value: unknown,
+    onChange: (value: unknown) => void,
+    validate: (parsed: unknown) => string[],
+  ): TemplateResult {
+    // Apply a valid YAML value, then flag any schema problems (the apply calls
+    // _touch, which clears the error, so set it afterwards).
+    const apply = (parsed: unknown): void => {
+      onChange(parsed);
+      const problems = validate(parsed);
+      this._yamlError = problems.length ? problems.join(' • ') : null;
+    };
     const error = this._yamlError
       ? html`<span class="field-error">${this._yamlError}</span>`
       : nothing;
@@ -1695,8 +1712,7 @@ export class DashboardSidebarEditor extends LitElement {
           .defaultValue=${value}
           @value-changed=${(e: CustomEvent<{ value: unknown; isValid: boolean }>) => {
             if (e.detail.isValid) {
-              this._yamlError = null;
-              onChange(e.detail.value);
+              apply(e.detail.value);
             } else {
               this._yamlError = (e.target as { errorMsg?: string }).errorMsg || 'Invalid YAML.';
             }
@@ -1716,8 +1732,7 @@ export class DashboardSidebarEditor extends LitElement {
             return;
           }
           try {
-            onChange(JSON.parse(text));
-            this._yamlError = null;
+            apply(JSON.parse(text));
           } catch {
             this._yamlError = 'Invalid YAML.';
           }
@@ -1790,7 +1805,11 @@ export class DashboardSidebarEditor extends LitElement {
     }
     if (sel.kind === 'footer') {
       const body = this._yamlActive()
-        ? this._yamlEditor(sel.btn, (v) => this._replaceFooterButton(sel.index, v))
+        ? this._yamlEditor(
+            sel.btn,
+            (v) => this._replaceFooterButton(sel.index, v),
+            validateFooterButtonConfig,
+          )
         : footerButtonFields(
             sel.btn,
             (partial) => this._patchFooterButton(sel.index, partial),
@@ -1817,8 +1836,10 @@ export class DashboardSidebarEditor extends LitElement {
       const patch: Patch = (partial) =>
         this._patchItem(sel.region, sel.index, sel.itemIndex, partial);
       const body = this._yamlActive()
-        ? this._yamlEditor(sel.item, (v) =>
-            this._replaceItem(sel.region, sel.index, sel.itemIndex, v),
+        ? this._yamlEditor(
+            sel.item,
+            (v) => this._replaceItem(sel.region, sel.index, sel.itemIndex, v),
+            validateItemConfig,
           )
         : blockFields({ ...sel.item, type: 'item' }, patch, this._ctx(), this.hass);
       return html`
@@ -1844,7 +1865,11 @@ export class DashboardSidebarEditor extends LitElement {
     // 'item' for the label of a top-level item.
     const typeLabel = blockTypeLabel(sel.block.type ?? 'item');
     const body = this._yamlActive()
-      ? this._yamlEditor(sel.block, (v) => this._replaceBlock(sel.region, sel.index, v))
+      ? this._yamlEditor(
+          sel.block,
+          (v) => this._replaceBlock(sel.region, sel.index, v),
+          validateBlockConfig,
+        )
       : blockFields(sel.block, patch, this._ctx(), this.hass);
     return html`
       <div class="form ${this._yamlActive() ? 'yaml-mode' : ''}">

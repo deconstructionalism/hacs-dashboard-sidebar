@@ -221,6 +221,26 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(yamlItem()?.textContent?.trim()).to.equal('Edit With UI');
   });
 
+  it('flags a schema-invalid element edited as YAML', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Content');
+    await clickLoc(el, 'body:0');
+    (root(el).querySelector('.form-tools [title="More"]') as HTMLButtonElement).click();
+    await el.updateComplete;
+    (
+      [...root(el).querySelectorAll('.add-menu-item')].find((b) =>
+        b.textContent?.includes('Edit As YAML'),
+      ) as HTMLButtonElement
+    ).click();
+    await el.updateComplete;
+    const ta = root(el).querySelector('.form textarea') as HTMLTextAreaElement;
+    // A title with no text is valid YAML but invalid per the schema.
+    ta.value = '{"type":"title"}';
+    ta.dispatchEvent(new Event('input'));
+    await el.updateComplete;
+    expect(root(el).querySelector('.form .field-error')?.textContent).to.contain('needs text');
+  });
+
   it('shows category items in the preview and offers add-item when selected', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');

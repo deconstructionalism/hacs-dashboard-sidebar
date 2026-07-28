@@ -1624,9 +1624,7 @@ export class DashboardSidebarEditor extends LitElement {
             this._ctx(),
             this.hass,
           )}
-          <button class="add-btn" @click=${() => this._addFooterButton()}>
-            ＋ Add Button Next
-          </button>
+          <button class="add-btn" @click=${() => this._addFooterButton()}>Add Button Next</button>
           <button
             class="add-btn danger"
             @click=${() => {
@@ -1647,7 +1645,7 @@ export class DashboardSidebarEditor extends LitElement {
           ${this._formHeader('Item')}
           ${blockFields({ ...sel.item, type: 'item' }, patch, this._ctx(), this.hass)}
           <button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
-            ＋ Add Child Element
+            Add Child Element
           </button>
           <button
             class="add-btn danger"
@@ -1671,11 +1669,11 @@ export class DashboardSidebarEditor extends LitElement {
         ${
           sel.block.type === 'category'
             ? html`<button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
-                ＋ Add Child Element
+                Add Child Element
               </button>`
             : nothing
         }
-        ${this._renderAddMenu(this._typeItems(sel.region), '＋ Add Element After', true)}
+        ${this._renderAddMenu(this._typeItems(sel.region), 'Add Element After', true)}
         <button
           class="add-btn danger"
           @click=${() => {
@@ -2656,14 +2654,16 @@ export class DashboardSidebarEditor extends LitElement {
       padding: 8px 12px;
       border: 1px solid transparent;
       border-radius: 8px;
-      background: var(--secondary-background-color, rgb(0 0 0 / 8%));
+      /* A tint of the text color reads as a solid button in both light and dark
+         themes, unlike the near-invisible secondary background. */
+      background: color-mix(in srgb, var(--primary-text-color, #000) 14%, transparent);
       color: inherit;
       cursor: pointer;
     }
 
     .add-btn:hover,
     .add.solid:hover {
-      background: var(--divider-color, rgb(0 0 0 / 16%));
+      background: color-mix(in srgb, var(--primary-text-color, #000) 24%, transparent);
     }
 
     /* Delete is a solid red button. */
@@ -2696,13 +2696,13 @@ export class DashboardSidebarEditor extends LitElement {
       padding: 8px 16px;
       border: 1px solid transparent;
       border-radius: 8px;
-      background: var(--secondary-background-color, rgb(0 0 0 / 8%));
+      background: color-mix(in srgb, var(--primary-text-color, #000) 14%, transparent);
       color: inherit;
       cursor: pointer;
     }
 
     footer button:not(.primary):hover {
-      background: var(--divider-color, rgb(0 0 0 / 16%));
+      background: color-mix(in srgb, var(--primary-text-color, #000) 24%, transparent);
     }
 
     .primary {

@@ -78,6 +78,26 @@ describe('<dashboard-sidebar> config species', () => {
       const el = await mount({ body: [{ type: 'item', title: 'A', tap_action: TAP }] });
       expect(root(el).querySelector('.dashboard-sidebar-header')).to.not.exist;
     });
+
+    it('applies text color to title, clock, and date', async () => {
+      const el = await mount({
+        header: [
+          { type: 'title', text: 'Home', text_color: 'red' },
+          { type: 'clock', text_color: 'green' },
+          { type: 'date', text_color: 'blue' },
+        ],
+        body: [{ type: 'item', title: 'A', tap_action: TAP }],
+      });
+      expect(
+        (root(el).querySelector('.dashboard-sidebar-title') as HTMLElement).style.color,
+      ).to.equal('red');
+      expect(
+        (root(el).querySelector('.dashboard-sidebar-clock') as HTMLElement).style.color,
+      ).to.equal('green');
+      expect(
+        (root(el).querySelector('.dashboard-sidebar-date') as HTMLElement).style.color,
+      ).to.equal('blue');
+    });
   });
 
   describe('side', () => {
@@ -141,6 +161,27 @@ describe('<dashboard-sidebar> config species', () => {
       expect(root(el).querySelector('.dashboard-sidebar-category-items')).to.exist;
     });
 
+    it('applies icon and text colors to an expanded category header', async () => {
+      const el = await mount({
+        body: [
+          {
+            type: 'category',
+            title: 'Rooms',
+            icon: 'mdi:floor-plan',
+            text_color: 'coral',
+            icon_color: 'navy',
+            start_collapsed: false,
+            items: [{ title: 'Kitchen', tap_action: TAP }],
+          },
+        ],
+      });
+      const header = root(el).querySelector('.dashboard-sidebar-category-header') as HTMLElement;
+      const label = header.querySelector('.label') as HTMLElement;
+      const icon = header.querySelector('ha-icon') as HTMLElement;
+      expect(label.style.color).to.equal('coral');
+      expect(icon.style.color).to.equal('navy');
+    });
+
     it('hides items when the category starts collapsed (the default)', async () => {
       const el = await mount({
         body: [
@@ -199,6 +240,15 @@ describe('<dashboard-sidebar> config species', () => {
       });
       expect(root(el).querySelector('.dashboard-sidebar-header .dashboard-sidebar-divider')).to
         .exist;
+    });
+
+    it('applies a color to the divider line', async () => {
+      const el = await mount({
+        header: [{ type: 'divider', color: 'purple' }],
+        body: [{ type: 'item', title: 'A', tap_action: TAP }],
+      });
+      const divider = root(el).querySelector('.dashboard-sidebar-divider') as HTMLElement;
+      expect(divider.style.background).to.equal('purple');
     });
 
     it('puts blocks in the fixed header and scrolling body', async () => {
@@ -276,6 +326,27 @@ describe('<dashboard-sidebar> config species', () => {
         footer: { markdown: 'x' },
       });
       expect(root(el).querySelector('.dashboard-sidebar-footer')).to.not.exist;
+    });
+
+    it('applies a text color to the markdown footer', async () => {
+      const el = await mount({
+        body: [{ type: 'item', title: 'A', tap_action: TAP }],
+        footer: { markdown: 'x', markdown_color: 'teal' },
+      });
+      const content = root(el).querySelector(
+        '.dashboard-sidebar-footer .dashboard-sidebar-content',
+      ) as HTMLElement;
+      expect(content.style.color).to.equal('teal');
+    });
+
+    it('drops the footer divider bar for a card/markdown footer', async () => {
+      const el = await mount({
+        body: [{ type: 'item', title: 'A', tap_action: TAP }],
+        footer: { markdown: 'x', divider: false },
+      });
+      expect(
+        root(el).querySelector('.dashboard-sidebar-footer')?.classList.contains('no-divider'),
+      ).to.equal(true);
     });
   });
 

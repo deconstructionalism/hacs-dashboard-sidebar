@@ -944,6 +944,7 @@ export class DashboardSidebar extends LitElement {
           class="entry-divider dashboard-sidebar-divider${this._hookClass(block)}${this._selClass(loc)}"
           id=${block.id ?? nothing}
           data-loc=${loc}
+          style=${styleMap(block.color ? { background: this._templates.resolve(block.color) } : {})}
         ></div>`;
       case 'item':
         return this._renderItemRow(block, collapsed, loc);
@@ -970,7 +971,10 @@ export class DashboardSidebar extends LitElement {
       return nothing;
     }
     const text = this._templates.resolve(block.text);
-    const style = { 'text-align': block.align ?? 'center' };
+    const style = {
+      'text-align': block.align ?? 'center',
+      color: block.text_color ? this._templates.resolve(block.text_color) : '',
+    };
     const clickable = this._actionable(block) ? ' clickable' : '';
     return html`<div
       class="app-title dashboard-sidebar-title${clickable}${this._hookClass(block)}${this._selClass(loc)}"
@@ -990,7 +994,10 @@ export class DashboardSidebar extends LitElement {
    * Renders a clock block, using the compact form while collapsed.
    */
   private _renderClock(block: ClockBlock, collapsed: boolean, loc: string): TemplateResult {
-    const style = { 'text-align': block.align ?? 'center' };
+    const style = {
+      'text-align': block.align ?? 'center',
+      color: block.text_color ? this._templates.resolve(block.text_color) : '',
+    };
     // `format` is an strftime pattern for the time. Legacy configs may still hold
     // the `12h`/`24h` convention plus the old `show_seconds`/`hour_format`/
     // `collapsed_format` keys; fold those into a pattern here.
@@ -1034,7 +1041,10 @@ export class DashboardSidebar extends LitElement {
    * Renders a date block, using the compact form while collapsed.
    */
   private _renderDate(block: DateBlock, collapsed: boolean, loc: string): TemplateResult {
-    const style = { 'text-align': block.align ?? 'center' };
+    const style = {
+      'text-align': block.align ?? 'center',
+      color: block.text_color ? this._templates.resolve(block.text_color) : '',
+    };
     const bf = typeof block.format === 'string' ? block.format : '';
     const format = bf.trim() || 'locale';
     const now = zonedDate(this._now, block.timezone ?? '');
@@ -1074,6 +1084,7 @@ export class DashboardSidebar extends LitElement {
     const style = {
       'align-items': FLEX_ALIGN[align],
       'text-align': align,
+      ...(block.text_color ? { color: this._templates.resolve(block.text_color) } : {}),
       ...CHROMELESS_CARD,
     };
     return html`<div
@@ -1214,6 +1225,8 @@ export class DashboardSidebar extends LitElement {
   ): TemplateResult {
     const title = this._templates.resolve(category.title);
     const icon = category.icon ? this._templates.resolve(category.icon) : '';
+    const textColor = category.text_color ? this._templates.resolve(category.text_color) : '';
+    const iconColor = category.icon_color ? this._templates.resolve(category.icon_color) : '';
     // In a preview, categories are expanded unless the editor asks otherwise.
     const collapsed = this.preview
       ? (this.previewCollapsedCats?.includes(loc) ?? false)
@@ -1228,8 +1241,8 @@ export class DashboardSidebar extends LitElement {
           data-loc=${loc}
           @click=${() => this._toggleCategoryCollapse(key)}
         >
-          ${icon ? html`<ha-icon icon=${icon}></ha-icon>` : nothing}
-          <span class="label">${title}</span>
+          ${icon ? html`<ha-icon icon=${icon} style=${styleMap({ color: iconColor })}></ha-icon>` : nothing}
+          <span class="label" style=${styleMap({ color: textColor })}>${title}</span>
           <ha-icon
             class="chevron dashboard-sidebar-chevron ${collapsed ? '' : 'open'}"
             icon="mdi:chevron-down"
@@ -1265,6 +1278,7 @@ export class DashboardSidebar extends LitElement {
   ): TemplateResult {
     const title = this._templates.resolve(category.title);
     const icon = category.icon ? this._templates.resolve(category.icon) : '';
+    const iconColor = category.icon_color ? this._templates.resolve(category.icon_color) : '';
     const open = this._openCategory === key;
     return html`
       <div
@@ -1296,7 +1310,11 @@ export class DashboardSidebar extends LitElement {
         >
           ${
             icon
-              ? html`<ha-icon class="dashboard-sidebar-item-icon" icon=${icon}></ha-icon>`
+              ? html`<ha-icon
+                  class="dashboard-sidebar-item-icon"
+                  icon=${icon}
+                  style=${styleMap({ color: iconColor })}
+                ></ha-icon>`
               : html`<span class="initials dashboard-sidebar-initials"
                   >${category.abbr ?? initials(title)}</span
                 >`
@@ -1324,7 +1342,12 @@ export class DashboardSidebar extends LitElement {
         @mouseenter=${this.preview ? () => this._cancelPopoverClose() : nothing}
         @mouseleave=${this.preview ? () => this._schedulePopoverClose() : nothing}
       >
-        <div class="popover-title dashboard-sidebar-popover-title">
+        <div
+          class="popover-title dashboard-sidebar-popover-title"
+          style=${styleMap(
+            category.text_color ? { color: this._templates.resolve(category.text_color) } : {},
+          )}
+        >
           ${this._templates.resolve(category.title)}
         </div>
         ${category.items.map((item, j) => this._renderItemRow(item, false, `${loc}.${j}`))}
@@ -1354,7 +1377,12 @@ export class DashboardSidebar extends LitElement {
         return nothing;
       }
       const markdown = footer.markdown !== undefined;
-      const style = markdown || typeof footer.card === 'string' ? CHROMELESS_CARD : {};
+      const style = {
+        ...(markdown || typeof footer.card === 'string' ? CHROMELESS_CARD : {}),
+        ...(markdown && footer.markdown_color
+          ? { color: this._templates.resolve(footer.markdown_color) }
+          : {}),
+      };
       const loc = markdown ? 'footer:markdown' : 'footer:card';
       return html`<div class=${classMap(footerClasses)}>
         <div

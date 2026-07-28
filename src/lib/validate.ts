@@ -24,7 +24,7 @@ const ACTIONS = ['tap_action', 'hold_action', 'double_tap_action'];
 
 /** Recognized block types, and the keys each one accepts. */
 const BLOCK_KEYS: Record<string, Set<string>> = {
-  title: new Set(['type', 'text', 'align', ...ACTIONS, ...COMMON]),
+  title: new Set(['type', 'text', 'align', 'text_color', ...ACTIONS, ...COMMON]),
   clock: new Set([
     'type',
     'format',
@@ -32,11 +32,12 @@ const BLOCK_KEYS: Record<string, Set<string>> = {
     'hour_format',
     'collapsed_format',
     'align',
+    'text_color',
     ...ACTIONS,
     ...COMMON,
   ]),
-  date: new Set(['type', 'format', 'timezone', 'align', ...ACTIONS, ...COMMON]),
-  divider: new Set(['type', ...COMMON]),
+  date: new Set(['type', 'format', 'timezone', 'align', 'text_color', ...ACTIONS, ...COMMON]),
+  divider: new Set(['type', 'color', ...COMMON]),
   item: new Set([
     'type',
     'title',
@@ -53,17 +54,19 @@ const BLOCK_KEYS: Record<string, Set<string>> = {
     'title',
     'icon',
     'abbr',
+    'text_color',
+    'icon_color',
     'start_collapsed',
     'guide_line',
     'items',
     ...COMMON,
   ]),
-  markdown: new Set(['type', 'content', 'align', ...COMMON]),
+  markdown: new Set(['type', 'content', 'align', 'text_color', ...COMMON]),
   card: new Set(['type', 'card', 'align', 'background', ...COMMON]),
 };
 
 /** Recognized keys on the footer. */
-const FOOTER_KEYS = new Set(['divider', 'buttons', 'card', 'markdown']);
+const FOOTER_KEYS = new Set(['divider', 'buttons', 'card', 'markdown', 'markdown_color']);
 
 /** Recognized keys on a footer button. */
 const FOOTER_BUTTON_KEYS = new Set([

@@ -46,6 +46,8 @@ export interface TitleBlock extends BlockCommon {
   text: MaybeTemplate;
   /** Horizontal alignment. Default center. */
   align?: Align;
+  /** Optional text color, any CSS color. Templatable. */
+  text_color?: MaybeTemplate;
   /** Optional action performed when tapped. Not templatable. */
   tap_action?: ActionConfig;
   /** Optional action performed when held. Not templatable. */
@@ -67,6 +69,8 @@ export interface ClockBlock extends BlockCommon {
   timezone?: string;
   /** Horizontal alignment. Default center. */
   align?: Align;
+  /** Optional text color, any CSS color. Templatable. */
+  text_color?: MaybeTemplate;
   /** Optional action performed when tapped. Not templatable. */
   tap_action?: ActionConfig;
   /** Optional action performed when held. Not templatable. */
@@ -85,6 +89,8 @@ export interface DateBlock extends BlockCommon {
   timezone?: string;
   /** Horizontal alignment. Default center. */
   align?: Align;
+  /** Optional text color, any CSS color. Templatable. */
+  text_color?: MaybeTemplate;
   /** Optional action performed when tapped. Not templatable. */
   tap_action?: ActionConfig;
   /** Optional action performed when held. Not templatable. */
@@ -97,6 +103,8 @@ export interface DateBlock extends BlockCommon {
 export interface DividerBlock extends BlockCommon {
   /** Block discriminator. */
   type: 'divider';
+  /** Optional line color, any CSS color. Templatable. */
+  color?: MaybeTemplate;
 }
 
 /** A single tappable row. Standalone in a region, or nested in a category. */
@@ -139,6 +147,10 @@ export interface CategoryBlock extends BlockCommon {
    * initials of the title; set it to disambiguate colliding initials.
    */
   abbr?: string;
+  /** Optional heading text color, any CSS color. Templatable. */
+  text_color?: MaybeTemplate;
+  /** Optional heading icon color, any CSS color. Templatable. */
+  icon_color?: MaybeTemplate;
   /** Whether the group starts collapsed when the sidebar is expanded. */
   start_collapsed?: boolean;
   /** Whether to draw the vertical guide line beside the items. Default true. */
@@ -155,6 +167,8 @@ export interface MarkdownBlock extends BlockCommon {
   content: MaybeTemplate;
   /** Horizontal alignment. Default left. */
   align?: Align;
+  /** Optional text color, any CSS color. Templatable. */
+  text_color?: MaybeTemplate;
 }
 
 /** A manual card block: any Lovelace card, authored as YAML. */
@@ -217,6 +231,8 @@ export interface FooterConfig {
   card?: LovelaceCardConfig;
   /** Markdown content with Jinja templating, replacing the buttons. Templatable. */
   markdown?: MaybeTemplate;
+  /** Optional text color for the markdown footer, any CSS color. Templatable. */
+  markdown_color?: MaybeTemplate;
 }
 
 /** The full configuration read from the Lovelace `dashboard_sidebar` key. */

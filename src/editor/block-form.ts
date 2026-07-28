@@ -332,6 +332,9 @@ export function codeField(
 export const TEMPLATE_HINT =
   'Use Home Assistant markdown with Jinja to style and interpolate values from HA.';
 
+/** Hint shown under color fields, noting any CSS color or a template works. */
+export const COLOR_HINT = 'Any CSS color (hex, rgb, var(--…)); a Jinja template also works.';
+
 /** id of the shared entity `<datalist>` the editor renders once per modal. */
 export const ENTITY_DATALIST_ID = 'dsb-entity-options';
 
@@ -928,13 +931,20 @@ export function actionFields(
  * Renders the editable fields for one footer button, applying edits via patch.
  */
 export function footerButtonFields(
-  btn: { icon?: string; title?: string; entity?: string; tap_action?: { action?: string } },
+  btn: {
+    icon?: string;
+    icon_color?: string;
+    title?: string;
+    entity?: string;
+    tap_action?: { action?: string };
+  },
   patch: Patch,
   ctx?: ValidationCtx,
   hass?: HomeAssistant,
 ): TemplateResult {
   return html`
     ${iconField('Icon Template', btn.icon, (v) => patch({ icon: v }), hass, TEMPLATE_HINT)}
+    ${colorField('Icon Color', btn.icon_color, (v) => patch({ icon_color: v || undefined }), COLOR_HINT)}
     ${codeField('Title Template', btn.title, (v) => patch({ title: v || undefined }), hass, {
       entities: true,
       icons: true,
@@ -1060,6 +1070,7 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
           description: TEMPLATE_HINT,
         })}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
+        ${colorField('Text Color', block.text_color, (v) => patch({ text_color: v || undefined }), COLOR_HINT)}
       `;
     case 'clock': {
       // The Format dropdown writes the single `format` key; Timezone and the
@@ -1076,6 +1087,7 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
           { disabled: custom },
         )}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
+        ${colorField('Text Color', block.text_color, (v) => patch({ text_color: v || undefined }), COLOR_HINT)}
       `;
     }
     case 'date': {
@@ -1090,10 +1102,13 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
           { disabled: custom },
         )}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
+        ${colorField('Text Color', block.text_color, (v) => patch({ text_color: v || undefined }), COLOR_HINT)}
       `;
     }
     case 'divider':
-      return html`<p class="hint">A horizontal rule. No options.</p>`;
+      return html`
+        ${colorField('Color', block.color, (v) => patch({ color: v || undefined }), COLOR_HINT)}
+      `;
     case 'item':
       return html`
         ${codeField('Title Template', block.title, (v) => patch({ title: v }), hass, {
@@ -1103,6 +1118,8 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
         })}
         ${iconField('Icon Template', block.icon, (v) => patch({ icon: v || undefined }), hass, TEMPLATE_HINT)}
         ${entityField('Entity', block.entity, (v) => patch({ entity: v || undefined }), hass, ENTITY_HINT)}
+        ${colorField('Text Color', block.text_color, (v) => patch({ text_color: v || undefined }), COLOR_HINT)}
+        ${colorField('Icon Color', block.icon_color, (v) => patch({ icon_color: v || undefined }), COLOR_HINT)}
       `;
     case 'category':
       return html`
@@ -1112,6 +1129,8 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
           description: TEMPLATE_HINT,
         })}
         ${iconField('Icon Template', block.icon, (v) => patch({ icon: v || undefined }), hass, TEMPLATE_HINT)}
+        ${colorField('Text Color', block.text_color, (v) => patch({ text_color: v || undefined }), COLOR_HINT)}
+        ${colorField('Icon Color', block.icon_color, (v) => patch({ icon_color: v || undefined }), COLOR_HINT)}
         ${checkboxField('Start collapsed', block.start_collapsed ?? true, (v) =>
           patch({ start_collapsed: v }),
         )}
@@ -1125,6 +1144,7 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
           description: TEMPLATE_HINT,
         })}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
+        ${colorField('Text Color', block.text_color, (v) => patch({ text_color: v || undefined }), COLOR_HINT)}
       `;
     case 'card':
       return html`${yamlField('YAML Config', block.card, (v) => patch({ card: v }))}`;

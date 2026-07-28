@@ -61,6 +61,30 @@ describe('validateConfig', () => {
     ).toContain('header[0]: unknown option "foo"');
   });
 
+  it('accepts color options across block types and the footer', () => {
+    expect(
+      validateConfig({
+        header: [
+          { type: 'title', text: 'x', text_color: 'red' },
+          { type: 'clock', text_color: '{{ states("sensor.c") }}' },
+          { type: 'date', text_color: 'blue' },
+          { type: 'divider', color: '#333' },
+        ],
+        body: [
+          {
+            type: 'category',
+            title: 'c',
+            text_color: 'green',
+            icon_color: 'amber',
+            items: [{ title: 'i', tap_action: { action: 'toggle' } }],
+          },
+          { type: 'markdown', content: 'x', text_color: 'teal' },
+        ],
+        footer: { markdown: 'x', markdown_color: 'coral' },
+      } as unknown as DashboardSidebarConfig),
+    ).toHaveLength(0);
+  });
+
   it('validates title, clock, and date blocks', () => {
     expect(
       validateConfig({ header: [{ type: 'title' }] } as unknown as DashboardSidebarConfig),

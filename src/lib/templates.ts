@@ -92,6 +92,17 @@ export class TemplateManager {
       switch (block.type) {
         case 'title':
           add(block.text);
+          add(block.text_color);
+          break;
+        case 'clock':
+        case 'date':
+          add(block.text_color);
+          break;
+        case 'divider':
+          add(block.color);
+          break;
+        case 'markdown':
+          add(block.text_color);
           break;
         case 'item':
           addItem(block);
@@ -99,6 +110,8 @@ export class TemplateManager {
         case 'category':
           add(block.title);
           add(block.icon);
+          add(block.text_color);
+          add(block.icon_color);
           block.items.forEach(addItem);
           break;
         default:
@@ -112,6 +125,7 @@ export class TemplateManager {
       add(btn.icon_color);
       add(btn.title);
     });
+    add(config.footer?.markdown_color);
     this._flush();
   }
 

@@ -34,6 +34,7 @@ import {
   checkboxField,
   codeField,
   colorField,
+  COLOR_HINT,
   entityDatalist,
   footerButtonFields,
   iconChoiceField,
@@ -1082,11 +1083,26 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Sets the footer markdown content.
+   * Sets the footer markdown content, keeping the divider and text color.
    */
   private _setFooterMarkdown(content: string): void {
-    this._working.footer = { markdown: content, divider: this._working.footer?.divider };
+    this._working.footer = {
+      markdown: content,
+      markdown_color: this._working.footer?.markdown_color,
+      divider: this._working.footer?.divider,
+    };
     this._touch();
+  }
+
+  /**
+   * Sets the footer markdown text color, dropping it when cleared.
+   */
+  private _setFooterMarkdownColor(color: string): void {
+    const footer = this._working.footer;
+    if (footer) {
+      footer.markdown_color = color || undefined;
+      this._touch();
+    }
   }
 
   /**
@@ -1595,6 +1611,7 @@ export class DashboardSidebarEditor extends LitElement {
   private _renderFooterTab(): TemplateResult {
     const footer = this._working.footer;
     const mode = this._footerMode();
+    const dividerShown = footer?.divider ?? true;
     const empty = mode === 'buttons' && (footer?.buttons?.length ?? 0) === 0;
     const notes = this._renderTabNotes(
       'The footer is pinned to the bottom of the sidebar and does not scroll.',
@@ -1648,7 +1665,10 @@ export class DashboardSidebarEditor extends LitElement {
           ${this._renderPreview(
             html`${this._renderGhost('up')}
             ${this._previewEl('footer-card', {
-              footer: { card: footer?.card ?? { type: 'markdown', content: '' }, divider: false },
+              footer: {
+                card: footer?.card ?? { type: 'markdown', content: '' },
+                divider: dividerShown,
+              },
             })}`,
             true,
           )}
@@ -1671,11 +1691,21 @@ export class DashboardSidebarEditor extends LitElement {
                 description: TEMPLATE_HINT,
               },
             )}
+            ${colorField(
+              'Text Color',
+              footer?.markdown_color,
+              (v) => this._setFooterMarkdownColor(v),
+              COLOR_HINT,
+            )}
           </div>
           ${this._renderPreview(
             html`${this._renderGhost('up')}
             ${this._previewEl('footer-markdown', {
-              footer: { markdown: footer?.markdown ?? '', divider: false },
+              footer: {
+                markdown: footer?.markdown ?? '',
+                markdown_color: footer?.markdown_color,
+                divider: dividerShown,
+              },
             })}`,
             true,
           )}
@@ -1709,27 +1739,34 @@ export class DashboardSidebarEditor extends LitElement {
     const c = this._selectedContainer();
     const atTop = !c || c.index <= 0;
     const atBottom = !c || c.index >= c.arr.length - 1;
+    // Footer buttons sit in a horizontal bar, so their reorder arrows point
+    // left/right rather than up/down.
+    const horizontal = this._locate(this._selected)?.kind === 'footer';
+    const prevLabel = horizontal ? 'Move left' : 'Move up';
+    const nextLabel = horizontal ? 'Move right' : 'Move down';
+    const prevIcon = horizontal ? 'mdi:arrow-left' : 'mdi:arrow-up';
+    const nextIcon = horizontal ? 'mdi:arrow-right' : 'mdi:arrow-down';
     return html`
       <div class="form-head">
         <div class="form-title">Element Settings: ${typeLabel}</div>
         <div class="form-tools">
           <button
             class="tool"
-            title="Move up"
-            aria-label="Move up"
+            title=${prevLabel}
+            aria-label=${prevLabel}
             ?disabled=${atTop}
             @click=${() => this._moveSelected(-1)}
           >
-            <ha-icon icon="mdi:arrow-up"></ha-icon>
+            <ha-icon icon=${prevIcon}></ha-icon>
           </button>
           <button
             class="tool"
-            title="Move down"
-            aria-label="Move down"
+            title=${nextLabel}
+            aria-label=${nextLabel}
             ?disabled=${atBottom}
             @click=${() => this._moveSelected(1)}
           >
-            <ha-icon icon="mdi:arrow-down"></ha-icon>
+            <ha-icon icon=${nextIcon}></ha-icon>
           </button>
           ${
             this._hasElementMenu()

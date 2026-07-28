@@ -313,6 +313,23 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(labels).to.include('Text');
   });
 
+  it('shows left/right move arrows for a selected footer button', async () => {
+    const el = await mount({
+      ...cfg(),
+      footer: {
+        buttons: [
+          { icon: 'mdi:cog', tap_action: TAP },
+          { icon: 'mdi:home', tap_action: TAP },
+        ],
+      },
+    });
+    await tab(el, 'Footer');
+    await clickLoc(el, 'footer:btn:0');
+    expect(root(el).querySelector('.form-tools [title="Move left"]')).to.exist;
+    expect(root(el).querySelector('.form-tools [title="Move right"]')).to.exist;
+    expect(root(el).querySelector('.form-tools [title="Move up"]')).to.not.exist;
+  });
+
   it('re-disables Save after toggling a boolean setting off again', async () => {
     const el = await mount(cfg());
     await tab(el, 'Settings');

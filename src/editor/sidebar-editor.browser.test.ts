@@ -276,7 +276,7 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(preview(el)?.shadowRoot?.querySelector('[data-loc="body:1.0"]')).to.exist;
     await clickLoc(el, 'body:1');
     const addItem = [...root(el).querySelectorAll('.form .add-btn')].some((b) =>
-      b.textContent?.includes('Add Child Element'),
+      b.textContent?.includes('Add Child Item'),
     );
     expect(addItem).to.equal(true);
   });

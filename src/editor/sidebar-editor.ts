@@ -2092,7 +2092,7 @@ export class DashboardSidebarEditor extends LitElement {
         <div class="form ${this._yamlActive() ? 'yaml-mode' : ''}">
           ${this._formHeader('Item')} ${this._uiYamlBanner()} ${body}
           <button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
-            Add Child Element
+            Add Child Item
           </button>
           <button
             class="add-btn danger"
@@ -2149,7 +2149,7 @@ export class DashboardSidebarEditor extends LitElement {
         ${
           sel.block.type === 'category'
             ? html`<button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
-                Add Child Element
+                Add Child Item
               </button>`
             : nothing
         }

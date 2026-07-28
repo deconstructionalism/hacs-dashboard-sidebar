@@ -125,6 +125,13 @@ export class DashboardSidebar extends LitElement {
   /** Viewport rect of the control anchoring an open popover, or null. */
   @state() private _popoverAnchor: DOMRect | null = null;
 
+  /**
+   * Viewport rect anchoring a popover pinned open because its selected child is
+   * being edited in the collapsed preview (a category's item or a footer
+   * button), or null when nothing is pinned.
+   */
+  @state() private _pinnedAnchor: DOMRect | null = null;
+
   /** Whether the footer overflow popover is open. */
   @state() private _footerOpen = false;
 
@@ -347,6 +354,66 @@ export class DashboardSidebar extends LitElement {
     this._applyCardMod();
     this._wirePreviewSort();
     this._observeFooter();
+    this._updatePinnedAnchor();
+  }
+
+  /**
+   * The loc of the collapsed category whose popover should be pinned open (its
+   * child is selected), or null. Only in a collapsed preview.
+   */
+  private _pinnedCategoryLoc(): string | null {
+    const sel = this.previewSelected;
+    if (!this.preview || !this.previewCollapsed || !sel || !sel.includes('.')) {
+      return null;
+    }
+    return sel.slice(0, sel.indexOf('.'));
+  }
+
+  /**
+   * Whether a footer button is selected in the collapsed preview, so the footer
+   * overflow popover should be pinned open.
+   */
+  private _footerPinned(): boolean {
+    return (
+      this.preview &&
+      this.previewCollapsed &&
+      (this.previewSelected?.startsWith('footer:btn:') ?? false)
+    );
+  }
+
+  /**
+   * Measures and stores the anchor rect for a popover pinned open by a selected
+   * child (a collapsed category's icon, or the footer's dots button), so the
+   * popover stays open while that child is edited. Guarded so it only sets state
+   * when the rect actually changes, avoiding an update loop.
+   */
+  private _updatePinnedAnchor(): void {
+    const catLoc = this._pinnedCategoryLoc();
+    const selector = catLoc
+      ? `.collapsed-row[data-loc="${catLoc}"]`
+      : this._footerPinned()
+        ? '.dashboard-sidebar-footer-more'
+        : null;
+    const node = selector
+      ? (this.renderRoot as ParentNode).querySelector<HTMLElement>(selector)
+      : null;
+    if (!node) {
+      if (this._pinnedAnchor) {
+        this._pinnedAnchor = null;
+      }
+      return;
+    }
+    const r = node.getBoundingClientRect();
+    const cur = this._pinnedAnchor;
+    if (
+      !cur ||
+      cur.top !== r.top ||
+      cur.left !== r.left ||
+      cur.width !== r.width ||
+      cur.height !== r.height
+    ) {
+      this._pinnedAnchor = r;
+    }
   }
 
   /**
@@ -1280,6 +1347,7 @@ export class DashboardSidebar extends LitElement {
     const icon = category.icon ? this._templates.resolve(category.icon) : '';
     const iconColor = category.icon_color ? this._templates.resolve(category.icon_color) : '';
     const open = this._openCategory === key;
+    const pinned = this._pinnedCategoryLoc() === loc;
     return html`
       <div
         class="category-anchor dashboard-sidebar-category${this._hookClass(category)}"
@@ -1323,7 +1391,9 @@ export class DashboardSidebar extends LitElement {
         ${
           open && this._popoverAnchor
             ? this._renderPopover(category, this._popoverAnchor, loc)
-            : nothing
+            : pinned && this._pinnedAnchor
+              ? this._renderPopover(category, this._pinnedAnchor, loc)
+              : nothing
         }
       </div>
     `;
@@ -1402,10 +1472,15 @@ export class DashboardSidebar extends LitElement {
     const anchor = this._popoverAnchor;
 
     if (collapsed) {
+      // Keep the overflow popover pinned open while a footer button is being
+      // edited in the collapsed preview, so the selected button stays visible.
+      const pinned = this._footerPinned();
+      const showPopover = (this._footerOpen && anchor) || (pinned && this._pinnedAnchor);
+      const popAnchor = this._footerOpen && anchor ? anchor : this._pinnedAnchor;
       return html`
         <div class=${classMap(footerClasses)}>
           ${this._renderDots('row item collapsed-row dashboard-sidebar-item dashboard-sidebar-footer-more')}
-          ${this._footerOpen && anchor ? this._renderFooterPopover(buttons, anchor, 0) : nothing}
+          ${showPopover && popAnchor ? this._renderFooterPopover(buttons, popAnchor, 0) : nothing}
         </div>
       `;
     }

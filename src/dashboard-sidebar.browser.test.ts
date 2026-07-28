@@ -418,6 +418,70 @@ describe('<dashboard-sidebar> config species', () => {
     });
   });
 
+  describe('collapsed preview pinned popovers', () => {
+    /** Mounts a collapsed preview with the given config and selection. */
+    async function pinned(
+      config: DashboardSidebarConfig,
+      selected: string,
+    ): Promise<DashboardSidebar> {
+      const el = await fixture<DashboardSidebar>(html`<dashboard-sidebar></dashboard-sidebar>`);
+      el.preview = true;
+      el.previewCollapsed = true;
+      el.setConfig(config);
+      el.previewSelected = selected;
+      // Two settle cycles: one to render the collapsed strip, a second after
+      // updated() measures the anchor and pins the popover open.
+      await el.updateComplete;
+      await aTimeout(0);
+      await el.updateComplete;
+      return el;
+    }
+
+    it("keeps a category's popover open while its child is selected", async () => {
+      const el = await pinned(
+        {
+          body: [
+            {
+              type: 'category',
+              title: 'Rooms',
+              items: [{ title: 'Kitchen', tap_action: TAP }],
+            },
+          ],
+        },
+        'body:0.0',
+      );
+      expect(root(el).querySelector('.dashboard-sidebar-popover')).to.exist;
+      expect(root(el).querySelector('.dashboard-sidebar-popover .sb-selected')).to.exist;
+    });
+
+    it('keeps the footer overflow popover open while a button is selected', async () => {
+      const el = await pinned(
+        {
+          body: [{ type: 'item', title: 'A', tap_action: TAP }],
+          footer: { buttons: [{ icon: 'mdi:cog', tap_action: TAP }] },
+        },
+        'footer:btn:0',
+      );
+      expect(root(el).querySelector('.dashboard-sidebar-footer-popover')).to.exist;
+    });
+
+    it('does not pin a popover when the category itself is selected', async () => {
+      const el = await pinned(
+        {
+          body: [
+            {
+              type: 'category',
+              title: 'Rooms',
+              items: [{ title: 'Kitchen', tap_action: TAP }],
+            },
+          ],
+        },
+        'body:0',
+      );
+      expect(root(el).querySelector('.dashboard-sidebar-popover')).to.not.exist;
+    });
+  });
+
   describe('errors', () => {
     const cases: Array<[string, unknown, string]> = [
       ['no region', {}, 'needs a header or body'],

@@ -115,7 +115,7 @@ describe('<dashboard-sidebar-editor>', () => {
     (root(el).querySelector('.form .add') as HTMLButtonElement).click();
     await el.updateComplete;
     const divider = [...root(el).querySelectorAll('.add-menu-item')].find(
-      (b) => b.querySelector('.add-menu-label')?.textContent?.trim() === 'Divider',
+      (b) => b.textContent?.trim() === 'Divider',
     ) as HTMLButtonElement;
     divider.click();
     await settle(el);

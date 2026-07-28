@@ -241,6 +241,34 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(root(el).querySelector('.form .field-error')?.textContent).to.contain('needs text');
   });
 
+  it("surfaces a manual card's validation error from the card helpers", async () => {
+    (window as unknown as { loadCardHelpers?: () => Promise<unknown> }).loadCardHelpers =
+      async () => ({
+        createCardElement: (c: { type?: string }) => {
+          const node = document.createElement(c.type === 'bogus' ? 'hui-error-card' : 'div');
+          if (c.type === 'bogus') {
+            (node as unknown as { _config: { error: string } })._config = {
+              error: 'No card type configured',
+            };
+          }
+          return node;
+        },
+      });
+    try {
+      const el = await mount({ body: [{ type: 'card', card: { type: 'bogus' } }] });
+      el.hass = {} as never;
+      await tab(el, 'Content');
+      await clickLoc(el, 'body:0');
+      await new Promise((r) => setTimeout(r, 600));
+      await el.updateComplete;
+      expect(root(el).querySelector('.form .yaml-banner')?.textContent).to.contain(
+        'No card type configured',
+      );
+    } finally {
+      delete (window as unknown as { loadCardHelpers?: unknown }).loadCardHelpers;
+    }
+  });
+
   it('shows category items in the preview and offers add-item when selected', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');

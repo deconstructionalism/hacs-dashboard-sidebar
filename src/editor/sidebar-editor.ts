@@ -136,6 +136,18 @@ export class DashboardSidebarEditor extends LitElement {
   /** The current YAML parse error for the selected element, or null. */
   @state() private _yamlError: string | null = null;
 
+  /** The selected manual card's validation error against HA's cards, or null. */
+  @state() private _cardError: string | null = null;
+
+  /** Debounce timer and cancellation token for manual-card validation. */
+  private _cardTimer?: number;
+
+  /** Monotonic token so a stale async card validation cannot overwrite a newer. */
+  private _cardToken = 0;
+
+  /** JSON of the last-validated manual card, to skip redundant re-validation. */
+  private _lastCardSig = '';
+
   /** Anchor rect of the overflow menu's trigger. */
   private _elementMenuRect: DOMRect | null = null;
 
@@ -318,6 +330,113 @@ export class DashboardSidebarEditor extends LitElement {
    */
   protected updated(): void {
     this._compactEditors();
+    this._maybeValidateCard();
+  }
+
+  /**
+   * When the selected manual card's config changes, schedules a debounced
+   * validation of it against Home Assistant's cards. Clears the error when a
+   * non-card element is selected.
+   */
+  private _maybeValidateCard(): void {
+    const sel = this._locate(this._selected);
+    const card =
+      sel?.kind === 'block' && (sel.block as { type?: string }).type === 'card'
+        ? (sel.block as { card?: unknown }).card
+        : undefined;
+    const sig = card === undefined ? '' : JSON.stringify(card);
+    if (sig === this._lastCardSig) {
+      return;
+    }
+    this._lastCardSig = sig;
+    window.clearTimeout(this._cardTimer);
+    if (card === undefined) {
+      this._cardError = null;
+      return;
+    }
+    const token = ++this._cardToken;
+    this._cardTimer = window.setTimeout(() => void this._validateCard(card, token), 400);
+  }
+
+  /**
+   * Validates a card config the way Home Assistant does — by instantiating it
+   * via the card helpers — so any card type registered on this instance
+   * (built-in or custom) is checked, and the card's own error is surfaced. A
+   * `token` guards against a stale async result overwriting a newer one.
+   */
+  private async _validateCard(config: unknown, token: number): Promise<void> {
+    const done = (msg: string | null): void => {
+      if (token === this._cardToken) {
+        this._cardError = msg;
+      }
+    };
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      done('The card config must be a mapping.');
+      return;
+    }
+    const type = (config as { type?: unknown }).type;
+    if (typeof type !== 'string' || !type) {
+      done('The card needs a "type".');
+      return;
+    }
+    const load = (
+      window as unknown as {
+        loadCardHelpers?: () => Promise<
+          { createCardElement: (c: unknown) => HTMLElement } | undefined
+        >;
+      }
+    ).loadCardHelpers;
+    if (typeof load !== 'function') {
+      done(null); // Not in Home Assistant (e.g. tests); cannot validate.
+      return;
+    }
+    let helpers: { createCardElement: (c: unknown) => HTMLElement } | undefined;
+    try {
+      helpers = await load();
+    } catch {
+      done(null);
+      return;
+    }
+    if (token !== this._cardToken) {
+      return;
+    }
+    if (!helpers) {
+      done(null);
+      return;
+    }
+    // A custom card must be registered on this instance; wait briefly for a
+    // lazily-loaded one before declaring it missing.
+    if (type.startsWith('custom:')) {
+      const tag = type.slice('custom:'.length);
+      if (!customElements.get(tag)) {
+        const defined = await Promise.race([
+          customElements.whenDefined(tag).then(() => true),
+          new Promise<boolean>((resolve) => window.setTimeout(() => resolve(false), 3000)),
+        ]);
+        if (token !== this._cardToken) {
+          return;
+        }
+        if (!defined) {
+          done(`Custom card "${tag}" is not installed on this instance.`);
+          return;
+        }
+      }
+    }
+    try {
+      const el = helpers.createCardElement(config) as HTMLElement & {
+        _config?: { error?: string };
+      };
+      if (token !== this._cardToken) {
+        return;
+      }
+      if (el.tagName.toLowerCase() === 'hui-error-card') {
+        done(el._config?.error ?? 'Invalid card configuration.');
+      } else {
+        done(null);
+      }
+    } catch (e) {
+      done(e instanceof Error ? e.message : String(e));
+    }
   }
 
   /**
@@ -1710,6 +1829,19 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
+   * The manual-card validation result: an error banner when the card is invalid,
+   * or a subtle "valid" note otherwise (nothing while HA is unavailable).
+   */
+  private _cardStatus(): TemplateResult | typeof nothing {
+    if (this.hass === undefined) {
+      return nothing;
+    }
+    return this._cardError
+      ? html`<div class="yaml-banner">${this._cardError}</div>`
+      : html`<small class="card-ok">Card configuration is valid.</small>`;
+  }
+
+  /**
    * A banner shown above the UI form when the selected element is invalid (e.g.
    * a YAML edit introduced a bad key), validated live from the applied element
    * so it always reflects what is actually in the config.
@@ -1843,9 +1975,11 @@ export class DashboardSidebarEditor extends LitElement {
           validateBlockConfig,
         )
       : blockFields(sel.block, patch, this._ctx(), this.hass);
+    const cardStatus =
+      sel.block.type === 'card' && !this._yamlActive() ? this._cardStatus() : nothing;
     return html`
       <div class="form ${this._yamlActive() ? 'yaml-mode' : ''}">
-        ${this._formHeader(typeLabel)} ${this._uiYamlBanner()} ${body}
+        ${this._formHeader(typeLabel)} ${this._uiYamlBanner()} ${body} ${cardStatus}
         ${
           sel.block.type === 'category'
             ? html`<button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
@@ -2784,6 +2918,12 @@ export class DashboardSidebarEditor extends LitElement {
     .yaml-fill textarea {
       flex: 1 1 auto;
       min-height: 0;
+    }
+
+    /* The manual card passed validation against HA's cards. */
+    .card-ok {
+      font-size: 0.75rem;
+      color: var(--success-color, #4caf50);
     }
 
     /* Invalid-YAML notice carried back to the UI form. */

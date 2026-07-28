@@ -1647,7 +1647,7 @@ export class DashboardSidebarEditor extends LitElement {
           ${this._formHeader('Item')}
           ${blockFields({ ...sel.item, type: 'item' }, patch, this._ctx(), this.hass)}
           <button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
-            ＋ Add Sub-Item Below
+            ＋ Add Child Element
           </button>
           <button
             class="add-btn danger"
@@ -1671,11 +1671,11 @@ export class DashboardSidebarEditor extends LitElement {
         ${
           sel.block.type === 'category'
             ? html`<button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
-                ＋ Add Sub-Item Below
+                ＋ Add Child Element
               </button>`
             : nothing
         }
-        ${this._renderAddMenu(this._typeItems(sel.region), '＋ Add Element Below', true)}
+        ${this._renderAddMenu(this._typeItems(sel.region), '＋ Add Element After', true)}
         <button
           class="add-btn danger"
           @click=${() => {
@@ -2648,26 +2648,32 @@ export class DashboardSidebarEditor extends LitElement {
       cursor: pointer;
     }
 
-    /* Normal (solid) form action buttons: add-below, add sub-item, delete. */
+    /* Solid (filled) form action buttons: add-after, add child, delete. */
     .add-btn,
     .add.solid {
       font: inherit;
       margin-top: 4px;
       padding: 8px 12px;
-      border: 1px solid var(--divider-color, rgb(0 0 0 / 25%));
+      border: 1px solid transparent;
       border-radius: 8px;
-      background: transparent;
+      background: var(--secondary-background-color, rgb(0 0 0 / 8%));
       color: inherit;
       cursor: pointer;
     }
 
     .add-btn:hover,
     .add.solid:hover {
-      background: var(--secondary-background-color, rgb(0 0 0 / 6%));
+      background: var(--divider-color, rgb(0 0 0 / 16%));
+    }
+
+    /* Delete is a solid red button. */
+    .add-btn.danger {
+      background: var(--error-color, #db4437);
+      color: var(--text-primary-color, #fff);
     }
 
     .add-btn.danger:hover {
-      background: color-mix(in srgb, var(--error-color, #db4437) 12%, transparent);
+      background: color-mix(in srgb, var(--error-color, #db4437) 85%, #000);
     }
 
     .errors {
@@ -2688,11 +2694,15 @@ export class DashboardSidebarEditor extends LitElement {
     footer button {
       font: inherit;
       padding: 8px 16px;
-      border: 1px solid var(--divider-color, rgb(0 0 0 / 20%));
+      border: 1px solid transparent;
       border-radius: 8px;
-      background: transparent;
+      background: var(--secondary-background-color, rgb(0 0 0 / 8%));
       color: inherit;
       cursor: pointer;
+    }
+
+    footer button:not(.primary):hover {
+      background: var(--divider-color, rgb(0 0 0 / 16%));
     }
 
     .primary {

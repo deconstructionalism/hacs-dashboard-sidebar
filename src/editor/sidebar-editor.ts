@@ -69,6 +69,18 @@ const ALL_TYPES: BlockType[] = [
   'card',
 ];
 
+/** One-line description of each block type, shown under its name in the add menu. */
+const BLOCK_DESCRIPTIONS: Record<BlockType, string> = {
+  title: 'A heading line of text.',
+  clock: 'A live clock.',
+  date: 'The current date.',
+  divider: 'A horizontal divider line.',
+  item: 'A tappable row with an icon and label.',
+  category: 'A collapsible group of items.',
+  markdown: 'Text with Markdown and Jinja templates.',
+  card: 'Any Lovelace card, written as YAML.',
+};
+
 /** The modal tabs, in order. `body` is labelled "Content". */
 const TABS: Array<{ id: 'settings' | 'header' | 'body' | 'footer'; label: string }> = [
   { id: 'settings', label: 'Settings' },
@@ -128,7 +140,7 @@ export class DashboardSidebarEditor extends LitElement {
 
   /** Anchor rect and choices for the open add menu. */
   private _addMenuRect: DOMRect | null = null;
-  private _addMenuItems: Array<{ label: string; run: () => void }> = [];
+  private _addMenuItems: Array<{ label: string; desc?: string; run: () => void }> = [];
 
   /** Whether the selected element's overflow ("...") menu is open. */
   @state() private _elementMenuOpen = false;
@@ -2109,7 +2121,7 @@ export class DashboardSidebarEditor extends LitElement {
    * never listed as a choice the way a native select's placeholder would be.
    */
   private _renderAddMenu(
-    items: Array<{ label: string; run: () => void }>,
+    items: Array<{ label: string; desc?: string; run: () => void }>,
     label?: string,
     solid = false,
   ): TemplateResult {
@@ -2131,11 +2143,16 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Builds the add-menu choices for a region's block types.
+   * Builds the add-menu choices for a region's block types, each with a one-line
+   * description.
    */
-  private _typeItems(region: Region): Array<{ label: string; run: () => void }> {
+  private _typeItems(region: Region): Array<{ label: string; desc?: string; run: () => void }> {
     const types = region === 'header' ? ALL_TYPES : ALL_TYPES.filter((t) => t !== 'title');
-    return types.map((t) => ({ label: blockTypeLabel(t), run: () => this._addBlock(region, t) }));
+    return types.map((t) => ({
+      label: blockTypeLabel(t),
+      desc: BLOCK_DESCRIPTIONS[t],
+      run: () => this._addBlock(region, t),
+    }));
   }
 
   /**
@@ -2186,7 +2203,8 @@ export class DashboardSidebarEditor extends LitElement {
                 this._addMenuOpen = false;
               }}
             >
-              ${item.label}
+              <span class="add-menu-label">${item.label}</span>
+              ${item.desc ? html`<small class="add-menu-desc">${item.desc}</small>` : nothing}
             </button>`,
         )}
       </div>
@@ -3235,6 +3253,9 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     .add-menu-item {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
       font: inherit;
       text-align: left;
       padding: 8px 12px;
@@ -3247,6 +3268,11 @@ export class DashboardSidebarEditor extends LitElement {
 
     .add-menu-item:hover {
       background: var(--secondary-background-color, rgb(0 0 0 / 8%));
+    }
+
+    .add-menu-desc {
+      font-size: 0.75rem;
+      opacity: 0.6;
     }
   `;
 }

@@ -1,4 +1,4 @@
-import type { HomeAssistant } from 'custom-card-helpers';
+import { type ActionConfig, type HomeAssistant, handleAction } from 'custom-card-helpers';
 import { html, nothing, type TemplateResult } from 'lit';
 
 import { formatClock, formatDate } from '../lib/format';
@@ -801,10 +801,14 @@ export function actionFields(
   hass: HomeAssistant | undefined,
   key: string,
   summary: string,
+  entity?: string,
 ): TemplateResult {
   const kind = action?.action ?? 'none';
   const set = (partial: Record<string, unknown>): void =>
     patch({ [key]: { ...action, action: kind, ...partial } });
+  // toggle/more-info/call-service actions can be safely fired to test them;
+  // none/navigate/url are skipped (nothing to test, or disruptive).
+  const testable = kind === 'toggle' || kind === 'more-info' || kind === 'call-service';
   return html`<details class="advanced">
     <summary>${summary}</summary>
     ${selectField(
@@ -878,6 +882,23 @@ export function actionFields(
               { description: 'Must be valid JSON.', mono: true, autosize: true, minRows: 3 },
             )}
           `
+        : nothing
+    }
+    ${
+      testable && hass
+        ? html`<button
+            type="button"
+            class="add-btn"
+            @click=${(e: Event) =>
+              handleAction(
+                e.currentTarget as HTMLElement,
+                hass,
+                { entity, tap_action: { ...action, action: kind } as ActionConfig },
+                'tap',
+              )}
+          >
+            Test Action
+          </button>`
         : nothing
     }
   </details>`;
@@ -975,8 +996,9 @@ export function actionSections(
   ctx: ValidationCtx | undefined,
   hass: HomeAssistant | undefined,
 ): TemplateResult {
+  const entity = typeof el.entity === 'string' ? el.entity : undefined;
   return html`${ACTION_SECTIONS.map(({ key, summary }) =>
-    actionFields((el[key] as { action?: string }) ?? {}, patch, ctx, hass, key, summary),
+    actionFields((el[key] as { action?: string }) ?? {}, patch, ctx, hass, key, summary, entity),
   )}`;
 }
 

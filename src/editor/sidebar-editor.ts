@@ -1,9 +1,4 @@
-import {
-  type ActionConfig,
-  type HomeAssistant,
-  type LovelaceCardConfig,
-  handleAction,
-} from 'custom-card-helpers';
+import { type HomeAssistant, type LovelaceCardConfig } from 'custom-card-helpers';
 import { LitElement, css, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { guard } from 'lit/directives/guard.js';
@@ -780,40 +775,6 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * The selected element's entity/tap action when it has one (items and footer
-   * buttons), or null — used to offer "Test action" in the overflow menu.
-   */
-  private _actionable(): { entity?: string; tap_action: ActionConfig } | null {
-    const sel = this._locate(this._selected);
-    if (!sel) {
-      return null;
-    }
-    if (sel.kind === 'footer') {
-      return sel.btn;
-    }
-    if (sel.kind === 'item') {
-      return sel.item;
-    }
-    if (sel.kind === 'block' && sel.block.type === 'item') {
-      return sel.block;
-    }
-    return null;
-  }
-
-  /**
-   * Runs the selected element's tap action against the live Home Assistant, so
-   * its behavior can be tested from the editor without a preview click firing it.
-   */
-  private _testAction(): void {
-    const cfg = this._actionable();
-    if (!cfg || !this.hass) {
-      return;
-    }
-    handleAction(this, this.hass, { entity: cfg.entity, tap_action: cfg.tap_action }, 'tap');
-    this._elementMenuOpen = false;
-  }
-
-  /**
    * Merges a partial update into the top-level sidebar settings.
    */
   private _patchConfig(partial: Record<string, unknown>): void {
@@ -1585,8 +1546,7 @@ export class DashboardSidebarEditor extends LitElement {
 
   /**
    * Renders the selected element's overflow menu, fixed-positioned under its
-   * trigger: expand/collapse for a category, "Test action" for an element with a
-   * tap action, or a placeholder otherwise.
+   * trigger: the YAML/UI edit toggle, plus expand/collapse for a category.
    */
   private _renderElementMenu(): TemplateResult | typeof nothing {
     const rect = this._elementMenuRect;
@@ -1610,7 +1570,7 @@ export class DashboardSidebarEditor extends LitElement {
 
   /**
    * The overflow menu items for the current selection: the YAML/UI edit toggle,
-   * plus category or test-action items where they apply.
+   * plus the category expand/collapse item where it applies.
    */
   private _renderElementMenuItems(
     category: Extract<Selected, { kind: 'block' }> | null,
@@ -1619,24 +1579,11 @@ export class DashboardSidebarEditor extends LitElement {
     const catLabel = category
       ? `${this._previewCollapsedCats.has(this._idFor(category.block)) ? 'Expand' : 'Collapse'} Category`
       : '';
-    // Navigate/URL/none actions are not worth (or would be disruptive) to test
-    // from the editor, so only offer Test action for the others.
-    const action = this._actionable()?.tap_action?.action;
-    const testable =
-      this.hass !== undefined &&
-      !!action &&
-      action !== 'none' &&
-      action !== 'navigate' &&
-      action !== 'url';
     const context = category
       ? html`<button class="add-menu-item" @click=${() => this._toggleCategoryPreview()}>
           ${catLabel}
         </button>`
-      : testable
-        ? html`<button class="add-menu-item" @click=${() => this._testAction()}>
-            Test Tap Action
-          </button>`
-        : nothing;
+      : nothing;
     return html`
       <button class="add-menu-item" @click=${() => this._toggleYamlMode()}>
         ${yaml ? 'Edit With UI' : 'Edit As YAML'}

@@ -2658,6 +2658,16 @@ export class DashboardSidebarEditor extends LitElement {
       background: var(--divider-color, rgb(0 0 0 / 15%));
     }
 
+    /* Collapsed preview shows a single centered column of icons, so the ghost
+       drops its text bars and centers the icon placeholders to match. */
+    .split.pv-collapsed .ghost-bar {
+      display: none;
+    }
+
+    .split.pv-collapsed .ghost-row {
+      justify-content: center;
+    }
+
     /* The region preview renders at its natural height instead of filling the
        frame, so a short region does not stretch. */
     .pv-frame dashboard-sidebar {

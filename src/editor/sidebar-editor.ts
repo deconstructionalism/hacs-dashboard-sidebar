@@ -2140,8 +2140,18 @@ export class DashboardSidebarEditor extends LitElement {
       border-color: transparent;
     }
 
-    /* When open, space the fields inside the section like the top-level form. */
+    /* When open, space the fields inside the section like the top-level form.
+       In browsers that wrap the content in ::details-content, the fields are
+       inside that box, so it must carry the gap too (the details-level flex
+       there only spaces the summary from the content box). */
     .advanced[open] {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* stylelint-disable-next-line selector-pseudo-element-no-unknown */
+    .advanced[open]::details-content {
       display: flex;
       flex-direction: column;
       gap: 10px;

@@ -420,11 +420,24 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(closed).to.equal(true);
   });
 
-  it('selects nothing on landing and shows the hint', async () => {
+  it('selects nothing on landing and shows the empty-state prompt', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');
     expect(root(el).querySelector('.form')).to.not.exist;
-    expect(root(el).querySelector('.hint')?.textContent).to.contain('Select an element');
+    expect(root(el).querySelector('.empty-state .empty-msg')?.textContent).to.contain(
+      'Select an element',
+    );
+  });
+
+  it("remembers each tab's selection when switching away and back", async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Header');
+    await clickLoc(el, 'header:0');
+    expect(root(el).querySelector('.form')).to.exist;
+    await tab(el, 'Content');
+    expect(root(el).querySelector('.form')).to.not.exist;
+    await tab(el, 'Header');
+    expect(root(el).querySelector('.form')).to.exist;
   });
 
   it('collapsing clears the selection when the selected element is hidden', async () => {
@@ -436,7 +449,7 @@ describe('<dashboard-sidebar-editor>', () => {
     await settle(el);
     // No other visible header element, so the selection clears.
     expect(root(el).querySelector('.form')).to.not.exist;
-    expect(root(el).querySelector('.hint')).to.exist;
+    expect(root(el).querySelector('.empty-state')).to.exist;
   });
 
   it('collapsing a selected sub-item selects its parent category', async () => {

@@ -108,6 +108,9 @@ export class DashboardSidebarEditor extends LitElement {
   /** Stable id of the element selected for editing in the preview, or null. */
   @state() private _selected: string | null = null;
 
+  /** Remembered selection per tab, so switching tabs restores each one's. */
+  private _tabSelection: Partial<Record<'header' | 'body' | 'footer', string | null>> = {};
+
   /** Per-field validation errors, keyed by field name within the current form. */
   @state() private _fieldErrors: Record<string, string> = {};
 
@@ -1094,6 +1097,25 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
+   * Switches tabs, remembering the current tab's selection and restoring the
+   * target tab's, and closing any open menus.
+   */
+  private _switchTab(tab: 'settings' | 'header' | 'body' | 'footer'): void {
+    if (this._tab === 'header' || this._tab === 'body' || this._tab === 'footer') {
+      this._tabSelection[this._tab] = this._selected;
+    }
+    this._tab = tab;
+    this._selected =
+      tab === 'header' || tab === 'body' || tab === 'footer'
+        ? (this._tabSelection[tab] ?? null)
+        : null;
+    this._fieldErrors = {};
+    this._addMenuOpen = false;
+    this._elementMenuOpen = false;
+    this._tabMenuOpen = false;
+  }
+
+  /**
    * Renders the shared entity and service `<datalist>`s that the native
    * autocomplete inputs reference. Guarded on the entity/service counts so the
    * (potentially large) option lists are not rebuilt on every keystroke.
@@ -1127,14 +1149,7 @@ export class DashboardSidebarEditor extends LitElement {
             (t) => html`
               <button
                 class="tab ${this._tab === t.id ? 'active' : ''}"
-                @click=${() => {
-                  this._tab = t.id;
-                  this._fieldErrors = {};
-                  this._addMenuOpen = false;
-                  this._elementMenuOpen = false;
-                  this._tabMenuOpen = false;
-                  this._selected = null;
-                }}
+                @click=${() => this._switchTab(t.id)}
               >
                 ${t.label}
               </button>
@@ -1912,13 +1927,34 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
+   * The add control shown in the "nothing selected" empty state: an add-element
+   * menu for a region, or an add-button control for the footer.
+   */
+  private _emptySelectionAdd(): TemplateResult {
+    if (this._tab === 'header' || this._tab === 'body') {
+      return this._renderAddMenu(this._typeItems(this._tab), 'Add Element', true);
+    }
+    return html`<button class="add solid" @click=${() => this._addFooterButton()}>
+      Add Button
+    </button>`;
+  }
+
+  /**
    * Renders the left-panel edit form for the selected element, with a delete
-   * control, or a hint when nothing is selected in the current tab.
+   * control, or a call-to-action empty state when nothing is selected.
    */
   private _renderSelectedForm(): TemplateResult {
     const sel = this._locate(this._selected);
     if (!sel) {
-      return html`<p class="hint">Select an element in the preview to edit it.</p>`;
+      return html`
+        <div class="empty-state">
+          <ha-icon class="empty-icon" icon="mdi:gesture-tap-button"></ha-icon>
+          <p class="empty-msg">
+            Select an element in the preview to edit it, or add a new one below.
+          </p>
+          ${this._emptySelectionAdd()}
+        </div>
+      `;
     }
     if (sel.kind === 'footer') {
       const body = this._yamlActive()
@@ -2645,6 +2681,12 @@ export class DashboardSidebarEditor extends LitElement {
       margin: 0;
       max-width: 32ch;
       opacity: 0.7;
+    }
+
+    .empty-icon {
+      --mdc-icon-size: 40px;
+
+      opacity: 0.35;
     }
 
     .danger {

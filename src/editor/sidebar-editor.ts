@@ -130,6 +130,9 @@ export class DashboardSidebarEditor extends LitElement {
   /** Whether the selected element's overflow ("...") menu is open. */
   @state() private _elementMenuOpen = false;
 
+  /** Id of the element being edited as YAML, or null when editing with the UI. */
+  @state() private _yamlEditId: string | null = null;
+
   /** Anchor rect of the overflow menu's trigger. */
   private _elementMenuRect: DOMRect | null = null;
 
@@ -561,6 +564,7 @@ export class DashboardSidebarEditor extends LitElement {
     }
     if (id !== this._selected) {
       this._fieldErrors = {};
+      this._yamlEditId = null;
     }
     this._selected = id;
     if (this._tabCollapsed && loc.includes('.')) {
@@ -1567,23 +1571,46 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * The overflow menu items for the current selection.
+   * The overflow menu items for the current selection: the YAML/UI edit toggle,
+   * plus category or test-action items where they apply.
    */
   private _renderElementMenuItems(
     category: Extract<Selected, { kind: 'block' }> | null,
   ): TemplateResult {
-    if (category) {
-      const collapsed = this._previewCollapsedCats.has(this._idFor(category.block));
-      return html`<button class="add-menu-item" @click=${() => this._toggleCategoryPreview()}>
-        ${collapsed ? 'Expand' : 'Collapse'} Category
-      </button>`;
-    }
-    if (this._actionable() && this.hass) {
-      return html`<button class="add-menu-item" @click=${() => this._testAction()}>
-        Test action
-      </button>`;
-    }
-    return html`<p class="menu-empty">No actions yet.</p>`;
+    const yaml = this._yamlActive();
+    const catLabel = category
+      ? `${this._previewCollapsedCats.has(this._idFor(category.block)) ? 'Expand' : 'Collapse'} Category`
+      : '';
+    const context = category
+      ? html`<button class="add-menu-item" @click=${() => this._toggleCategoryPreview()}>
+          ${catLabel}
+        </button>`
+      : this._actionable() && this.hass
+        ? html`<button class="add-menu-item" @click=${() => this._testAction()}>
+            Test action
+          </button>`
+        : nothing;
+    return html`
+      <button class="add-menu-item" @click=${() => this._toggleYamlMode()}>
+        ${yaml ? 'Edit With UI' : 'Edit As YAML'}
+      </button>
+      ${context}
+    `;
+  }
+
+  /**
+   * Whether the currently selected element is being edited as YAML.
+   */
+  private _yamlActive(): boolean {
+    return this._yamlEditId !== null && this._yamlEditId === this._selected;
+  }
+
+  /**
+   * Toggles the selected element between the UI form and the YAML editor.
+   */
+  private _toggleYamlMode(): void {
+    this._yamlEditId = this._yamlActive() ? null : this._selected;
+    this._elementMenuOpen = false;
   }
 
   /**
@@ -1606,6 +1633,86 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
+   * Renders a YAML editor for the whole element (via HA's `<ha-yaml-editor>`,
+   * with a JSON textarea fallback), emitting the parsed object on each valid
+   * edit.
+   */
+  private _yamlEditor(value: unknown, onChange: (value: unknown) => void): TemplateResult {
+    if (customElements.get('ha-yaml-editor')) {
+      return html`<div class="field yaml-field">
+        <ha-yaml-editor
+          .defaultValue=${value}
+          @value-changed=${(e: CustomEvent<{ value: unknown; isValid: boolean }>) => {
+            if (e.detail.isValid) {
+              onChange(e.detail.value);
+            }
+          }}
+        ></ha-yaml-editor>
+      </div>`;
+    }
+    return html`<label class="field">
+      <textarea
+        class="mono"
+        rows="10"
+        .value=${JSON.stringify(value, null, 2)}
+        @input=${(e: Event) => {
+          const text = (e.target as HTMLTextAreaElement).value.trim();
+          if (!text) {
+            return;
+          }
+          try {
+            onChange(JSON.parse(text));
+          } catch {
+            // Keep the last valid value while the JSON is mid-edit.
+          }
+        }}
+      ></textarea>
+    </label>`;
+  }
+
+  /**
+   * Replaces the object's own keys with those of `next` (kept in place so the
+   * element's identity, and thus the selection, survives a YAML edit).
+   */
+  private _replaceInPlace(target: Record<string, unknown>, next: unknown): void {
+    const obj = next && typeof next === 'object' ? (next as Record<string, unknown>) : {};
+    Object.keys(target).forEach((key) => delete target[key]);
+    Object.assign(target, obj);
+    this._touch();
+  }
+
+  /**
+   * Replaces a header/body block from its edited YAML.
+   */
+  private _replaceBlock(region: Region, index: number, next: unknown): void {
+    const block = this._working[region]?.[index] as Record<string, unknown> | undefined;
+    if (block) {
+      this._replaceInPlace(block, next);
+    }
+  }
+
+  /**
+   * Replaces a category child item from its edited YAML.
+   */
+  private _replaceItem(region: Region, index: number, itemIndex: number, next: unknown): void {
+    const category = this._working[region]?.[index] as { items?: unknown[] } | undefined;
+    const item = category?.items?.[itemIndex] as Record<string, unknown> | undefined;
+    if (item) {
+      this._replaceInPlace(item, next);
+    }
+  }
+
+  /**
+   * Replaces a footer button from its edited YAML.
+   */
+  private _replaceFooterButton(index: number, next: unknown): void {
+    const btn = this._working.footer?.buttons?.[index] as Record<string, unknown> | undefined;
+    if (btn) {
+      this._replaceInPlace(btn, next);
+    }
+  }
+
+  /**
    * Renders the left-panel edit form for the selected element, with a delete
    * control, or a hint when nothing is selected in the current tab.
    */
@@ -1615,15 +1722,17 @@ export class DashboardSidebarEditor extends LitElement {
       return html`<p class="hint">Select an element in the preview to edit it.</p>`;
     }
     if (sel.kind === 'footer') {
-      return html`
-        <div class="form">
-          ${this._formHeader('Button')}
-          ${footerButtonFields(
+      const body = this._yamlActive()
+        ? this._yamlEditor(sel.btn, (v) => this._replaceFooterButton(sel.index, v))
+        : footerButtonFields(
             sel.btn,
             (partial) => this._patchFooterButton(sel.index, partial),
             this._ctx(),
             this.hass,
-          )}
+          );
+      return html`
+        <div class="form">
+          ${this._formHeader('Button')} ${body}
           <button class="add-btn" @click=${() => this._addFooterButton()}>Add Button Next</button>
           <button
             class="add-btn danger"
@@ -1640,10 +1749,14 @@ export class DashboardSidebarEditor extends LitElement {
     if (sel.kind === 'item') {
       const patch: Patch = (partial) =>
         this._patchItem(sel.region, sel.index, sel.itemIndex, partial);
+      const body = this._yamlActive()
+        ? this._yamlEditor(sel.item, (v) =>
+            this._replaceItem(sel.region, sel.index, sel.itemIndex, v),
+          )
+        : blockFields({ ...sel.item, type: 'item' }, patch, this._ctx(), this.hass);
       return html`
         <div class="form">
-          ${this._formHeader('Item')}
-          ${blockFields({ ...sel.item, type: 'item' }, patch, this._ctx(), this.hass)}
+          ${this._formHeader('Item')} ${body}
           <button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
             Add Child Element
           </button>
@@ -1663,9 +1776,12 @@ export class DashboardSidebarEditor extends LitElement {
     // ItemBlock.type is optional (items in a category omit it), so default to
     // 'item' for the label of a top-level item.
     const typeLabel = blockTypeLabel(sel.block.type ?? 'item');
+    const body = this._yamlActive()
+      ? this._yamlEditor(sel.block, (v) => this._replaceBlock(sel.region, sel.index, v))
+      : blockFields(sel.block, patch, this._ctx(), this.hass);
     return html`
       <div class="form">
-        ${this._formHeader(typeLabel)} ${blockFields(sel.block, patch, this._ctx(), this.hass)}
+        ${this._formHeader(typeLabel)} ${body}
         ${
           sel.block.type === 'category'
             ? html`<button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>

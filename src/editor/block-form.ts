@@ -805,7 +805,7 @@ export function actionFields(
   return html`<details class="advanced">
     <summary>Tap Action</summary>
     ${selectField(
-      'Tap Action',
+      'Action Type',
       kind,
       ACTION_OPTIONS,
       (v) => patch({ tap_action: { ...action, action: v } }),

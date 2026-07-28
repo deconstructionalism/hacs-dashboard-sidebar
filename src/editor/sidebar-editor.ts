@@ -133,6 +133,9 @@ export class DashboardSidebarEditor extends LitElement {
   /** Id of the element being edited as YAML, or null when editing with the UI. */
   @state() private _yamlEditId: string | null = null;
 
+  /** The current YAML parse error for the selected element, or null. */
+  @state() private _yamlError: string | null = null;
+
   /** Anchor rect of the overflow menu's trigger. */
   private _elementMenuRect: DOMRect | null = null;
 
@@ -331,10 +334,17 @@ export class DashboardSidebarEditor extends LitElement {
         '.code-field ha-code-editor',
       ),
     ];
+    const fillEditors = new Set<HTMLElement>();
     this.renderRoot.querySelectorAll('.yaml-field ha-yaml-editor').forEach((yaml) => {
       const inner = yaml.shadowRoot?.querySelector('ha-code-editor');
       if (inner) {
         editors.push(inner as HTMLElement & { shadowRoot: ShadowRoot | null });
+        // A YAML editor in fill mode grows to its (flex) container; make its
+        // inner editor stretch to full height.
+        if (yaml.closest('.yaml-fill')) {
+          fillEditors.add(inner as HTMLElement);
+          this._fillYamlEditor(yaml as HTMLElement & { shadowRoot: ShadowRoot | null });
+        }
       } else {
         retry = true;
       }
@@ -351,15 +361,20 @@ export class DashboardSidebarEditor extends LitElement {
       const style = document.createElement('style');
       // Hide the line-number gutter and the action toolbar (which sits in the
       // editor's top padding), drop the padding and the toolbar's separator
-      // border so the code sits flush like a plain input.
+      // border so the code sits flush like a plain input. Fill-mode editors also
+      // stretch to their container so the box is as tall as the space allows.
+      const fill = fillEditors.has(ed)
+        ? '.cm-editor{height:100%!important;max-height:100%!important}.cm-scroller{max-height:none!important}'
+        : '.cm-editor{border-radius:6px!important}';
       style.textContent =
         '.cm-gutters{display:none!important}' +
         '.cm-panels{display:none!important}' +
         '.code-editor-toolbar{display:none!important}' +
-        '.cm-editor{padding-top:0!important;border-radius:6px!important}' +
+        '.cm-editor{padding-top:0!important}' +
         '.cm-scroller{padding-top:0!important}' +
         '.cm-content{border-top-style:none!important;padding:8px 0!important}' +
-        '.cm-activeLine{background-color:transparent!important}';
+        '.cm-activeLine{background-color:transparent!important}' +
+        fill;
       ed.shadowRoot.appendChild(style);
     });
     if (retry && !this._compactScheduled) {
@@ -369,6 +384,21 @@ export class DashboardSidebarEditor extends LitElement {
         this._compactEditors();
       });
     }
+  }
+
+  /**
+   * Makes an `<ha-yaml-editor>`'s inner `<ha-code-editor>` fill its height, so a
+   * fill-mode YAML editor grows with its container.
+   */
+  private _fillYamlEditor(yaml: HTMLElement & { shadowRoot: ShadowRoot | null }): void {
+    const sr = yaml.shadowRoot;
+    if (!sr || sr.querySelector('style[data-fill]')) {
+      return;
+    }
+    const style = document.createElement('style');
+    style.setAttribute('data-fill', '');
+    style.textContent = 'ha-code-editor{display:block!important;height:100%!important}';
+    sr.appendChild(style);
   }
 
   /**
@@ -468,9 +498,11 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Re-renders after an in-place mutation of the working copy.
+   * Re-renders after an in-place mutation of the working copy. Any content
+   * change (a UI edit, or a valid YAML apply) clears a stale YAML error.
    */
   private _touch(): void {
+    this._yamlError = null;
     this.requestUpdate();
   }
 
@@ -565,6 +597,7 @@ export class DashboardSidebarEditor extends LitElement {
     if (id !== this._selected) {
       this._fieldErrors = {};
       this._yamlEditId = null;
+      this._yamlError = null;
     }
     this._selected = id;
     if (this._tabCollapsed && loc.includes('.')) {
@@ -1581,13 +1614,22 @@ export class DashboardSidebarEditor extends LitElement {
     const catLabel = category
       ? `${this._previewCollapsedCats.has(this._idFor(category.block)) ? 'Expand' : 'Collapse'} Category`
       : '';
+    // Navigate/URL/none actions are not worth (or would be disruptive) to test
+    // from the editor, so only offer Test action for the others.
+    const action = this._actionable()?.tap_action?.action;
+    const testable =
+      this.hass !== undefined &&
+      !!action &&
+      action !== 'none' &&
+      action !== 'navigate' &&
+      action !== 'url';
     const context = category
       ? html`<button class="add-menu-item" @click=${() => this._toggleCategoryPreview()}>
           ${catLabel}
         </button>`
-      : this._actionable() && this.hass
+      : testable
         ? html`<button class="add-menu-item" @click=${() => this._testAction()}>
-            Test action
+            Test Tap Action
           </button>`
         : nothing;
     return html`
@@ -1609,7 +1651,13 @@ export class DashboardSidebarEditor extends LitElement {
    * Toggles the selected element between the UI form and the YAML editor.
    */
   private _toggleYamlMode(): void {
-    this._yamlEditId = this._yamlActive() ? null : this._selected;
+    const toYaml = !this._yamlActive();
+    this._yamlEditId = toYaml ? this._selected : null;
+    // Entering YAML starts from the last valid value, so clear any stale error;
+    // leaving to the UI keeps it so the invalid edit is still flagged.
+    if (toYaml) {
+      this._yamlError = null;
+    }
     this._elementMenuOpen = false;
   }
 
@@ -1638,19 +1686,26 @@ export class DashboardSidebarEditor extends LitElement {
    * edit.
    */
   private _yamlEditor(value: unknown, onChange: (value: unknown) => void): TemplateResult {
+    const error = this._yamlError
+      ? html`<span class="field-error">${this._yamlError}</span>`
+      : nothing;
     if (customElements.get('ha-yaml-editor')) {
-      return html`<div class="field yaml-field">
+      return html`<div class="field yaml-field yaml-fill">
         <ha-yaml-editor
           .defaultValue=${value}
           @value-changed=${(e: CustomEvent<{ value: unknown; isValid: boolean }>) => {
             if (e.detail.isValid) {
+              this._yamlError = null;
               onChange(e.detail.value);
+            } else {
+              this._yamlError = (e.target as { errorMsg?: string }).errorMsg || 'Invalid YAML.';
             }
           }}
         ></ha-yaml-editor>
+        ${error}
       </div>`;
     }
-    return html`<label class="field">
+    return html`<label class="field yaml-fill">
       <textarea
         class="mono"
         rows="10"
@@ -1662,12 +1717,24 @@ export class DashboardSidebarEditor extends LitElement {
           }
           try {
             onChange(JSON.parse(text));
+            this._yamlError = null;
           } catch {
-            // Keep the last valid value while the JSON is mid-edit.
+            this._yamlError = 'Invalid YAML.';
           }
         }}
       ></textarea>
+      ${error}
     </label>`;
+  }
+
+  /**
+   * A banner shown above the UI form when the element's YAML is invalid, so the
+   * error follows the user back from the YAML editor.
+   */
+  private _uiYamlBanner(): TemplateResult | typeof nothing {
+    return this._yamlError && !this._yamlActive()
+      ? html`<div class="yaml-banner">${this._yamlError} The YAML edit was not applied.</div>`
+      : nothing;
   }
 
   /**
@@ -1731,8 +1798,8 @@ export class DashboardSidebarEditor extends LitElement {
             this.hass,
           );
       return html`
-        <div class="form">
-          ${this._formHeader('Button')} ${body}
+        <div class="form ${this._yamlActive() ? 'yaml-mode' : ''}">
+          ${this._formHeader('Button')} ${this._uiYamlBanner()} ${body}
           <button class="add-btn" @click=${() => this._addFooterButton()}>Add Button Next</button>
           <button
             class="add-btn danger"
@@ -1755,8 +1822,8 @@ export class DashboardSidebarEditor extends LitElement {
           )
         : blockFields({ ...sel.item, type: 'item' }, patch, this._ctx(), this.hass);
       return html`
-        <div class="form">
-          ${this._formHeader('Item')} ${body}
+        <div class="form ${this._yamlActive() ? 'yaml-mode' : ''}">
+          ${this._formHeader('Item')} ${this._uiYamlBanner()} ${body}
           <button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
             Add Child Element
           </button>
@@ -1780,8 +1847,8 @@ export class DashboardSidebarEditor extends LitElement {
       ? this._yamlEditor(sel.block, (v) => this._replaceBlock(sel.region, sel.index, v))
       : blockFields(sel.block, patch, this._ctx(), this.hass);
     return html`
-      <div class="form">
-        ${this._formHeader(typeLabel)} ${body}
+      <div class="form ${this._yamlActive() ? 'yaml-mode' : ''}">
+        ${this._formHeader(typeLabel)} ${this._uiYamlBanner()} ${body}
         ${
           sel.block.type === 'category'
             ? html`<button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
@@ -2685,6 +2752,41 @@ export class DashboardSidebarEditor extends LitElement {
 
     .code-field.invalid ha-code-editor {
       border-color: var(--error-color, #db4437);
+    }
+
+    /* In element YAML mode, the form fills the editor column and the YAML editor
+       grows to take all the height left above the buttons. */
+    .form.yaml-mode {
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .yaml-fill {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .yaml-fill ha-yaml-editor {
+      flex: 1 1 auto;
+      min-height: 0;
+      --code-mirror-max-height: 100%;
+    }
+
+    .yaml-fill textarea {
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    /* Invalid-YAML notice carried back to the UI form. */
+    .yaml-banner {
+      padding: 8px 10px;
+      border: 1px solid var(--error-color, #db4437);
+      border-radius: 6px;
+      color: var(--error-color, #db4437);
+      font-size: 0.8rem;
+      background: color-mix(in srgb, var(--error-color, #db4437) 10%, transparent);
     }
 
     /* HA's YAML editor field (manual card): match the bordered input box. */

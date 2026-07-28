@@ -288,6 +288,13 @@ export class DashboardSidebar extends LitElement {
       window.addEventListener('click', this._onDocumentClick);
     }
     this._restartTick();
+    // Re-subscribe templates on reconnect. A cached preview re-entering the DOM
+    // (e.g. after an editor tab switch) had its subscriptions cleared on
+    // disconnect, and setConfig is not called again when the config is
+    // unchanged, so templated fields would otherwise render empty.
+    if (this._config && this._errors.length === 0) {
+      this._templates.collect(this._config);
+    }
   }
 
   /**

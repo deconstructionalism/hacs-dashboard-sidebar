@@ -23,6 +23,8 @@ describe('validateConfig — every block and option together', () => {
           timezone: 'America/New_York',
           align: 'left',
           tap_action: { action: 'more-info', entity: 'sun.sun' },
+          hold_action: { action: 'navigate', navigation_path: '/config' },
+          double_tap_action: { action: 'toggle', entity: 'light.a' },
         },
         { type: 'date', format: '%Y-%m-%d', align: 'left', tap_action: { action: 'none' } },
         { type: 'divider' },

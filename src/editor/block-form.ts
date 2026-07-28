@@ -783,8 +783,9 @@ function parseJson(value: string): Record<string, unknown> | undefined {
 }
 
 /**
- * Renders the tap-action editor for an item or footer button, inside a
- * collapsed-by-default "Tap Action" section (sits above the Advanced section).
+ * Renders one action editor (`key` is `tap_action`/`hold_action`/
+ * `double_tap_action`) inside a collapsed-by-default section titled `summary`,
+ * above the Advanced section.
  */
 export function actionFields(
   action: {
@@ -796,19 +797,21 @@ export function actionFields(
     data?: Record<string, unknown>;
   },
   patch: Patch,
-  ctx?: ValidationCtx,
-  hass?: HomeAssistant,
+  ctx: ValidationCtx | undefined,
+  hass: HomeAssistant | undefined,
+  key: string,
+  summary: string,
 ): TemplateResult {
   const kind = action?.action ?? 'none';
   const set = (partial: Record<string, unknown>): void =>
-    patch({ tap_action: { ...action, action: kind, ...partial } });
+    patch({ [key]: { ...action, action: kind, ...partial } });
   return html`<details class="advanced">
-    <summary>Tap Action</summary>
+    <summary>${summary}</summary>
     ${selectField(
       'Action Type',
       kind,
       ACTION_OPTIONS,
-      (v) => patch({ tap_action: { ...action, action: v } }),
+      (v) => patch({ [key]: { ...action, action: v } }),
       { description: TAP_ACTION_HINTS[kind] },
     )}
     ${
@@ -845,7 +848,7 @@ export function actionFields(
               'Service',
               action.service,
               (v) => set({ service: v }),
-              fieldOpts(ctx, 'service', validateService),
+              fieldOpts(ctx, `${key}.service`, validateService),
               hass,
               SERVICE_HINT,
             )}
@@ -871,7 +874,7 @@ export function actionFields(
                   set({ data: parsed });
                 }
               },
-              fieldOpts(ctx, 'data', validateJsonField),
+              fieldOpts(ctx, `${key}.data`, validateJsonField),
               { description: 'Must be valid JSON.', mono: true, autosize: true, minRows: 3 },
             )}
           `
@@ -897,7 +900,7 @@ export function footerButtonFields(
       description: TEMPLATE_HINT,
     })}
     ${entityField('Entity', btn.entity, (v) => patch({ entity: v || undefined }), hass, ENTITY_HINT)}
-    ${actionFields(btn.tap_action ?? {}, patch, ctx, hass)}
+    ${actionSections(btn as unknown as Record<string, unknown>, patch, ctx, hass)}
   `;
 }
 
@@ -953,13 +956,34 @@ function advancedFields(
   </details>`;
 }
 
-/** Block types that carry a `tap_action`. */
+/** Block types that carry tap/hold/double-tap actions. */
 const ACTION_TYPES = new Set(['title', 'clock', 'date', 'item']);
 
+/** The action keys and their section titles, in display order. */
+const ACTION_SECTIONS: Array<{ key: string; summary: string }> = [
+  { key: 'tap_action', summary: 'Tap Action' },
+  { key: 'hold_action', summary: 'Hold Action' },
+  { key: 'double_tap_action', summary: 'Double Tap Action' },
+];
+
 /**
- * Renders the editable fields for one block: its type-specific fields, a Tap
- * Action section (for the types that support one), and the shared Advanced
- * (Timezone/Custom Format for clock/date, plus class/id/abbr) section.
+ * Renders the Tap/Hold/Double Tap Action sections for a block or footer button.
+ */
+export function actionSections(
+  el: Record<string, unknown>,
+  patch: Patch,
+  ctx: ValidationCtx | undefined,
+  hass: HomeAssistant | undefined,
+): TemplateResult {
+  return html`${ACTION_SECTIONS.map(({ key, summary }) =>
+    actionFields((el[key] as { action?: string }) ?? {}, patch, ctx, hass, key, summary),
+  )}`;
+}
+
+/**
+ * Renders the editable fields for one block: its type-specific fields, the
+ * Tap/Hold/Double Tap Action sections (for the types that support them), and the
+ * shared Advanced (Timezone/Custom Format for clock/date, plus class/id/abbr).
  */
 export function blockFields(
   block: SidebarBlock,
@@ -969,12 +993,7 @@ export function blockFields(
 ): TemplateResult {
   const withAbbr = block.type === 'item' || block.type === 'category';
   const action = ACTION_TYPES.has(block.type ?? '')
-    ? actionFields(
-        (block as { tap_action?: { action?: string } }).tap_action ?? {},
-        patch,
-        ctx,
-        hass,
-      )
+    ? actionSections(block as unknown as Record<string, unknown>, patch, ctx, hass)
     : nothing;
   const advancedExtra =
     block.type === 'clock' || block.type === 'date' ? clockDateAdvanced(block, patch) : nothing;

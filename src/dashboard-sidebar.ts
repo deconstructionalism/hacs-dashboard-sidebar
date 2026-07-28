@@ -1,4 +1,10 @@
-import { type HomeAssistant, type LovelaceCardConfig, handleAction } from 'custom-card-helpers';
+import {
+  type ActionConfig,
+  type HomeAssistant,
+  type LovelaceCardConfig,
+  handleAction,
+  hasAction,
+} from 'custom-card-helpers';
 import { LitElement, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
@@ -53,6 +59,18 @@ const CHROMELESS_CARD = {
   '--ha-card-box-shadow': 'none',
   '--ha-card-border-width': '0px',
 };
+
+/** The action-carrying fields read from an interactive element. */
+interface ActionEl {
+  /** Target entity for toggle/more-info actions. */
+  entity?: string;
+  /** Action fired on a single tap. */
+  tap_action?: ActionConfig;
+  /** Action fired on a long press. */
+  hold_action?: ActionConfig;
+  /** Action fired on a double tap. */
+  double_tap_action?: ActionConfig;
+}
 
 /**
  * The dashboard sidebar element. Renders an ordered list of blocks in a fixed
@@ -130,6 +148,15 @@ export class DashboardSidebar extends LitElement {
 
   /** Whether card-mod styles have already been applied for this config. */
   private _cardModApplied = false;
+
+  /** Pending hold-gesture timer, and whether a hold has already fired. */
+  private _holdTimer?: number;
+
+  /** Set once a hold fires, so the following click does not also tap. */
+  private _held = false;
+
+  /** Pending single-tap timer while waiting to see if a double-tap follows. */
+  private _tapTimer?: number;
 
   /** Stable render keys per block/item object, for keyed reconciliation. */
   private readonly _keys = new WeakMap<object, string>();
@@ -434,25 +461,87 @@ export class DashboardSidebar extends LitElement {
   }
 
   /**
-   * Runs a configured tap action through Home Assistant and closes popovers.
-   * No-ops when there is no action to run.
+   * Fires the tap/hold/double-tap action through Home Assistant. No-ops in a
+   * preview (where a click selects the element for editing instead).
    */
-  private _runAction(cfg: { entity?: string; tap_action?: ItemBlock['tap_action'] }): void {
-    // In a preview a click selects the element for editing (handled by the
-    // editor) and must not fire the real action.
-    if (this.preview || !this.hass || !cfg.tap_action) {
+  private _fireAction(cfg: ActionEl, action: 'tap' | 'hold' | 'double_tap'): void {
+    if (this.preview || !this.hass) {
       return;
     }
-    handleAction(this, this.hass, { entity: cfg.entity, tap_action: cfg.tap_action }, 'tap');
+    handleAction(
+      this,
+      this.hass,
+      {
+        entity: cfg.entity,
+        tap_action: cfg.tap_action,
+        hold_action: cfg.hold_action,
+        double_tap_action: cfg.double_tap_action,
+      },
+      action,
+    );
     this._closePopovers();
   }
 
   /**
-   * Whether a block has a tap action that actually does something.
+   * Starts the hold timer on press, so a long press fires the hold action.
    */
-  private _actionable(block: { tap_action?: { action?: string } }): boolean {
-    const action = block.tap_action?.action;
-    return !!action && action !== 'none';
+  private _onActionDown(cfg: ActionEl): void {
+    if (this.preview) {
+      return;
+    }
+    this._held = false;
+    window.clearTimeout(this._holdTimer);
+    if (hasAction(cfg.hold_action)) {
+      this._holdTimer = window.setTimeout(() => {
+        this._held = true;
+        this._fireAction(cfg, 'hold');
+      }, 500);
+    }
+  }
+
+  /** Cancels a pending hold when the press ends or is interrupted. */
+  private readonly _cancelHold = (): void => {
+    window.clearTimeout(this._holdTimer);
+  };
+
+  /**
+   * On click, fires tap — or defers to distinguish a double-tap when one is
+   * configured — unless a hold already fired.
+   */
+  private _onActionClick(cfg: ActionEl): void {
+    if (this.preview) {
+      return;
+    }
+    window.clearTimeout(this._holdTimer);
+    if (this._held) {
+      this._held = false;
+      return;
+    }
+    if (!hasAction(cfg.double_tap_action)) {
+      this._fireAction(cfg, 'tap');
+      return;
+    }
+    if (this._tapTimer) {
+      window.clearTimeout(this._tapTimer);
+      this._tapTimer = undefined;
+      this._fireAction(cfg, 'double_tap');
+    } else {
+      this._tapTimer = window.setTimeout(() => {
+        this._tapTimer = undefined;
+        this._fireAction(cfg, 'tap');
+      }, 250);
+    }
+  }
+
+  /**
+   * Whether a block has any tap/hold/double-tap action that does something.
+   */
+  private _actionable(block: ActionEl): boolean {
+    return (
+      hasAction(block.tap_action) ||
+      hasAction(block.hold_action) ||
+      hasAction(block.double_tap_action)
+    );
   }
 
   /**
@@ -823,7 +912,10 @@ export class DashboardSidebar extends LitElement {
       id=${block.id ?? nothing}
       data-loc=${loc}
       style=${styleMap(style)}
-      @click=${() => this._runAction(block)}
+      @pointerdown=${() => this._onActionDown(block)}
+      @pointerup=${this._cancelHold}
+      @pointercancel=${this._cancelHold}
+      @click=${() => this._onActionClick(block)}
     >
       ${text}
     </div>`;
@@ -864,7 +956,10 @@ export class DashboardSidebar extends LitElement {
       id=${block.id ?? nothing}
       data-loc=${loc}
       style=${styleMap(style)}
-      @click=${() => this._runAction(block)}
+      @pointerdown=${() => this._onActionDown(block)}
+      @pointerup=${this._cancelHold}
+      @pointercancel=${this._cancelHold}
+      @click=${() => this._onActionClick(block)}
     >
       ${collapsed ? formatCollapsedClock(now, twelve) : formatClock(now, pattern, this._locale)}
     </div>`;
@@ -884,7 +979,10 @@ export class DashboardSidebar extends LitElement {
       id=${block.id ?? nothing}
       data-loc=${loc}
       style=${styleMap(style)}
-      @click=${() => this._runAction(block)}
+      @pointerdown=${() => this._onActionDown(block)}
+      @pointerup=${this._cancelHold}
+      @pointercancel=${this._cancelHold}
+      @click=${() => this._onActionClick(block)}
     >
       ${collapsed ? formatCollapsedDate(now) : formatDate(now, format, this._locale)}
     </div>`;
@@ -994,7 +1092,10 @@ export class DashboardSidebar extends LitElement {
           aria-label=${title}
           @mouseenter=${(ev: MouseEvent) => this._showTip(ev, title)}
           @mouseleave=${this._hideTip}
-          @click=${() => this._runAction(item)}
+          @pointerdown=${() => this._onActionDown(item)}
+          @pointerup=${this._cancelHold}
+          @pointercancel=${this._cancelHold}
+          @click=${() => this._onActionClick(item)}
         >
           ${
             icon
@@ -1016,7 +1117,10 @@ export class DashboardSidebar extends LitElement {
         class="row item dashboard-sidebar-item${this._hookClass(item)}${this._selClass(loc)}"
         id=${item.id ?? nothing}
         data-loc=${loc}
-        @click=${() => this._runAction(item)}
+        @pointerdown=${() => this._onActionDown(item)}
+        @pointerup=${this._cancelHold}
+        @pointercancel=${this._cancelHold}
+        @click=${() => this._onActionClick(item)}
       >
         ${
           icon
@@ -1303,7 +1407,10 @@ export class DashboardSidebar extends LitElement {
         aria-label=${title}
         @mouseenter=${(ev: MouseEvent) => this._showTip(ev, title)}
         @mouseleave=${this._hideTip}
-        @click=${() => this._runAction(btn)}
+        @pointerdown=${() => this._onActionDown(btn)}
+        @pointerup=${this._cancelHold}
+        @pointercancel=${this._cancelHold}
+        @click=${() => this._onActionClick(btn)}
       >
         <ha-icon
           class="dashboard-sidebar-footer-icon"

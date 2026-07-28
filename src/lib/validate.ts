@@ -19,9 +19,12 @@ const TOP_KEYS = new Set([
 /** CSS targeting hooks accepted on every block and footer button. */
 const COMMON = ['class', 'id'];
 
+/** The tap/hold/double-tap action keys accepted on interactive elements. */
+const ACTIONS = ['tap_action', 'hold_action', 'double_tap_action'];
+
 /** Recognized block types, and the keys each one accepts. */
 const BLOCK_KEYS: Record<string, Set<string>> = {
-  title: new Set(['type', 'text', 'align', 'tap_action', ...COMMON]),
+  title: new Set(['type', 'text', 'align', ...ACTIONS, ...COMMON]),
   clock: new Set([
     'type',
     'format',
@@ -29,10 +32,10 @@ const BLOCK_KEYS: Record<string, Set<string>> = {
     'hour_format',
     'collapsed_format',
     'align',
-    'tap_action',
+    ...ACTIONS,
     ...COMMON,
   ]),
-  date: new Set(['type', 'format', 'timezone', 'align', 'tap_action', ...COMMON]),
+  date: new Set(['type', 'format', 'timezone', 'align', ...ACTIONS, ...COMMON]),
   divider: new Set(['type', ...COMMON]),
   item: new Set([
     'type',
@@ -42,7 +45,7 @@ const BLOCK_KEYS: Record<string, Set<string>> = {
     'text_color',
     'icon_color',
     'entity',
-    'tap_action',
+    ...ACTIONS,
     ...COMMON,
   ]),
   category: new Set([
@@ -68,7 +71,7 @@ const FOOTER_BUTTON_KEYS = new Set([
   'icon_color',
   'title',
   'entity',
-  'tap_action',
+  ...ACTIONS,
   ...COMMON,
 ]);
 

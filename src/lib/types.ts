@@ -48,6 +48,10 @@ export interface TitleBlock extends BlockCommon {
   align?: Align;
   /** Optional action performed when tapped. Not templatable. */
   tap_action?: ActionConfig;
+  /** Optional action performed when held. Not templatable. */
+  hold_action?: ActionConfig;
+  /** Optional action performed when double-tapped. Not templatable. */
+  double_tap_action?: ActionConfig;
 }
 
 /** A digital clock block. */
@@ -65,6 +69,10 @@ export interface ClockBlock extends BlockCommon {
   align?: Align;
   /** Optional action performed when tapped. Not templatable. */
   tap_action?: ActionConfig;
+  /** Optional action performed when held. Not templatable. */
+  hold_action?: ActionConfig;
+  /** Optional action performed when double-tapped. Not templatable. */
+  double_tap_action?: ActionConfig;
 }
 
 /** A date block. */
@@ -79,6 +87,10 @@ export interface DateBlock extends BlockCommon {
   align?: Align;
   /** Optional action performed when tapped. Not templatable. */
   tap_action?: ActionConfig;
+  /** Optional action performed when held. Not templatable. */
+  hold_action?: ActionConfig;
+  /** Optional action performed when double-tapped. Not templatable. */
+  double_tap_action?: ActionConfig;
 }
 
 /** A horizontal rule block. */
@@ -108,6 +120,10 @@ export interface ItemBlock extends BlockCommon {
   entity?: string;
   /** Action performed when the row is tapped. Not templatable. */
   tap_action: ActionConfig;
+  /** Optional action performed when held. Not templatable. */
+  hold_action?: ActionConfig;
+  /** Optional action performed when double-tapped. Not templatable. */
+  double_tap_action?: ActionConfig;
 }
 
 /** A collapsible group of items, nested one level deep. */
@@ -180,6 +196,10 @@ export interface FooterButtonConfig extends BlockCommon {
   entity?: string;
   /** Action performed when the button is tapped. Not templatable. */
   tap_action: ActionConfig;
+  /** Optional action performed when held. Not templatable. */
+  hold_action?: ActionConfig;
+  /** Optional action performed when double-tapped. Not templatable. */
+  double_tap_action?: ActionConfig;
 }
 
 /**

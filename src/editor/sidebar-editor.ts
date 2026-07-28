@@ -1654,17 +1654,30 @@ export class DashboardSidebarEditor extends LitElement {
           >
             <ha-icon icon="mdi:arrow-down"></ha-icon>
           </button>
-          <button
-            class="tool"
-            title="More"
-            aria-label="More"
-            @click=${(e: Event) => this._openElementMenu(e)}
-          >
-            <ha-icon icon="mdi:dots-vertical"></ha-icon>
-          </button>
+          ${
+            this._hasElementMenu()
+              ? html`<button
+                  class="tool"
+                  title="More"
+                  aria-label="More"
+                  @click=${(e: Event) => this._openElementMenu(e)}
+                >
+                  <ha-icon icon="mdi:dots-vertical"></ha-icon>
+                </button>`
+              : nothing
+          }
         </div>
       </div>
     `;
+  }
+
+  /**
+   * Whether the selected element has an overflow ("...") menu. A manual card is
+   * YAML-only, so it offers neither the UI toggle nor any menu.
+   */
+  private _hasElementMenu(): boolean {
+    const sel = this._locate(this._selected);
+    return !(sel?.kind === 'block' && sel.block.type === 'card');
   }
 
   /**
@@ -1968,6 +1981,32 @@ export class DashboardSidebarEditor extends LitElement {
     // ItemBlock.type is optional (items in a category omit it), so default to
     // 'item' for the label of a top-level item.
     const typeLabel = blockTypeLabel(sel.block.type ?? 'item');
+    const deleteBtn = html`<button
+      class="add-btn danger"
+      @click=${() => {
+        this._removeBlock(sel.region, sel.index);
+        this._selected = null;
+      }}
+    >
+      Delete ${typeLabel}
+    </button>`;
+    // A manual card is edited only as YAML (its raw card config), with live
+    // validation against HA's cards; no UI fields, no class/id, no menu toggle.
+    if (sel.block.type === 'card') {
+      return html`
+        <div class="form yaml-mode">
+          ${this._formHeader(typeLabel)}
+          ${this._yamlEditor(
+            sel.block.card,
+            (v) => this._patchBlock(sel.region, sel.index, { card: v }),
+            () => [],
+          )}
+          ${this._cardStatus()}
+          ${this._renderAddMenu(this._typeItems(sel.region), 'Add Element After', true)}
+          ${deleteBtn}
+        </div>
+      `;
+    }
     const body = this._yamlActive()
       ? this._yamlEditor(
           sel.block,
@@ -1975,11 +2014,9 @@ export class DashboardSidebarEditor extends LitElement {
           validateBlockConfig,
         )
       : blockFields(sel.block, patch, this._ctx(), this.hass);
-    const cardStatus =
-      sel.block.type === 'card' && !this._yamlActive() ? this._cardStatus() : nothing;
     return html`
       <div class="form ${this._yamlActive() ? 'yaml-mode' : ''}">
-        ${this._formHeader(typeLabel)} ${this._uiYamlBanner()} ${body} ${cardStatus}
+        ${this._formHeader(typeLabel)} ${this._uiYamlBanner()} ${body}
         ${
           sel.block.type === 'category'
             ? html`<button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
@@ -1987,16 +2024,7 @@ export class DashboardSidebarEditor extends LitElement {
               </button>`
             : nothing
         }
-        ${this._renderAddMenu(this._typeItems(sel.region), 'Add Element After', true)}
-        <button
-          class="add-btn danger"
-          @click=${() => {
-            this._removeBlock(sel.region, sel.index);
-            this._selected = null;
-          }}
-        >
-          Delete ${typeLabel}
-        </button>
+        ${this._renderAddMenu(this._typeItems(sel.region), 'Add Element After', true)} ${deleteBtn}
       </div>
     `;
   }

@@ -334,13 +334,35 @@ describe('<dashboard-sidebar-editor>', () => {
     await tab(el, 'Footer');
     (root(el).querySelector('.tab-notes .tool') as HTMLButtonElement).click();
     await el.updateComplete;
-    const toMarkdown = [...root(el).querySelectorAll('.add-menu-item')].find((b) =>
+    // Open the "Change to" submenu, then pick Text.
+    (
+      [...root(el).querySelectorAll('.add-menu-item')].find((b) =>
+        b.textContent?.includes('Change to'),
+      ) as HTMLButtonElement
+    ).click();
+    await el.updateComplete;
+    const toMarkdown = [...root(el).querySelectorAll('.add-menu-item.submenu-item')].find((b) =>
       b.textContent?.includes('Text'),
     ) as HTMLButtonElement;
     toMarkdown.click();
     await el.updateComplete;
     // The markdown editor falls back to a plain input/textarea outside HA.
     expect(root(el).querySelector('.editor .field')).to.exist;
+  });
+
+  it('toggles the footer between UI and YAML editing from the tab menu', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Footer');
+    (root(el).querySelector('.tab-notes .tool') as HTMLButtonElement).click();
+    await el.updateComplete;
+    (
+      [...root(el).querySelectorAll('.add-menu-item')].find(
+        (b) => b.textContent?.trim() === 'Edit As YAML',
+      ) as HTMLButtonElement
+    ).click();
+    await el.updateComplete;
+    // The whole footer is now edited as YAML (textarea fallback outside HA).
+    expect(root(el).querySelector('.editor.yaml-mode')).to.exist;
   });
 
   it('saves a valid config through onSave and closes', async () => {

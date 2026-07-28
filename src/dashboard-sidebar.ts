@@ -1320,10 +1320,14 @@ export class DashboardSidebar extends LitElement {
       `;
     }
 
-    // A preview shows every button inline so each is visible and reorderable;
-    // live fits as many as the width allows and overflows the rest to a menu.
-    if (this.preview) {
-      return html`<div class=${classMap(footerClasses)} data-container="footer">
+    // Fit as many buttons as the width allows and overflow the rest to a menu,
+    // the same in a preview as live (the preview keeps a container hook so its
+    // inline buttons stay selectable/draggable).
+    const container = this.preview ? 'footer' : nothing;
+    const width = this._config?.width ?? 240;
+    const maxFit = Math.max(1, Math.floor((width - 24 + 4) / 44)); // 40px button + 4px gap
+    if (buttons.length <= maxFit) {
+      return html`<div class=${classMap(footerClasses)} data-container=${container}>
         ${repeat(
           buttons,
           (btn) => this._keyFor(btn),
@@ -1331,19 +1335,15 @@ export class DashboardSidebar extends LitElement {
         )}
       </div>`;
     }
-
-    const width = this._config?.width ?? 240;
-    const maxFit = Math.max(1, Math.floor((width - 24 + 4) / 44)); // 40px button + 4px gap
-    if (buttons.length <= maxFit) {
-      return html`<div class=${classMap(footerClasses)}>
-        ${buttons.map((btn, i) => this._renderFooterButton(btn, i))}
-      </div>`;
-    }
     const inline = buttons.slice(0, maxFit - 1);
     const overflow = buttons.slice(maxFit - 1);
     return html`
-      <div class=${classMap(footerClasses)}>
-        ${inline.map((btn, i) => this._renderFooterButton(btn, i))}
+      <div class=${classMap(footerClasses)} data-container=${container}>
+        ${repeat(
+          inline,
+          (btn) => this._keyFor(btn),
+          (btn, i) => this._renderFooterButton(btn, i),
+        )}
         ${this._renderDots('footer-btn dashboard-sidebar-footer-btn dashboard-sidebar-footer-more')}
         ${this._footerOpen && anchor ? this._renderFooterPopover(overflow, anchor, maxFit - 1) : nothing}
       </div>
@@ -1387,7 +1387,7 @@ export class DashboardSidebar extends LitElement {
       <div
         class="popover footer-popover dashboard-sidebar-popover dashboard-sidebar-footer-popover"
         style=${styleMap(this._popoverStyle(anchor, true))}
-        @click=${(ev: Event) => ev.stopPropagation()}
+        @click=${this.preview ? nothing : (ev: Event) => ev.stopPropagation()}
       >
         ${buttons.map((btn, i) => this._renderFooterButton(btn, startIndex + i))}
       </div>

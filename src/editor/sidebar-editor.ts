@@ -157,6 +157,12 @@ export class DashboardSidebarEditor extends LitElement {
   /** Whether the current tab's options ("...") menu is open. */
   @state() private _tabMenuOpen = false;
 
+  /** Whether the footer menu's "Change to" submenu is expanded. */
+  @state() private _tabSubmenuOpen = false;
+
+  /** Whether the footer content is being edited as raw YAML. */
+  @state() private _footerYaml = false;
+
   /** Anchor rect of the tab options menu's trigger. */
   private _tabMenuRect: DOMRect | null = null;
 
@@ -1006,6 +1012,16 @@ export class DashboardSidebarEditor extends LitElement {
           ? { markdown: 'Markdown **content**' }
           : { buttons: [] as FooterButtonConfig[] };
     this._working.footer = { ...base, divider };
+    this._footerYaml = false;
+    this._touch();
+  }
+
+  /**
+   * Replaces the whole footer config from the YAML editor.
+   */
+  private _setFooter(next: unknown): void {
+    this._working.footer =
+      next && typeof next === 'object' ? (next as typeof this._working.footer) : {};
     this._touch();
   }
 
@@ -1113,6 +1129,8 @@ export class DashboardSidebarEditor extends LitElement {
     this._addMenuOpen = false;
     this._elementMenuOpen = false;
     this._tabMenuOpen = false;
+    this._tabSubmenuOpen = false;
+    this._footerYaml = false;
   }
 
   /**
@@ -1386,8 +1404,9 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Renders the footer tab's options menu, fixed under its trigger: a toggle for
-   * the top divider bar and switches to the other two content modes.
+   * Renders the footer tab's options menu, fixed under its trigger: the top
+   * divider toggle, a "Change to" submenu of the other content modes, and the
+   * YAML/UI edit toggle.
    */
   private _renderTabMenu(): TemplateResult | typeof nothing {
     const rect = this._tabMenuRect;
@@ -1403,36 +1422,56 @@ export class DashboardSidebarEditor extends LitElement {
         ['markdown', 'Text'],
       ] as const
     ).filter(([m]) => m !== mode);
+    const close = (): void => {
+      this._tabMenuOpen = false;
+      this._tabSubmenuOpen = false;
+    };
     return html`
-      <div
-        class="menu-scrim"
-        @click=${() => {
-          this._tabMenuOpen = false;
-        }}
-      ></div>
+      <div class="menu-scrim" @click=${close}></div>
       <div class="add-menu" style=${this._menuStyle(rect, 'right')}>
         <button
           class="add-menu-item"
           @click=${() => {
             this._setFooterDivider(!dividerShown);
-            this._tabMenuOpen = false;
+            close();
           }}
         >
           ${dividerShown ? 'Hide' : 'Show'} Top Divider Bar
         </button>
-        ${others.map(
-          ([m, label]) => html`
-            <button
-              class="add-menu-item"
-              @click=${() => {
-                this._setFooterMode(m);
-                this._tabMenuOpen = false;
-              }}
-            >
-              Show As ${label}
-            </button>
-          `,
-        )}
+        <button
+          class="add-menu-item"
+          @click=${() => {
+            this._tabSubmenuOpen = !this._tabSubmenuOpen;
+          }}
+        >
+          Change to ${this._tabSubmenuOpen ? '▾' : '▸'}
+        </button>
+        ${
+          this._tabSubmenuOpen
+            ? others.map(
+                ([m, label]) => html`
+                  <button
+                    class="add-menu-item submenu-item"
+                    @click=${() => {
+                      this._setFooterMode(m);
+                      close();
+                    }}
+                  >
+                    ${label}
+                  </button>
+                `,
+              )
+            : nothing
+        }
+        <button
+          class="add-menu-item"
+          @click=${() => {
+            this._footerYaml = !this._footerYaml;
+            close();
+          }}
+        >
+          ${this._footerYaml ? 'Edit With UI' : 'Edit As YAML'}
+        </button>
       </div>
     `;
   }
@@ -1577,6 +1616,28 @@ export class DashboardSidebarEditor extends LitElement {
         )}
       `;
     }
+    if (this._footerYaml) {
+      return html`
+        ${notes}
+        <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
+          <div class="editor form yaml-mode">
+            ${this._yamlEditor(
+              this._working.footer,
+              (v) => this._setFooter(v),
+              () => [],
+            )}
+          </div>
+          ${this._renderPreview(
+            html`${this._renderGhost('up')}
+            ${this._previewEl('footer', {
+              width: this._working.width,
+              footer: this._working.footer,
+            })}`,
+            true,
+          )}
+        </div>
+      `;
+    }
     if (mode === 'card') {
       return html`
         ${notes}
@@ -1631,6 +1692,7 @@ export class DashboardSidebarEditor extends LitElement {
           // pinned to the bottom, as it does live, not in a large empty box.
           html`${this._renderGhost('up')}
           ${this._previewEl('footer', {
+            width: this._working.width,
             footer: { buttons, divider: footer?.divider ?? true },
           })}`,
           true,
@@ -3247,6 +3309,12 @@ export class DashboardSidebarEditor extends LitElement {
 
     .add-menu-item:hover {
       background: var(--secondary-background-color, rgb(0 0 0 / 8%));
+    }
+
+    /* A nested "Change to" choice, indented under its parent item. */
+    .add-menu-item.submenu-item {
+      padding-left: 26px;
+      opacity: 0.85;
     }
   `;
 }

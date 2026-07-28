@@ -12,7 +12,11 @@ export const baseStyles = css`
     box-sizing: border-box;
     color: var(--primary-text-color, #000);
     background: var(--card-background-color, var(--primary-background-color, #fff));
-    font-family: var(--ha-font-family-body, inherit);
+    /* Append color-emoji fonts so emoji render regardless of the inherited font
+       stack (the editor preview's context otherwise lacks an emoji fallback). */
+    font-family:
+      var(--ha-font-family-body, inherit), 'Apple Color Emoji', 'Segoe UI Emoji',
+      'Noto Color Emoji', sans-serif;
   }
 
   .sidebar {

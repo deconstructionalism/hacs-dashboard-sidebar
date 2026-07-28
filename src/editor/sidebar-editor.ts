@@ -2579,28 +2579,25 @@ export class DashboardSidebarEditor extends LitElement {
       /* A little vertical room so the first/last element's selection outline is
          not clipped by the scroll container's edge. */
       padding: 4px 0;
-      border: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
+      /* Draw the frame edge with an inset outline, not a border, so it takes no
+         layout width: the inner sidebar then gets the full configured width and
+         the footer's button-overflow count matches live exactly. */
+      outline: 1px solid var(--divider-color, rgb(0 0 0 / 15%));
+      outline-offset: -1px;
       background: var(--card-background-color, #fff);
       /* Fill the preview height and scroll on its own, below the fixed heading. */
       flex: 1 1 auto;
       min-height: 0;
       overflow-y: auto;
-      /* Thin, overlaid scrollbar so it does not take width from the content. */
-      scrollbar-width: thin;
-      scrollbar-color: var(--divider-color, rgb(0 0 0 / 30%)) transparent;
+      /* Hide the scrollbar so it reserves no width (which would shrink the
+         content below the live width and change the footer overflow count);
+         wheel/trackpad scrolling still works. */
+      scrollbar-width: none;
     }
 
     .pv-frame::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    .pv-frame::-webkit-scrollbar-thumb {
-      border-radius: 3px;
-      background: var(--divider-color, rgb(0 0 0 / 30%));
-    }
-
-    .pv-frame::-webkit-scrollbar-track {
-      background: transparent;
+      width: 0;
+      height: 0;
     }
 
     /* Collapsed preview: narrow to the icon-strip width, pinned to the right

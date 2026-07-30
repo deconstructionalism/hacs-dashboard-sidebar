@@ -106,6 +106,17 @@ describe('validateConfig', () => {
     ).toHaveLength(0);
   });
 
+  it('rejects a non-mapping card_mod', () => {
+    expect(
+      validateConfig({ ...valid(), card_mod: 'nope' } as unknown as DashboardSidebarConfig),
+    ).toContain('card_mod: must be a mapping');
+    expect(
+      validateConfig({
+        body: [{ type: 'item', title: 'i', tap_action: { action: 'toggle' }, card_mod: ['x'] }],
+      } as unknown as DashboardSidebarConfig),
+    ).toContain('body[0].card_mod: must be a mapping');
+  });
+
   it('validates title, clock, and date blocks', () => {
     expect(
       validateConfig({ header: [{ type: 'title' }] } as unknown as DashboardSidebarConfig),

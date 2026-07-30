@@ -116,6 +116,19 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(saved?.position).to.equal('right');
   });
 
+  it('lists targetable CSS classes in the Settings tab', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Settings');
+    const ref = root(el).querySelector('.class-ref') as HTMLDetailsElement;
+    expect(ref).to.exist;
+    expect(ref.open).to.equal(false); // starts collapsed
+    const rows = ref.querySelectorAll('.class-ref-row');
+    expect(rows.length).to.be.greaterThan(10);
+    const codes = [...ref.querySelectorAll('code')].map((c) => c.textContent);
+    expect(codes).to.include('.dashboard-sidebar-item-label');
+    expect(codes).to.include(':host');
+  });
+
   it('adds a block below the selected element from its form', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');

@@ -59,6 +59,41 @@ const PREVIEW_CAP_PX = 380;
 /** See {@link PREVIEW_CAP_PX}. */
 const PREVIEW_CAP_VW = 42;
 
+/**
+ * The stable selectors Card Mod (or external CSS) can target, shown in the
+ * editor's collapsed class reference. Every rendered element also carries any
+ * custom `class` set in its Advanced section.
+ */
+const TARGETABLE_CLASSES: Array<{ sel: string; desc: string }> = [
+  { sel: ':host', desc: 'The whole sidebar' },
+  { sel: '.dashboard-sidebar-root', desc: 'Outer sidebar container' },
+  { sel: '.dashboard-sidebar-header', desc: 'Pinned header region' },
+  { sel: '.dashboard-sidebar-body', desc: 'Scrolling body region' },
+  { sel: '.dashboard-sidebar-footer', desc: 'Footer bar' },
+  { sel: '.dashboard-sidebar-toggle', desc: 'Collapse toggle button' },
+  { sel: '.dashboard-sidebar-title', desc: 'Title element' },
+  { sel: '.dashboard-sidebar-clock', desc: 'Clock element' },
+  { sel: '.dashboard-sidebar-date', desc: 'Date element' },
+  { sel: '.dashboard-sidebar-divider', desc: 'Divider line' },
+  { sel: '.dashboard-sidebar-item', desc: 'Item row' },
+  { sel: '.dashboard-sidebar-item-icon', desc: 'Item icon' },
+  { sel: '.dashboard-sidebar-item-label', desc: 'Item label text' },
+  { sel: '.dashboard-sidebar-initials', desc: 'Collapsed item/category glyph' },
+  { sel: '.dashboard-sidebar-category', desc: 'Category group' },
+  { sel: '.dashboard-sidebar-category-header', desc: 'Category header row' },
+  { sel: '.dashboard-sidebar-category-items', desc: 'Category items list' },
+  { sel: '.dashboard-sidebar-chevron', desc: 'Category expand chevron' },
+  { sel: '.dashboard-sidebar-markdown', desc: 'Text (markdown) block' },
+  { sel: '.dashboard-sidebar-content', desc: 'Manual card wrapper' },
+  { sel: '.dashboard-sidebar-footer-btn', desc: 'Footer button' },
+  { sel: '.dashboard-sidebar-footer-icon', desc: 'Footer button icon' },
+  { sel: '.dashboard-sidebar-footer-more', desc: 'Footer overflow (⋮) button' },
+  { sel: '.dashboard-sidebar-popover', desc: 'Collapsed category popover' },
+  { sel: '.dashboard-sidebar-popover-title', desc: 'Popover title' },
+  { sel: '.dashboard-sidebar-footer-popover', desc: 'Footer overflow popover' },
+  { sel: '.dashboard-sidebar-tooltip', desc: 'Collapsed hover tooltip' },
+];
+
 /** Every block type, offered when adding to the header. */
 const ALL_TYPES: BlockType[] = [
   'title',
@@ -1306,15 +1341,35 @@ export class DashboardSidebarEditor extends LitElement {
           (v) => this._patchConfig({ hide_on_mobile: v || undefined }),
           'Hide the sidebar entirely on narrow (phone-width) screens.',
         )}
-        ${colorField(
-          'Background CSS',
-          c.background,
-          (v) => this._patchConfig({ background: v || undefined }),
-          'Any valid CSS background, including gradients (e.g. linear-gradient(...)).',
-        )}
-        ${cardModField(c.card_mod, (v) => this._patchConfig({ card_mod: v }))}
+        <details class="advanced">
+          <summary>Custom Styling</summary>
+          ${colorField(
+            'Background CSS',
+            c.background,
+            (v) => this._patchConfig({ background: v || undefined }),
+            'Any valid CSS background, including gradients (e.g. linear-gradient(...)).',
+          )}
+          ${cardModField(c.card_mod, (v) => this._patchConfig({ card_mod: v }))}
+          ${this._cardModClassRef()}
+        </details>
       </section>
     `;
+  }
+
+  /**
+   * Renders a collapsed reference of the stable `dashboard-sidebar-*` classes
+   * (and `:host`) that Card Mod / external CSS can target, each with a short
+   * description of the element it selects.
+   */
+  private _cardModClassRef(): TemplateResult {
+    return html`<details class="advanced class-ref">
+      <summary>Targetable CSS classes</summary>
+      <div class="class-ref-list">
+        ${TARGETABLE_CLASSES.map(
+          (c) => html`<div class="class-ref-row"><code>${c.sel}</code><span>${c.desc}</span></div>`,
+        )}
+      </div>
+    </details>`;
   }
 
   /**
@@ -2914,6 +2969,33 @@ export class DashboardSidebarEditor extends LitElement {
     /* The card-mod install prompt shown when the integration is absent. */
     .card-mod-missing .field-desc {
       opacity: 0.8;
+    }
+
+    /* Collapsed reference of targetable CSS classes under the Card Mod field. */
+    .class-ref-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .class-ref-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 4px 10px;
+    }
+
+    .class-ref-row code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.78rem;
+      color: var(--primary-color, #03a9f4);
+      white-space: nowrap;
+    }
+
+    .class-ref-row span {
+      font-size: 0.78rem;
+      opacity: 0.7;
     }
 
     /* A resolved entity/service replaces the input with a card: the id over its

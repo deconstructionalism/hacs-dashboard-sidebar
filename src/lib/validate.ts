@@ -136,12 +136,25 @@ function checkAbbr(abbr: unknown, icon: unknown, ctx: string, errors: string[]):
 }
 
 /**
- * Validates the optional card-mod targeting hooks (`class` and `id`).
+ * Records an error when a defined value is not a plain mapping.
+ */
+function checkMapping(value: unknown, ctx: string, errors: string[]): void {
+  if (
+    value !== undefined &&
+    (typeof value !== 'object' || value === null || Array.isArray(value))
+  ) {
+    errors.push(`${ctx}: must be a mapping`);
+  }
+}
+
+/**
+ * Validates the optional card-mod hooks (`class`, `id`, and `card_mod`).
  */
 function checkHooks(block: unknown, ctx: string, errors: string[]): void {
-  const b = block as { class?: unknown; id?: unknown };
+  const b = block as { class?: unknown; id?: unknown; card_mod?: unknown };
   checkString(b.class, `${ctx}.class`, errors);
   checkString(b.id, `${ctx}.id`, errors);
+  checkMapping(b.card_mod, `${ctx}.card_mod`, errors);
 }
 
 /**
@@ -345,6 +358,7 @@ export function validateConfig(config: DashboardSidebarConfig): string[] {
   }
   checkBool(c.start_collapsed, 'start_collapsed', errors);
   checkBool(c.hide_on_mobile, 'hide_on_mobile', errors);
+  checkMapping(c.card_mod, 'card_mod', errors);
   validateRegion(config.header, 'header', errors);
   validateRegion(config.body, 'body', errors);
   if (config.header === undefined && config.body === undefined) {

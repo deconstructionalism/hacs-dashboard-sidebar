@@ -1050,42 +1050,56 @@ function advancedFields(
   </details>`;
 }
 
+/** The card-mod integration's repository, linked from the Card Mod fields. */
+const CARD_MOD_URL = 'https://github.com/thomasloven/lovelace-card-mod';
+
+/** Warning shown on a per-element Card Mod, whose styles are not element-scoped. */
+const CARD_MOD_ELEMENT_HINT = 'Not element-scoped; selectors here can affect the whole sidebar.';
+
 /**
- * Renders the card-mod YAML field: a `{ style, ... }` object passed to the
+ * Validates a card-mod value: it must be a mapping (`{ style: … }`), which is
+ * the shape the integration expects. Returns an error message, or null.
+ */
+function cardModError(value: unknown): string | null {
+  if (value === undefined) {
+    return null;
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return 'Card Mod must be a mapping, e.g. "style: |".';
+  }
+  return null;
+}
+
+/**
+ * Renders the Card Mod YAML field: a `{ style, … }` object passed to the
  * card-mod integration to style this element (or the sidebar). When card-mod is
  * not installed the field is hidden and replaced with a prompt to install it,
- * since the config would otherwise silently do nothing.
+ * since the config would otherwise silently do nothing. `hint` adds an extra
+ * note (e.g. the per-element scope warning).
  */
 export function cardModField(
   value: Record<string, unknown> | undefined,
   onChange: (value: Record<string, unknown> | undefined) => void,
   hint?: string,
 ): TemplateResult {
+  const link = html`<a href=${CARD_MOD_URL} target="_blank" rel="noopener noreferrer">card-mod</a>`;
   if (!customElements.get('card-mod')) {
     return html`<div class="field card-mod-missing">
-      <span>Card Mod</span>
+      <span>Card Mod YAML</span>
       <small class="field-desc">
-        Install the
-        <a
-          href="https://github.com/thomasloven/lovelace-card-mod"
-          target="_blank"
-          rel="noopener noreferrer"
-          >card-mod</a
-        >
-        integration (available in HACS) to add custom CSS styling here.
+        Install ${link} (available in HACS) to customize styles with CSS.
       </small>
     </div>`;
   }
+  const err = cardModError(value);
   return html`
-    ${yamlField('Card Mod (YAML)', value, (v) => onChange(v as Record<string, unknown>))}
-    ${hint ? html`<small class="field-desc card-mod-hint">${hint}</small>` : nothing}
+    ${yamlField('Card Mod YAML', value, (v) => onChange(v as Record<string, unknown>))}
+    ${err ? html`<span class="field-error">${err}</span>` : nothing}
+    <small class="field-desc card-mod-hint">
+      Customize styles with CSS via ${link}. ${hint ?? ''}
+    </small>
   `;
 }
-
-/** Warning shown on a per-element Card Mod, whose styles are not element-scoped. */
-const CARD_MOD_ELEMENT_HINT =
-  'Not scoped to this element — a selector here can style the whole sidebar, so target ' +
-  'carefully (e.g. via a CSS class set above).';
 
 /** Block types that carry tap/hold/double-tap actions. */
 const ACTION_TYPES = new Set(['title', 'clock', 'date', 'item']);

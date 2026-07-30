@@ -1988,15 +1988,10 @@ export class DashboardSidebarEditor extends LitElement {
 
   /**
    * The manual-card validation result: an error banner when the card is invalid,
-   * or a subtle "valid" note otherwise (nothing while HA is unavailable).
+   * and nothing when it is valid (or while HA is unavailable).
    */
   private _cardStatus(): TemplateResult | typeof nothing {
-    if (this.hass === undefined) {
-      return nothing;
-    }
-    return this._cardError
-      ? html`<div class="yaml-banner">${this._cardError}</div>`
-      : html`<small class="card-ok">Card configuration is valid.</small>`;
+    return this._cardError ? html`<div class="yaml-banner">${this._cardError}</div>` : nothing;
   }
 
   /**
@@ -3125,12 +3120,6 @@ export class DashboardSidebarEditor extends LitElement {
     .yaml-fill textarea {
       flex: 1 1 auto;
       min-height: 0;
-    }
-
-    /* The manual card passed validation against HA's cards. */
-    .card-ok {
-      font-size: 0.75rem;
-      color: var(--success-color, #4caf50);
     }
 
     /* Invalid-YAML notice carried back to the UI form. */

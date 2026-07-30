@@ -193,6 +193,12 @@ export class DashboardSidebar extends LitElement {
   /** The footer element currently observed for width, to avoid re-observing. */
   private _observedFooter?: HTMLElement;
 
+  /** The element a hover/toggle popover is anchored to, re-measured on scroll. */
+  private _popoverAnchorEl?: HTMLElement;
+
+  /** Pending scroll-reposition frame handle, so scroll updates coalesce. */
+  private _scrollRaf = 0;
+
   /**
    * Document-level click handler that closes any open popover when the click
    * lands outside this element.
@@ -204,12 +210,31 @@ export class DashboardSidebar extends LitElement {
   };
 
   /**
+   * Re-measures an open popover's anchor when any ancestor scrolls (capture
+   * phase catches scrolls in the editor modal too), so a fixed-position popover
+   * follows its category/button instead of drifting away. Coalesced per frame.
+   */
+  private readonly _onScroll = (): void => {
+    if (this._scrollRaf) {
+      return;
+    }
+    this._scrollRaf = requestAnimationFrame(() => {
+      this._scrollRaf = 0;
+      if ((this._openCategory !== null || this._footerOpen) && this._popoverAnchorEl) {
+        this._popoverAnchor = this._popoverAnchorEl.getBoundingClientRect();
+      }
+      this._updatePinnedAnchor();
+    });
+  };
+
+  /**
    * Closes the category and footer popovers and clears the anchor.
    */
   private _closePopovers(): void {
     this._openCategory = null;
     this._footerOpen = false;
     this._popoverAnchor = null;
+    this._popoverAnchorEl = undefined;
   }
 
   /**
@@ -310,6 +335,9 @@ export class DashboardSidebar extends LitElement {
     if (!this.preview) {
       window.addEventListener('click', this._onDocumentClick);
     }
+    // Capture-phase so it also sees scrolls inside the editor modal's own
+    // scroll container, which a bubbling scroll listener would miss.
+    window.addEventListener('scroll', this._onScroll, true);
     this._restartTick();
     // Re-subscribe templates on reconnect. A cached preview re-entering the DOM
     // (e.g. after an editor tab switch) had its subscriptions cleared on
@@ -326,6 +354,11 @@ export class DashboardSidebar extends LitElement {
   public disconnectedCallback(): void {
     super.disconnectedCallback();
     window.removeEventListener('click', this._onDocumentClick);
+    window.removeEventListener('scroll', this._onScroll, true);
+    if (this._scrollRaf) {
+      cancelAnimationFrame(this._scrollRaf);
+      this._scrollRaf = 0;
+    }
     this._stopTick();
     this._cancelPopoverClose();
     this._templates.clear();
@@ -741,7 +774,8 @@ export class DashboardSidebar extends LitElement {
     this._openCategory = null;
     this._footerOpen = true;
     this._tooltip = null;
-    this._popoverAnchor = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+    this._popoverAnchorEl = ev.currentTarget as HTMLElement;
+    this._popoverAnchor = this._popoverAnchorEl.getBoundingClientRect();
   }
 
   /**
@@ -818,7 +852,8 @@ export class DashboardSidebar extends LitElement {
     this._footerOpen = false;
     this._tooltip = null;
     this._openCategory = key;
-    this._popoverAnchor = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+    this._popoverAnchorEl = ev.currentTarget as HTMLElement;
+    this._popoverAnchor = this._popoverAnchorEl.getBoundingClientRect();
   }
 
   /**
@@ -855,7 +890,8 @@ export class DashboardSidebar extends LitElement {
     this._footerOpen = false;
     this._openCategory = key;
     this._tooltip = null;
-    this._popoverAnchor = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+    this._popoverAnchorEl = ev.currentTarget as HTMLElement;
+    this._popoverAnchor = this._popoverAnchorEl.getBoundingClientRect();
   }
 
   /**

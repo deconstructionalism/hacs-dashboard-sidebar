@@ -45,7 +45,6 @@ import {
   TEMPLATE_HINT,
   type ValidationCtx,
   validateWidth,
-  yamlField,
 } from './block-form';
 
 /**
@@ -1663,9 +1662,13 @@ export class DashboardSidebarEditor extends LitElement {
       return html`
         ${notes}
         <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
-          <div class="editor">
+          <div class="editor form yaml-mode">
             ${this._footerContentHeader('Manual Card')}
-            ${yamlField('YAML Config', footer?.card, (v) => this._setFooterCard(v))}
+            ${this._yamlEditor(
+              footer?.card,
+              (v) => this._setFooterCard(v),
+              () => [],
+            )}
           </div>
           ${this._renderPreview(
             html`${this._renderGhost('up')}

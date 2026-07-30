@@ -36,6 +36,11 @@ export interface BlockCommon {
   class?: string;
   /** CSS id set on the rendered root, so card-mod can target this one element. */
   id?: string;
+  /**
+   * Per-element card-mod config (a `{ style, class, ... }` object), applied to
+   * this element's rendered root via the card-mod integration when installed.
+   */
+  card_mod?: Record<string, unknown>;
 }
 
 /** A heading block showing templatable text. Hidden while collapsed. */

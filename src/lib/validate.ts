@@ -17,7 +17,7 @@ const TOP_KEYS = new Set([
 ]);
 
 /** CSS targeting hooks accepted on every block and footer button. */
-const COMMON = ['class', 'id'];
+const COMMON = ['class', 'id', 'card_mod'];
 
 /** The tap/hold/double-tap action keys accepted on interactive elements. */
 const ACTIONS = ['tap_action', 'hold_action', 'double_tap_action'];

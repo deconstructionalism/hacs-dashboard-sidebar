@@ -953,6 +953,9 @@ export function footerButtonFields(
     icon_color?: string;
     title?: string;
     entity?: string;
+    class?: string;
+    id?: string;
+    card_mod?: Record<string, unknown>;
     tap_action?: { action?: string };
   },
   patch: Patch,
@@ -969,6 +972,12 @@ export function footerButtonFields(
     })}
     ${entityField('Entity', btn.entity, (v) => patch({ entity: v || undefined }), hass, ENTITY_HINT)}
     ${actionSections(btn as unknown as Record<string, unknown>, patch, ctx, hass)}
+    <details class="advanced">
+      <summary>Advanced</summary>
+      ${textField('CSS class', btn.class, (v) => patch({ class: v || undefined }))}
+      ${textField('CSS id', btn.id, (v) => patch({ id: v || undefined }))}
+      ${cardModField(btn.card_mod, (v) => patch({ card_mod: v }))}
+    </details>
   `;
 }
 
@@ -1005,7 +1014,13 @@ function clockDateAdvanced(
  * clock/date Timezone and Custom Format fields).
  */
 function advancedFields(
-  block: { class?: string; id?: string; abbr?: string; icon?: unknown },
+  block: {
+    class?: string;
+    id?: string;
+    abbr?: string;
+    icon?: unknown;
+    card_mod?: Record<string, unknown>;
+  },
   patch: Patch,
   withAbbr: boolean,
   extra: TemplateResult | typeof nothing = nothing,
@@ -1021,7 +1036,19 @@ function advancedFields(
           )
         : nothing
     }
+    ${cardModField(block.card_mod, (v) => patch({ card_mod: v }))}
   </details>`;
+}
+
+/**
+ * Renders the per-element card-mod YAML field: a `{ style, ... }` object passed
+ * to the card-mod integration to style this one element's rendered root.
+ */
+export function cardModField(
+  value: Record<string, unknown> | undefined,
+  onChange: (value: Record<string, unknown> | undefined) => void,
+): TemplateResult {
+  return yamlField('Card Mod (YAML)', value, (v) => onChange(v as Record<string, unknown>));
 }
 
 /** Block types that carry tap/hold/double-tap actions. */

@@ -32,6 +32,7 @@ import {
   actionSections,
   blockFields,
   blockTypeLabel,
+  cardModField,
   checkboxField,
   codeField,
   colorField,
@@ -1311,6 +1312,7 @@ export class DashboardSidebarEditor extends LitElement {
           (v) => this._patchConfig({ background: v || undefined }),
           'Any valid CSS background, including gradients (e.g. linear-gradient(...)).',
         )}
+        ${cardModField(c.card_mod, (v) => this._patchConfig({ card_mod: v }))}
       </section>
     `;
   }
@@ -1542,8 +1544,11 @@ export class DashboardSidebarEditor extends LitElement {
     if (this._tabCollapsed) {
       return bg;
     }
+    // Expose the configured width as a custom property; the actual clamp lives
+    // in CSS so it can differ between the desktop side-by-side layout (capped to
+    // a fraction of the modal) and the stacked mobile layout (full width).
     const width = this._working.width ?? DEFAULT_WIDTH;
-    return `${bg} width: min(${width}px, ${PREVIEW_CAP_PX}px, ${PREVIEW_CAP_VW}vw);`;
+    return `${bg} --pv-w: ${width}px;`;
   }
 
   /**
@@ -1552,7 +1557,12 @@ export class DashboardSidebarEditor extends LitElement {
    */
   private _previewWidthCapped(): boolean {
     const width = this._working.width ?? DEFAULT_WIDTH;
-    return width > Math.min(PREVIEW_CAP_PX, window.innerWidth * (PREVIEW_CAP_VW / 100));
+    // Stacked mobile layout caps the preview to the modal width, not a fraction.
+    const cap =
+      window.innerWidth < 640
+        ? window.innerWidth
+        : Math.min(PREVIEW_CAP_PX, window.innerWidth * (PREVIEW_CAP_VW / 100));
+    return width > cap;
   }
 
   /**
@@ -2609,6 +2619,13 @@ export class DashboardSidebarEditor extends LitElement {
       --mdc-icon-size: 18px;
     }
 
+    /* Expanded preview width: capped to the configured width and to a fraction
+       under half the modal so it never dominates the side-by-side layout. The
+       380px / 42vw caps must match PREVIEW_CAP_PX / PREVIEW_CAP_VW. */
+    .pv-frame:not(.collapsed) {
+      width: min(var(--pv-w, 100%), 380px, 42vw);
+    }
+
     .pv-frame {
       box-sizing: border-box;
       /* A little vertical room so the first/last element's selection outline is
@@ -2733,6 +2750,13 @@ export class DashboardSidebarEditor extends LitElement {
       .pv-frame {
         width: 100%;
         flex: 0 0 auto;
+      }
+
+      /* Stacked: the preview shows at its configured width but never wider than
+         the modal, centered in the full-width preview column. */
+      .pv-frame:not(.collapsed) {
+        width: min(var(--pv-w, 100%), 100%);
+        margin: 0 auto;
       }
 
       .editor,
@@ -3371,6 +3395,7 @@ export class DashboardSidebarEditor extends LitElement {
       flex-direction: column;
       width: max-content;
       min-width: 150px;
+      max-width: calc(100vw - 16px);
       height: min-content;
       max-height: 60vh;
       overflow-y: auto;

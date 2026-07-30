@@ -160,8 +160,11 @@ export class DashboardSidebar extends LitElement {
   /** Built card elements for card blocks, keyed by `region-index` (or footer). */
   private _cards = new Map<string, HTMLElement & { hass?: HomeAssistant }>();
 
-  /** Whether card-mod styles have already been applied for this config. */
+  /** Whether the whole-sidebar card-mod styles have already been applied. */
   private _cardModApplied = false;
+
+  /** Per-element card-mod config signatures, to avoid redundant re-applies. */
+  private readonly _elementCardModSigs = new WeakMap<HTMLElement, string>();
 
   /** Pending hold-gesture timer, and whether a hold has already fired. */
   private _holdTimer?: number;
@@ -493,10 +496,61 @@ export class DashboardSidebar extends LitElement {
    */
   private _applyCardMod(): void {
     const cfg = this._config?.card_mod;
-    if (!cfg || this._cardModApplied || this._errors.length > 0) {
+    if (cfg && !this._cardModApplied && this._errors.length === 0) {
+      this._cardModApplied = applyCardMod(this, cfg);
+    }
+    this._applyElementCardMods();
+  }
+
+  /**
+   * Applies each element's own `card_mod` to its rendered root, keyed by the
+   * element's location so card-mod keeps a separate instance per element. Only
+   * re-applies when an element's config changes (tracked per node).
+   */
+  private _applyElementCardMods(): void {
+    if (this._errors.length > 0) {
       return;
     }
-    this._cardModApplied = applyCardMod(this, cfg);
+    (this.renderRoot as ParentNode).querySelectorAll<HTMLElement>('[data-loc]').forEach((node) => {
+      const loc = node.getAttribute('data-loc') ?? '';
+      const cfg = this._cardModAt(loc);
+      const sig = cfg ? JSON.stringify(cfg) : '';
+      if (this._elementCardModSigs.get(node) === sig) {
+        return;
+      }
+      this._elementCardModSigs.set(node, sig);
+      if (cfg) {
+        applyCardMod(node, cfg, `dashboard-sidebar:${loc}`);
+      }
+    });
+  }
+
+  /**
+   * Resolves the `card_mod` config for an element location (`body:1`,
+   * `body:1.0`, `footer:btn:0`), or undefined when none is set.
+   */
+  private _cardModAt(loc: string): Record<string, unknown> | undefined {
+    const cfg = this._config;
+    if (!cfg) {
+      return undefined;
+    }
+    const btn = /^footer:btn:(\d+)$/.exec(loc);
+    if (btn) {
+      return cfg.footer?.buttons?.[Number(btn[1])]?.card_mod;
+    }
+    const [region, rest] = loc.split(':');
+    if ((region !== 'header' && region !== 'body') || rest === undefined) {
+      return undefined;
+    }
+    const [index, itemIndex] = rest.split('.');
+    const block = cfg[region]?.[Number(index)];
+    if (!block) {
+      return undefined;
+    }
+    if (itemIndex !== undefined) {
+      return block.type === 'category' ? block.items?.[Number(itemIndex)]?.card_mod : undefined;
+    }
+    return block.card_mod;
   }
 
   /**
@@ -696,10 +750,16 @@ export class DashboardSidebar extends LitElement {
    */
   private _popoverStyle(anchor: DOMRect, growUp: boolean): Record<string, string> {
     const style: Record<string, string> = {};
+    // Cap the width to the room between the popover's edge and the viewport, so
+    // it never overflows off-screen (notably in a narrow mobile modal).
     if (this._side === 'left') {
-      style.left = `${anchor.right + 8}px`;
+      const left = anchor.right + 8;
+      style.left = `${left}px`;
+      style['max-width'] = `${Math.max(120, window.innerWidth - left - 8)}px`;
     } else {
-      style.right = `${window.innerWidth - anchor.left + 8}px`;
+      const right = window.innerWidth - anchor.left + 8;
+      style.right = `${right}px`;
+      style['max-width'] = `${Math.max(120, window.innerWidth - right - 8)}px`;
     }
     if (growUp) {
       style.bottom = `${window.innerHeight - anchor.bottom}px`;

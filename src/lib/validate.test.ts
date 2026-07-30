@@ -85,6 +85,27 @@ describe('validateConfig', () => {
     ).toHaveLength(0);
   });
 
+  it('accepts card_mod on the sidebar and on individual elements', () => {
+    expect(
+      validateConfig({
+        card_mod: { style: ':host { color: red; }' },
+        body: [
+          {
+            type: 'item',
+            title: 'i',
+            tap_action: { action: 'toggle' },
+            card_mod: { style: '.x { color: blue; }' },
+          },
+        ],
+        footer: {
+          buttons: [
+            { icon: 'mdi:cog', tap_action: { action: 'toggle' }, card_mod: { style: 'x' } },
+          ],
+        },
+      } as unknown as DashboardSidebarConfig),
+    ).toHaveLength(0);
+  });
+
   it('validates title, clock, and date blocks', () => {
     expect(
       validateConfig({ header: [{ type: 'title' }] } as unknown as DashboardSidebarConfig),

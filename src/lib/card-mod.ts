@@ -18,15 +18,20 @@ interface CardModElement {
  * card-mod handled it, false when card-mod is absent or threw. Any failure is
  * swallowed so card-mod can never break the sidebar itself.
  */
-export function applyCardMod(host: HTMLElement, config: unknown): boolean {
+export function applyCardMod(
+  host: HTMLElement,
+  config: unknown,
+  type = 'dashboard-sidebar',
+): boolean {
   const CardMod = customElements.get('card-mod') as unknown as CardModElement | undefined;
   if (typeof CardMod?.applyToElement !== 'function') {
     return false;
   }
   try {
-    // The default (omitted) third-position flags make card-mod attach inside
-    // host.shadowRoot, where the dashboard-sidebar-* classes live.
-    CardMod.applyToElement(host, 'dashboard-sidebar', config);
+    // The default (omitted) trailing flags make card-mod attach inside the
+    // host's shadow root. `type` tags card-mod's per-element state, so a unique
+    // type per element keeps their styles from colliding.
+    CardMod.applyToElement(host, type, config);
     return true;
   } catch (err) {
     console.warn('[dashboard-sidebar] card-mod failed:', err);

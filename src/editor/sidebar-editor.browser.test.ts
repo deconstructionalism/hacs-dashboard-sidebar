@@ -84,6 +84,16 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(sb?.shadowRoot?.querySelector('[data-loc="body:1"]')).to.exist;
   });
 
+  it('drives the preview frame width from the configured width via --pv-w', async () => {
+    const el = await mount({ ...cfg(), width: 300 });
+    await tab(el, 'Content');
+    const frame = root(el).querySelector('.pv-frame') as HTMLElement;
+    // Width is applied in CSS (responsive); the custom property carries it so
+    // the mobile media query can override the desktop cap.
+    expect(frame.style.getPropertyValue('--pv-w')).to.equal('300px');
+    expect(frame.style.width).to.equal('');
+  });
+
   it('shows a borderless empty state (no preview frame) for an empty region', async () => {
     const el = await mount({ ...cfg(), header: [] });
     await tab(el, 'Header');

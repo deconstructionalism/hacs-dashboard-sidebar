@@ -750,16 +750,19 @@ export class DashboardSidebar extends LitElement {
    */
   private _popoverStyle(anchor: DOMRect, growUp: boolean): Record<string, string> {
     const style: Record<string, string> = {};
-    // Cap the width to the room between the popover's edge and the viewport, so
-    // it never overflows off-screen (notably in a narrow mobile modal).
-    if (this._side === 'left') {
-      const left = anchor.right + 8;
+    const margin = 8;
+    // Open toward whichever side of the anchor has more room, so the popover
+    // never runs off-screen — e.g. when the collapsed icon strip is pinned to
+    // the right edge of a narrow mobile modal. Cap the width to that room.
+    const spaceRight = window.innerWidth - anchor.right;
+    const spaceLeft = anchor.left;
+    if (spaceRight >= spaceLeft) {
+      const left = anchor.right + margin;
       style.left = `${left}px`;
-      style['max-width'] = `${Math.max(120, window.innerWidth - left - 8)}px`;
+      style['max-width'] = `${Math.max(120, window.innerWidth - left - margin)}px`;
     } else {
-      const right = window.innerWidth - anchor.left + 8;
-      style.right = `${right}px`;
-      style['max-width'] = `${Math.max(120, window.innerWidth - right - 8)}px`;
+      style.right = `${window.innerWidth - anchor.left + margin}px`;
+      style['max-width'] = `${Math.max(120, anchor.left - 2 * margin)}px`;
     }
     if (growUp) {
       style.bottom = `${window.innerHeight - anchor.bottom}px`;

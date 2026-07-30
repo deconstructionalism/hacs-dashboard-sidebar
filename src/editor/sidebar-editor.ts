@@ -2753,10 +2753,11 @@ export class DashboardSidebarEditor extends LitElement {
       }
 
       /* Stacked: the preview shows at its configured width but never wider than
-         the modal, centered in the full-width preview column. */
+         the modal, right-aligned in the preview column to match the collapsed
+         view (which pins to the right). */
       .pv-frame:not(.collapsed) {
         width: min(var(--pv-w, 100%), 100%);
-        margin: 0 auto;
+        align-self: flex-end;
       }
 
       .editor,

@@ -389,20 +389,21 @@ describe('<dashboard-sidebar> config species', () => {
   });
 
   describe('card blocks', () => {
-    it('renders a manual card block with alignment and background', async () => {
+    it('stretches an object card to full width, with a background', async () => {
       const el = await mount({
         body: [
           {
             type: 'card',
             card: { type: 'entities', entities: ['light.a'] },
-            align: 'center',
             background: 'rgba(0,0,0,0.1)',
           },
         ],
       });
       const content = root(el).querySelector('.dashboard-sidebar-content') as HTMLElement;
       expect(content.querySelector('.stub-card')).to.exist;
-      expect(content.style.textAlign).to.equal('center');
+      // Object cards fill the sidebar width instead of shrinking to content.
+      expect(content.style.alignItems).to.equal('stretch');
+      expect(content.style.background).to.contain('rgba(0, 0, 0, 0.1)');
       expect(createdCards[0]).to.deep.equal({ type: 'entities', entities: ['light.a'] });
     });
 

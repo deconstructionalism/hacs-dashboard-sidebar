@@ -1184,11 +1184,14 @@ export class DashboardSidebar extends LitElement {
     if (!el) {
       return nothing;
     }
+    // An object manual card stretches to the full sidebar width (most HA cards
+    // are designed to fill their container); a legacy string card keeps the
+    // alignment behavior of a chrome-less markdown block.
+    const stringCard = typeof block.card === 'string';
     const align = block.align ?? 'left';
     const style = {
-      'align-items': FLEX_ALIGN[align],
-      'text-align': align,
-      ...(typeof block.card === 'string' ? CHROMELESS_CARD : {}),
+      'align-items': stringCard ? FLEX_ALIGN[align] : 'stretch',
+      ...(stringCard ? { 'text-align': align, ...CHROMELESS_CARD } : {}),
       ...(block.background
         ? { background: block.background, padding: '8px', 'border-radius': '8px' }
         : {}),

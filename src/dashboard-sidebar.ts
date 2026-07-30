@@ -863,7 +863,10 @@ export class DashboardSidebar extends LitElement {
    */
   private _tipStyle(rect: DOMRect): Record<string, string> {
     const style: Record<string, string> = { top: `${rect.top + rect.height / 2}px` };
-    if (this._side === 'left') {
+    // Show on whichever side of the icon has more room, so the tooltip flips to
+    // the left when the icon strip is pinned to the right edge (mobile preview)
+    // instead of running off-screen.
+    if (window.innerWidth - rect.right >= rect.left) {
       style.left = `${rect.right + 8}px`;
     } else {
       style.right = `${window.innerWidth - rect.left + 8}px`;

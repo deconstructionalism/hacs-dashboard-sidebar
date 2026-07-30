@@ -350,10 +350,14 @@ export class DashboardSidebarEditor extends LitElement {
    */
   private _maybeValidateCard(): void {
     const sel = this._locate(this._selected);
+    // Validate a selected manual-card block, or the footer's card when the
+    // footer is in card mode, so both show the same live validation status.
     const card =
       sel?.kind === 'block' && (sel.block as { type?: string }).type === 'card'
         ? (sel.block as { card?: unknown }).card
-        : undefined;
+        : this._footerMode() === 'card'
+          ? this._working.footer?.card
+          : undefined;
     const sig = card === undefined ? '' : JSON.stringify(card);
     if (sig === this._lastCardSig) {
       return;
@@ -1669,6 +1673,7 @@ export class DashboardSidebarEditor extends LitElement {
               (v) => this._setFooterCard(v),
               () => [],
             )}
+            ${this._cardStatus()}
           </div>
           ${this._renderPreview(
             html`${this._renderGhost('up')}

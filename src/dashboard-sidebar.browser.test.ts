@@ -309,13 +309,16 @@ describe('<dashboard-sidebar> config species', () => {
       expect(createdCards[0]).to.deep.equal({ type: 'markdown', content: '**foot**' });
     });
 
-    it('renders a footer manual card', async () => {
+    it('renders a footer manual card at full width', async () => {
       const el = await mount({
         body: [{ type: 'item', title: 'A', tap_action: TAP }],
         footer: { card: { type: 'entities', entities: ['light.a'] } },
       });
-      const footer = root(el).querySelector('.dashboard-sidebar-footer');
-      expect(footer?.querySelector('.stub-card')).to.exist;
+      const content = root(el).querySelector(
+        '.dashboard-sidebar-footer .dashboard-sidebar-content',
+      ) as HTMLElement;
+      expect(content.querySelector('.stub-card')).to.exist;
+      expect(content.classList.contains('card-fill')).to.equal(true);
       expect(createdCards[0]).to.deep.equal({ type: 'entities', entities: ['light.a'] });
     });
 
@@ -403,6 +406,7 @@ describe('<dashboard-sidebar> config species', () => {
       expect(content.querySelector('.stub-card')).to.exist;
       // Object cards fill the sidebar width instead of shrinking to content.
       expect(content.style.alignItems).to.equal('stretch');
+      expect(content.classList.contains('card-fill')).to.equal(true);
       expect(content.style.background).to.contain('rgba(0, 0, 0, 0.1)');
       expect(createdCards[0]).to.deep.equal({ type: 'entities', entities: ['light.a'] });
     });

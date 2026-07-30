@@ -1196,8 +1196,9 @@ export class DashboardSidebar extends LitElement {
         ? { background: block.background, padding: '8px', 'border-radius': '8px' }
         : {}),
     };
+    const fill = stringCard ? '' : ' card-fill';
     return html`<div
-      class="content dashboard-sidebar-content${this._hookClass(block)}${this._selClass(loc)}"
+      class="content dashboard-sidebar-content${fill}${this._hookClass(block)}${this._selClass(loc)}"
       id=${block.id ?? nothing}
       data-loc=${loc}
       style=${styleMap(style)}
@@ -1469,9 +1470,10 @@ export class DashboardSidebar extends LitElement {
           }
         : {};
       const actionable = markdown && this._actionable(mdActions);
+      const fill = !markdown && typeof footer.card !== 'string' ? ' card-fill' : '';
       return html`<div class=${classMap(footerClasses)}>
         <div
-          class="content dashboard-sidebar-content${actionable ? ' clickable' : ''}${this._selClass(loc)}"
+          class="content dashboard-sidebar-content${fill}${actionable ? ' clickable' : ''}${this._selClass(loc)}"
           data-loc=${loc}
           style=${styleMap(style)}
           @pointerdown=${actionable ? () => this._onActionDown(mdActions) : nothing}

@@ -2097,16 +2097,18 @@ export class DashboardSidebarEditor extends LitElement {
       return html`
         <div class="form ${this._yamlActive() ? 'yaml-mode' : ''}">
           ${this._formHeader('Button')} ${this._uiYamlBanner()} ${body}
-          <button class="add-btn" @click=${() => this._addFooterButton()}>Add Button Next</button>
-          <button
-            class="add-btn danger"
-            @click=${() => {
-              this._removeFooterButton(sel.index);
-              this._selected = null;
-            }}
-          >
-            Delete Button
-          </button>
+          <div class="form-actions">
+            <button class="add-btn" @click=${() => this._addFooterButton()}>Add Button Next</button>
+            <button
+              class="add-btn danger"
+              @click=${() => {
+                this._removeFooterButton(sel.index);
+                this._selected = null;
+              }}
+            >
+              Delete Button
+            </button>
+          </div>
         </div>
       `;
     }
@@ -2123,18 +2125,20 @@ export class DashboardSidebarEditor extends LitElement {
       return html`
         <div class="form ${this._yamlActive() ? 'yaml-mode' : ''}">
           ${this._formHeader('Item')} ${this._uiYamlBanner()} ${body}
-          <button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
-            Add Child Item
-          </button>
-          <button
-            class="add-btn danger"
-            @click=${() => {
-              this._removeItem(sel.region, sel.index, sel.itemIndex);
-              this._selected = null;
-            }}
-          >
-            Delete Item
-          </button>
+          <div class="form-actions">
+            <button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
+              Add Child Item
+            </button>
+            <button
+              class="add-btn danger"
+              @click=${() => {
+                this._removeItem(sel.region, sel.index, sel.itemIndex);
+                this._selected = null;
+              }}
+            >
+              Delete Item
+            </button>
+          </div>
         </div>
       `;
     }
@@ -2163,8 +2167,10 @@ export class DashboardSidebarEditor extends LitElement {
             () => [],
           )}
           ${this._cardStatus()}
-          ${this._renderAddMenu(this._typeItems(sel.region), 'Add Element After', true)}
-          ${deleteBtn}
+          <div class="form-actions">
+            ${this._renderAddMenu(this._typeItems(sel.region), 'Add Element After', true)}
+            ${deleteBtn}
+          </div>
         </div>
       `;
     }
@@ -2178,14 +2184,17 @@ export class DashboardSidebarEditor extends LitElement {
     return html`
       <div class="form ${this._yamlActive() ? 'yaml-mode' : ''}">
         ${this._formHeader(typeLabel)} ${this._uiYamlBanner()} ${body}
-        ${
-          sel.block.type === 'category'
-            ? html`<button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
-                Add Child Item
-              </button>`
-            : nothing
-        }
-        ${this._renderAddMenu(this._typeItems(sel.region), 'Add Element After', true)} ${deleteBtn}
+        <div class="form-actions">
+          ${
+            sel.block.type === 'category'
+              ? html`<button class="add-btn" @click=${() => this._addItem(sel.region, sel.index)}>
+                  Add Child Item
+                </button>`
+              : nothing
+          }
+          ${this._renderAddMenu(this._typeItems(sel.region), 'Add Element After', true)}
+          ${deleteBtn}
+        </div>
       </div>
     `;
   }
@@ -3167,10 +3176,12 @@ export class DashboardSidebarEditor extends LitElement {
       flex: 1 1 auto;
     }
 
-    /* The 28px options button must not tallen the notes row past its text, so
-       the footer notes line up with the other tabs. */
+    /* The options button must not tallen the notes row past its text, so the
+       footer notes line up exactly with the other tabs: cap its box to the
+       note's line height (0.95rem * 1.4) while keeping the icon centered. */
     .tab-notes .tool {
-      margin-block: -4px;
+      height: calc(0.95rem * 1.4);
+      margin-block: 0;
     }
 
     .tab-note {
@@ -3214,6 +3225,20 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     /* Solid (filled) form action buttons: add-after, add child, delete. */
+    /* The form's bottom actions (Add / Delete) sit in one equal-width row. */
+    .form-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .form-actions > * {
+      flex: 1 1 0;
+      min-width: 0;
+      margin-top: 0;
+      text-align: center;
+    }
+
     .add-btn,
     .add.solid {
       font: inherit;

@@ -974,9 +974,14 @@ export function footerButtonFields(
     ${actionSections(btn as unknown as Record<string, unknown>, patch, ctx, hass)}
     <details class="advanced">
       <summary>Advanced</summary>
-      ${textField('CSS class', btn.class, (v) => patch({ class: v || undefined }))}
-      ${textField('CSS id', btn.id, (v) => patch({ id: v || undefined }))}
-      ${cardModField(btn.card_mod, (v) => patch({ card_mod: v }))}
+      ${textField(
+        'CSS class',
+        btn.class,
+        (v) => patch({ class: v || undefined }),
+        undefined,
+        'A hook for targeting this button from the sidebar-level Card Mod.',
+      )}
+      ${cardModField(btn.card_mod, (v) => patch({ card_mod: v }), CARD_MOD_ELEMENT_HINT)}
     </details>
   `;
 }
@@ -1009,14 +1014,13 @@ function clockDateAdvanced(
 }
 
 /**
- * Renders the class/id (and, for items/categories, abbr) hooks under a native
- * collapsible Advanced section. `extra` is placed above the hooks (e.g. the
- * clock/date Timezone and Custom Format fields).
+ * Renders the CSS class (and, for items/categories, abbr) hook plus the card-mod
+ * field under a native collapsible Advanced section. `extra` is placed above the
+ * hooks (e.g. the clock/date Timezone and Custom Format fields).
  */
 function advancedFields(
   block: {
     class?: string;
-    id?: string;
     abbr?: string;
     icon?: unknown;
     card_mod?: Record<string, unknown>;
@@ -1027,8 +1031,14 @@ function advancedFields(
 ): TemplateResult {
   return html`<details class="advanced">
     <summary>Advanced</summary>
-    ${extra} ${textField('CSS class', block.class, (v) => patch({ class: v || undefined }))}
-    ${textField('CSS id', block.id, (v) => patch({ id: v || undefined }))}
+    ${extra}
+    ${textField(
+      'CSS class',
+      block.class,
+      (v) => patch({ class: v || undefined }),
+      undefined,
+      'A hook for targeting this element from the sidebar-level Card Mod.',
+    )}
     ${
       withAbbr
         ? textField('Abbr (collapsed glyph, icon-less only)', block.abbr, (v) =>
@@ -1036,7 +1046,7 @@ function advancedFields(
           )
         : nothing
     }
-    ${cardModField(block.card_mod, (v) => patch({ card_mod: v }))}
+    ${cardModField(block.card_mod, (v) => patch({ card_mod: v }), CARD_MOD_ELEMENT_HINT)}
   </details>`;
 }
 
@@ -1049,6 +1059,7 @@ function advancedFields(
 export function cardModField(
   value: Record<string, unknown> | undefined,
   onChange: (value: Record<string, unknown> | undefined) => void,
+  hint?: string,
 ): TemplateResult {
   if (!customElements.get('card-mod')) {
     return html`<div class="field card-mod-missing">
@@ -1065,8 +1076,16 @@ export function cardModField(
       </small>
     </div>`;
   }
-  return yamlField('Card Mod (YAML)', value, (v) => onChange(v as Record<string, unknown>));
+  return html`
+    ${yamlField('Card Mod (YAML)', value, (v) => onChange(v as Record<string, unknown>))}
+    ${hint ? html`<small class="field-desc card-mod-hint">${hint}</small>` : nothing}
+  `;
 }
+
+/** Warning shown on a per-element Card Mod, whose styles are not element-scoped. */
+const CARD_MOD_ELEMENT_HINT =
+  'Not scoped to this element — a selector here can style the whole sidebar, so target ' +
+  'carefully (e.g. via a CSS class set above).';
 
 /** Block types that carry tap/hold/double-tap actions. */
 const ACTION_TYPES = new Set(['title', 'clock', 'date', 'item']);

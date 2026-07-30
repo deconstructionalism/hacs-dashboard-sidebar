@@ -199,6 +199,9 @@ export class DashboardSidebar extends LitElement {
   /** Pending scroll-reposition frame handle, so scroll updates coalesce. */
   private _scrollRaf = 0;
 
+  /** Scroll targets (composed ancestors + window) the reposition listens on. */
+  private _scrollTargets: EventTarget[] = [];
+
   /**
    * Document-level click handler that closes any open popover when the click
    * lands outside this element.
@@ -210,9 +213,37 @@ export class DashboardSidebar extends LitElement {
   };
 
   /**
-   * Re-measures an open popover's anchor when any ancestor scrolls (capture
-   * phase catches scrolls in the editor modal too), so a fixed-position popover
-   * follows its category/button instead of drifting away. Coalesced per frame.
+   * Listens for scroll on every composed ancestor (walking up through shadow
+   * hosts, since a `scroll` event is not composed and never reaches window from
+   * inside the editor modal's shadow root) plus window, so an open popover can
+   * follow its anchor while any of them scrolls.
+   */
+  private _bindScroll(): void {
+    this._unbindScroll();
+    const targets: EventTarget[] = [window];
+    let node: Node | null = this.parentNode ?? (this.getRootNode() as ShadowRoot)?.host ?? null;
+    while (node) {
+      targets.push(node);
+      const parent: Node | null =
+        node.parentNode ?? (node instanceof ShadowRoot ? node.host : null);
+      node = parent;
+    }
+    targets.forEach((t) => t.addEventListener('scroll', this._onScroll, { passive: true }));
+    this._scrollTargets = targets;
+  }
+
+  /**
+   * Detaches the scroll-reposition listeners.
+   */
+  private _unbindScroll(): void {
+    this._scrollTargets.forEach((t) => t.removeEventListener('scroll', this._onScroll));
+    this._scrollTargets = [];
+  }
+
+  /**
+   * Re-measures an open popover's anchor when any ancestor scrolls, so a
+   * fixed-position popover follows its category/button instead of drifting
+   * away. Coalesced per frame.
    */
   private readonly _onScroll = (): void => {
     if (this._scrollRaf) {
@@ -335,9 +366,7 @@ export class DashboardSidebar extends LitElement {
     if (!this.preview) {
       window.addEventListener('click', this._onDocumentClick);
     }
-    // Capture-phase so it also sees scrolls inside the editor modal's own
-    // scroll container, which a bubbling scroll listener would miss.
-    window.addEventListener('scroll', this._onScroll, true);
+    this._bindScroll();
     this._restartTick();
     // Re-subscribe templates on reconnect. A cached preview re-entering the DOM
     // (e.g. after an editor tab switch) had its subscriptions cleared on
@@ -354,7 +383,7 @@ export class DashboardSidebar extends LitElement {
   public disconnectedCallback(): void {
     super.disconnectedCallback();
     window.removeEventListener('click', this._onDocumentClick);
-    window.removeEventListener('scroll', this._onScroll, true);
+    this._unbindScroll();
     if (this._scrollRaf) {
       cancelAnimationFrame(this._scrollRaf);
       this._scrollRaf = 0;

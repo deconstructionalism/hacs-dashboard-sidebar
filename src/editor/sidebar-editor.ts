@@ -2907,6 +2907,15 @@ export class DashboardSidebarEditor extends LitElement {
       line-height: 1.3;
     }
 
+    .field-desc a {
+      color: var(--primary-color, #03a9f4);
+    }
+
+    /* The card-mod install prompt shown when the integration is absent. */
+    .card-mod-missing .field-desc {
+      opacity: 0.8;
+    }
+
     /* A resolved entity/service replaces the input with a card: the id over its
        friendly name, and a clear button. Matches the inputs' bordered box. */
     .field-picked {

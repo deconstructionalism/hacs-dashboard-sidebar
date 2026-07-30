@@ -151,6 +151,17 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(root(el).querySelector('.advanced')).to.exist;
   });
 
+  it('prompts to install card-mod when it is absent (no card_mod field)', async () => {
+    // card-mod is not registered in the test environment.
+    const el = await mount(cfg());
+    await tab(el, 'Content');
+    await clickLoc(el, 'body:0');
+    const prompt = root(el).querySelector('.card-mod-missing');
+    expect(prompt).to.exist;
+    const link = prompt?.querySelector('a') as HTMLAnchorElement;
+    expect(link?.href).to.contain('lovelace-card-mod');
+  });
+
   it('reorders a region through a preview reorder event', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');

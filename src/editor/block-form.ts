@@ -1041,13 +1041,30 @@ function advancedFields(
 }
 
 /**
- * Renders the per-element card-mod YAML field: a `{ style, ... }` object passed
- * to the card-mod integration to style this one element's rendered root.
+ * Renders the card-mod YAML field: a `{ style, ... }` object passed to the
+ * card-mod integration to style this element (or the sidebar). When card-mod is
+ * not installed the field is hidden and replaced with a prompt to install it,
+ * since the config would otherwise silently do nothing.
  */
 export function cardModField(
   value: Record<string, unknown> | undefined,
   onChange: (value: Record<string, unknown> | undefined) => void,
 ): TemplateResult {
+  if (!customElements.get('card-mod')) {
+    return html`<div class="field card-mod-missing">
+      <span>Card Mod</span>
+      <small class="field-desc">
+        Install the
+        <a
+          href="https://github.com/thomasloven/lovelace-card-mod"
+          target="_blank"
+          rel="noopener noreferrer"
+          >card-mod</a
+        >
+        integration (available in HACS) to add custom CSS styling here.
+      </small>
+    </div>`;
+  }
   return yamlField('Card Mod (YAML)', value, (v) => onChange(v as Record<string, unknown>));
 }
 

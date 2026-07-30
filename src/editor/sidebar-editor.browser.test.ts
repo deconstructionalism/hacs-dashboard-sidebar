@@ -164,6 +164,19 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(root(el).querySelector('.advanced')).to.exist;
   });
 
+  it('lists only the relevant CSS classes in an element Advanced section', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Content');
+    await clickLoc(el, 'body:0'); // the item
+    const ref = root(el).querySelector('.advanced .class-ref') as HTMLDetailsElement;
+    expect(ref).to.exist;
+    const codes = [...ref.querySelectorAll('code')].map((c) => c.textContent);
+    expect(codes).to.include('.dashboard-sidebar-item-label');
+    // Item-only: no unrelated element classes.
+    expect(codes).to.not.include('.dashboard-sidebar-clock');
+    expect(codes).to.not.include(':host');
+  });
+
   it('prompts to install card-mod when it is absent (no card_mod field)', async () => {
     // card-mod is not registered in the test environment.
     const el = await mount(cfg());

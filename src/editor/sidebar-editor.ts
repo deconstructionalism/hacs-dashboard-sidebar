@@ -37,6 +37,7 @@ import {
   codeField,
   colorField,
   colorTemplateField,
+  elementClassRef,
   entityDatalist,
   footerButtonFields,
   iconChoiceField,
@@ -2231,7 +2232,7 @@ export class DashboardSidebarEditor extends LitElement {
             (v) => this._patchBlock(sel.region, sel.index, { card: v }),
             () => [],
           )}
-          ${this._cardStatus()}
+          ${this._cardStatus()} ${elementClassRef('card')}
           <div class="form-actions">
             ${this._renderAddMenu(this._typeItems(sel.region), 'Add Element After', true)}
             ${deleteBtn}

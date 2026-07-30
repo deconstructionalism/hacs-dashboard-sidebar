@@ -982,6 +982,7 @@ export function footerButtonFields(
         'A hook for targeting this button from the sidebar-level Card Mod.',
       )}
       ${cardModField(btn.card_mod, (v) => patch({ card_mod: v }), CARD_MOD_ELEMENT_HINT)}
+      ${elementClassRef('footer-button')}
     </details>
   `;
 }
@@ -1020,6 +1021,7 @@ function clockDateAdvanced(
  */
 function advancedFields(
   block: {
+    type?: string;
     class?: string;
     abbr?: string;
     icon?: unknown;
@@ -1047,11 +1049,60 @@ function advancedFields(
         : nothing
     }
     ${cardModField(block.card_mod, (v) => patch({ card_mod: v }), CARD_MOD_ELEMENT_HINT)}
+    ${elementClassRef(block.type ?? 'item')}
   </details>`;
 }
 
 /** The card-mod integration's repository, linked from the Card Mod fields. */
 const CARD_MOD_URL = 'https://github.com/thomasloven/lovelace-card-mod';
+
+/** Targetable `dashboard-sidebar-*` selectors for each element type. */
+const ELEMENT_CLASSES: Record<string, Array<{ sel: string; desc: string }>> = {
+  title: [{ sel: '.dashboard-sidebar-title', desc: 'The title element' }],
+  clock: [{ sel: '.dashboard-sidebar-clock', desc: 'The clock element' }],
+  date: [{ sel: '.dashboard-sidebar-date', desc: 'The date element' }],
+  divider: [{ sel: '.dashboard-sidebar-divider', desc: 'The divider line' }],
+  item: [
+    { sel: '.dashboard-sidebar-item', desc: 'The item row' },
+    { sel: '.dashboard-sidebar-item-icon', desc: 'The item icon' },
+    { sel: '.dashboard-sidebar-item-label', desc: 'The item label text' },
+    { sel: '.dashboard-sidebar-initials', desc: 'The collapsed glyph (icon-less)' },
+  ],
+  category: [
+    { sel: '.dashboard-sidebar-category', desc: 'The category group' },
+    { sel: '.dashboard-sidebar-category-header', desc: 'The category header row' },
+    { sel: '.dashboard-sidebar-category-items', desc: 'The items list' },
+    { sel: '.dashboard-sidebar-chevron', desc: 'The expand chevron' },
+    { sel: '.dashboard-sidebar-item', desc: 'A child item row' },
+    { sel: '.dashboard-sidebar-popover', desc: 'The collapsed popover' },
+  ],
+  markdown: [{ sel: '.dashboard-sidebar-markdown', desc: 'The text (markdown) block' }],
+  card: [{ sel: '.dashboard-sidebar-content', desc: 'The manual card wrapper' }],
+  'footer-button': [
+    { sel: '.dashboard-sidebar-footer-btn', desc: 'The footer button' },
+    { sel: '.dashboard-sidebar-footer-icon', desc: 'The footer button icon' },
+  ],
+};
+
+/**
+ * Renders a collapsed reference of the `dashboard-sidebar-*` selectors relevant
+ * to one element type, for use in its Advanced section. Empty for an unknown
+ * type.
+ */
+export function elementClassRef(type: string): TemplateResult {
+  const classes = ELEMENT_CLASSES[type];
+  if (!classes) {
+    return html``;
+  }
+  return html`<details class="advanced class-ref">
+    <summary>Targetable CSS classes</summary>
+    <div class="class-ref-list">
+      ${classes.map(
+        (c) => html`<div class="class-ref-row"><code>${c.sel}</code><span>${c.desc}</span></div>`,
+      )}
+    </div>
+  </details>`;
+}
 
 /** Warning shown on a per-element Card Mod, whose styles are not element-scoped. */
 const CARD_MOD_ELEMENT_HINT = 'Not element-scoped; selectors here can affect the whole sidebar.';

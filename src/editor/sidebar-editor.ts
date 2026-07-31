@@ -1343,7 +1343,7 @@ export class DashboardSidebarEditor extends LitElement {
           'Hide the sidebar entirely on narrow (phone-width) screens.',
         )}
         <details class="advanced">
-          <summary>Custom Styling</summary>
+          <summary>Advanced</summary>
           ${colorField(
             'Background CSS',
             c.background,

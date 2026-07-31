@@ -146,6 +146,58 @@ describe('<dashboard-sidebar> config species', () => {
     });
   });
 
+  describe('navigate highlight', () => {
+    it('marks an element whose navigate action targets the current page', async () => {
+      const original = window.location.pathname;
+      window.history.pushState({}, '', '/lovelace/nav-home');
+      try {
+        const el = await mount({
+          body: [
+            {
+              type: 'item',
+              title: 'Home',
+              tap_action: { action: 'navigate', navigation_path: '/lovelace/nav-home' },
+            },
+            {
+              type: 'item',
+              title: 'Away',
+              tap_action: { action: 'navigate', navigation_path: '/lovelace/other' },
+            },
+          ],
+        });
+        const items = root(el).querySelectorAll('.dashboard-sidebar-item');
+        expect(items[0].classList.contains('nav-active')).to.equal(true);
+        expect(items[1].classList.contains('nav-active')).to.equal(false);
+      } finally {
+        window.history.pushState({}, '', original);
+      }
+    });
+
+    it('updates the highlight on navigation', async () => {
+      const original = window.location.pathname;
+      window.history.pushState({}, '', '/lovelace/one');
+      try {
+        const el = await mount({
+          body: [
+            {
+              type: 'item',
+              title: 'Two',
+              tap_action: { action: 'navigate', navigation_path: '/lovelace/two' },
+            },
+          ],
+        });
+        const item = root(el).querySelector('.dashboard-sidebar-item') as HTMLElement;
+        expect(item.classList.contains('nav-active')).to.equal(false);
+        window.history.pushState({}, '', '/lovelace/two');
+        window.dispatchEvent(new Event('location-changed'));
+        await el.updateComplete;
+        expect(item.classList.contains('nav-active')).to.equal(true);
+      } finally {
+        window.history.pushState({}, '', original);
+      }
+    });
+  });
+
   describe('categories', () => {
     it('shows items when the category starts expanded', async () => {
       const el = await mount({

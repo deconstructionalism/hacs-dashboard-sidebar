@@ -34,6 +34,23 @@ export const baseStyles = css`
     cursor: pointer;
   }
 
+  /* An element whose navigate action targets the current page is highlighted
+     with the theme accent (rows/buttons also get a tinted pill). */
+  .nav-active {
+    color: var(--primary-color, #03a9f4);
+  }
+
+  .row.nav-active,
+  .footer-btn.nav-active {
+    background: color-mix(in srgb, var(--primary-color, #03a9f4) 14%, transparent);
+    border-radius: 10px;
+  }
+
+  .nav-active ha-icon,
+  .nav-active .dashboard-sidebar-item-icon {
+    color: var(--primary-color, #03a9f4);
+  }
+
   /* Inert single-block preview embedded in the editor: no host box, no
      interaction, sized to its content. */
   :host([preview]) {

@@ -119,6 +119,9 @@ export class DashboardSidebar extends LitElement {
   /** Clock tick; reassigned each interval so time blocks re-render. */
   @state() private _now = new Date();
 
+  /** Current dashboard path, for highlighting a matching navigate action. */
+  @state() private _path = window.location.pathname;
+
   /** Key (`region-index`) of the collapsed category whose popover is open. */
   @state() private _openCategory: string | null = null;
 
@@ -259,6 +262,37 @@ export class DashboardSidebar extends LitElement {
   };
 
   /**
+   * Tracks the current dashboard path so an element whose navigate action
+   * targets the active page can be highlighted. Fires on HA's SPA navigation
+   * event and on browser back/forward.
+   */
+  private readonly _onLocationChange = (): void => {
+    if (window.location.pathname !== this._path) {
+      this._path = window.location.pathname;
+    }
+  };
+
+  /**
+   * Whether an element's tap action navigates to the current page: an exact
+   * path match, or the current path being a sub-path of the target. Never in a
+   * preview, where there is no live navigation.
+   */
+  private _navActive(cfg: ActionEl): boolean {
+    const action = cfg.tap_action as { action?: string; navigation_path?: string } | undefined;
+    if (this.preview || action?.action !== 'navigate' || !action.navigation_path) {
+      return false;
+    }
+    const target = action.navigation_path.split(/[?#]/)[0].replace(/\/+$/, '');
+    const current = this._path.replace(/\/+$/, '');
+    return target !== '' && (current === target || current.startsWith(`${target}/`));
+  }
+
+  /** The ` nav-active` class suffix for an element matching the current page. */
+  private _navClass(cfg: ActionEl): string {
+    return this._navActive(cfg) ? ' nav-active' : '';
+  }
+
+  /**
    * Closes the category and footer popovers and clears the anchor.
    */
   private _closePopovers(): void {
@@ -367,6 +401,9 @@ export class DashboardSidebar extends LitElement {
       window.addEventListener('click', this._onDocumentClick);
     }
     this._bindScroll();
+    window.addEventListener('location-changed', this._onLocationChange);
+    window.addEventListener('popstate', this._onLocationChange);
+    this._onLocationChange();
     this._restartTick();
     // Re-subscribe templates on reconnect. A cached preview re-entering the DOM
     // (e.g. after an editor tab switch) had its subscriptions cleared on
@@ -383,6 +420,8 @@ export class DashboardSidebar extends LitElement {
   public disconnectedCallback(): void {
     super.disconnectedCallback();
     window.removeEventListener('click', this._onDocumentClick);
+    window.removeEventListener('location-changed', this._onLocationChange);
+    window.removeEventListener('popstate', this._onLocationChange);
     this._unbindScroll();
     if (this._scrollRaf) {
       cancelAnimationFrame(this._scrollRaf);
@@ -1175,7 +1214,7 @@ export class DashboardSidebar extends LitElement {
     };
     const clickable = this._actionable(block) ? ' clickable' : '';
     return html`<div
-      class="app-title dashboard-sidebar-title${clickable}${this._hookClass(block)}${this._selClass(loc)}"
+      class="app-title dashboard-sidebar-title${clickable}${this._navClass(block)}${this._hookClass(block)}${this._selClass(loc)}"
       id=${block.id ?? nothing}
       data-loc=${loc}
       style=${styleMap(style)}
@@ -1222,7 +1261,7 @@ export class DashboardSidebar extends LitElement {
     const now = zonedDate(this._now, block.timezone ?? '');
     const clickable = this._actionable(block) ? ' clickable' : '';
     return html`<div
-      class="clock dashboard-sidebar-clock${clickable}${this._hookClass(block)}${this._selClass(loc)}"
+      class="clock dashboard-sidebar-clock${clickable}${this._navClass(block)}${this._hookClass(block)}${this._selClass(loc)}"
       id=${block.id ?? nothing}
       data-loc=${loc}
       style=${styleMap(style)}
@@ -1248,7 +1287,7 @@ export class DashboardSidebar extends LitElement {
     const now = zonedDate(this._now, block.timezone ?? '');
     const clickable = this._actionable(block) ? ' clickable' : '';
     return html`<div
-      class="date dashboard-sidebar-date${clickable}${this._hookClass(block)}${this._selClass(loc)}"
+      class="date dashboard-sidebar-date${clickable}${this._navClass(block)}${this._hookClass(block)}${this._selClass(loc)}"
       id=${block.id ?? nothing}
       data-loc=${loc}
       style=${styleMap(style)}
@@ -1367,7 +1406,7 @@ export class DashboardSidebar extends LitElement {
     if (collapsed) {
       return html`
         <button
-          class="row item collapsed-row dashboard-sidebar-item${this._hookClass(item)}${this._selClass(loc)}"
+          class="row item collapsed-row dashboard-sidebar-item${this._navClass(item)}${this._hookClass(item)}${this._selClass(loc)}"
           id=${item.id ?? nothing}
           data-loc=${loc}
           aria-label=${title}
@@ -1395,7 +1434,7 @@ export class DashboardSidebar extends LitElement {
 
     return html`
       <button
-        class="row item dashboard-sidebar-item${this._hookClass(item)}${this._selClass(loc)}"
+        class="row item dashboard-sidebar-item${this._navClass(item)}${this._hookClass(item)}${this._selClass(loc)}"
         id=${item.id ?? nothing}
         data-loc=${loc}
         @pointerdown=${() => this._onActionDown(item)}
@@ -1724,7 +1763,7 @@ export class DashboardSidebar extends LitElement {
     const loc = `footer:btn:${index}`;
     return html`
       <button
-        class="footer-btn dashboard-sidebar-footer-btn${this._hookClass(btn)}${this._selClass(loc)}"
+        class="footer-btn dashboard-sidebar-footer-btn${this._navClass(btn)}${this._hookClass(btn)}${this._selClass(loc)}"
         id=${btn.id ?? nothing}
         data-loc=${loc}
         aria-label=${title}

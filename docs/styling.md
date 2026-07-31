@@ -1,0 +1,93 @@
+# Styling
+
+## Colors
+
+Most elements accept **text** and **icon** color templates — any CSS color, or a
+Jinja template that resolves to one:
+
+```yaml
+- type: item
+  title: Alarm
+  icon: mdi:shield
+  text_color: '{{ "red" if is_state("alarm_control_panel.home","triggered") else "" }}'
+  icon_color: var(--primary-color)
+```
+
+| Element | Color options |
+| --- | --- |
+| Title, Clock, Date, Text | `text_color` |
+| Item, Category | `text_color`, `icon_color` |
+| Divider | `color` (the line) |
+| Footer button | `icon_color` |
+| Text footer | `markdown_color` |
+
+## Background
+
+The whole sidebar takes any CSS `background` (Settings → Advanced), including
+gradients:
+
+```yaml
+dashboard_sidebar:
+  background: linear-gradient(180deg, #1b2735, #090a0f)
+```
+
+## card-mod
+
+For full CSS control, Dashboard Sidebar integrates with the
+[card-mod](https://github.com/thomasloven/lovelace-card-mod) integration (install
+it via HACS). Card Mod is available at two levels, both edited under **Advanced →
+Card Mod YAML**:
+
+- **Whole sidebar** — Settings → Advanced. Styles the sidebar's shadow root;
+  target the `dashboard-sidebar-*` classes below.
+- **Per element** — each element's Advanced section.
+
+```yaml
+dashboard_sidebar:
+  card_mod:
+    style: |
+      .dashboard-sidebar-item-label { font-weight: 600; }
+      :host { border-right: 2px solid var(--primary-color); }
+```
+
+!!! warning "Per-element card_mod is not scoped"
+    The sidebar's elements share one shadow root, so a selector in a *per-element*
+    Card Mod can style the **whole** sidebar. Target carefully (e.g. via a
+    [CSS class](#css-class) you assign), or prefer sidebar-level Card Mod with a
+    class hook.
+
+If card-mod is not installed, the Card Mod fields are hidden and replaced with a
+prompt to install it.
+
+## CSS class
+
+Give an element a `class` (Advanced) as a stable hook to target it from the
+sidebar-level Card Mod:
+
+```yaml
+body:
+  - type: item
+    title: Home
+    class: nav-home
+    tap_action: { action: navigate, navigation_path: /lovelace/home }
+card_mod:
+  style: |
+    .nav-home { text-transform: uppercase; }
+```
+
+## Targetable classes
+
+Every rendered element carries a stable class, listed in the editor under each
+Card Mod field. Common ones:
+
+| Class | Element |
+| --- | --- |
+| `:host` | the whole sidebar |
+| `.dashboard-sidebar-header` / `-body` / `-footer` | the regions |
+| `.dashboard-sidebar-title` / `-clock` / `-date` / `-divider` | those elements |
+| `.dashboard-sidebar-item` (+ `-item-icon`, `-item-label`, `-initials`) | item rows |
+| `.dashboard-sidebar-category` (+ `-category-header`, `-category-items`, `-chevron`) | categories |
+| `.dashboard-sidebar-markdown` | Text blocks |
+| `.dashboard-sidebar-content` | Manual card wrapper |
+| `.dashboard-sidebar-footer-btn` (+ `-footer-icon`, `-footer-more`) | footer buttons |
+| `.dashboard-sidebar-popover` / `-tooltip` | collapsed popover / tooltip |

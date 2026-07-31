@@ -382,9 +382,11 @@ function ensureSidebar(): void {
     }
     if (element) {
       element.editMode = editMode;
-      if (!element.hass) {
-        element.hass = getHass();
-      }
+      // Keep hass current (not just set once) so state-dependent actions like
+      // toggle read the live state, and manual cards stay up to date. Home
+      // Assistant replaces the hass object on each change, so this is a no-op
+      // reference assignment until something actually changed.
+      element.hass = getHass();
     }
   } catch {
     // frontend not ready yet; the next tick retries

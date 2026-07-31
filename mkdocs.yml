@@ -1,0 +1,56 @@
+site_name: Dashboard Sidebar
+site_description: A configurable, in-place-editable sidebar for Home Assistant Lovelace dashboards.
+site_url: https://deconstructionalism.github.io/hacs-dashboard-sidebar/
+repo_url: https://github.com/deconstructionalism/hacs-dashboard-sidebar
+repo_name: deconstructionalism/hacs-dashboard-sidebar
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: '(prefers-color-scheme: light)'
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: '(prefers-color-scheme: dark)'
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - Home: index.md
+  - Install & Add: install.md
+  - Sidebar Settings: configuration.md
+  - Elements: elements.md
+  - Footer: footer.md
+  - Actions: actions.md
+  - Styling: styling.md

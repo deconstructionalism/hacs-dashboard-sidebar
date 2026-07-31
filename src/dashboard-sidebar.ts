@@ -833,7 +833,13 @@ export class DashboardSidebar extends LitElement {
         : gesture === 'double_tap'
           ? cfg.double_tap_action
           : cfg.tap_action;
-    runAction(this, this.hass, action, cfg.entity);
+    // Read the freshest hass at fire time (the assigned one can be up to a poll
+    // behind), so a state-dependent action like toggle sees the live state and
+    // reliably flips back and forth.
+    const live =
+      (document.querySelector('home-assistant') as { hass?: HomeAssistant } | null)?.hass ??
+      this.hass;
+    runAction(this, live, action, cfg.entity);
     this._closePopovers();
   }
 

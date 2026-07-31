@@ -21,8 +21,55 @@ const STYLE_ID = 'dashboard-sidebar-style';
 /** DOM id of the floating "add sidebar" button shown when none exists yet. */
 const ADD_BUTTON_ID = 'dashboard-sidebar-add';
 
-/** A starter sidebar seeded when the user adds one to a bare dashboard. */
-const STARTER: DashboardSidebarConfig = { position: 'left', body: [] };
+/**
+ * Builds the starter sidebar seeded on first add, tailored to the instance: a
+ * centered clock and date plus a greeting in the header, one navigate link per
+ * dashboard view (using each view's icon) in the body, and a few of the
+ * instance's lights as footer toggle buttons (colored by state).
+ */
+export function starterConfig(hass: any, lovelace: any): DashboardSidebarConfig {
+  const header = [
+    { type: 'clock', align: 'center' },
+    { type: 'date', align: 'center' },
+    { type: 'title', text: 'Hello {{ user }}', align: 'center' },
+  ];
+
+  // The base path is the current dashboard's URL segment (e.g. /lovelace or
+  // /my-dashboard); each non-subview becomes a navigate link to its view.
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const base = `/${pathname.split('/')[1] || 'lovelace'}`;
+  const views: any[] = Array.isArray(lovelace?.config?.views) ? lovelace.config.views : [];
+  const body = views
+    .filter((v) => v?.subview !== true)
+    .map((v, i) => ({
+      type: 'item',
+      title: v.title || v.path || `View ${i + 1}`,
+      icon: v.icon || 'mdi:view-dashboard',
+      tap_action: { action: 'navigate', navigation_path: `${base}/${v.path ?? i}` },
+    }));
+
+  // Up to four lights from the instance, as footer buttons that toggle them.
+  const states = hass?.states ?? {};
+  const buttons = Object.keys(states)
+    .filter((id) => id.startsWith('light.'))
+    .slice(0, 4)
+    .map((id) => ({
+      icon: states[id]?.attributes?.icon || 'mdi:lightbulb',
+      icon_color: `{{ '#ffb74d' if is_state('${id}', 'on') else 'var(--secondary-text-color)' }}`,
+      title: states[id]?.attributes?.friendly_name || id,
+      entity: id,
+      tap_action: { action: 'toggle', entity: id },
+    }));
+
+  const config: DashboardSidebarConfig = { position: 'left', header: header as never };
+  if (body.length) {
+    config.body = body as never;
+  }
+  if (buttons.length) {
+    config.footer = { buttons: buttons as never };
+  }
+  return config;
+}
 
 /** An element that may expose a shadow root, or null. */
 type AnyEl = (Element & { shadowRoot?: ShadowRoot | null }) | null;
@@ -253,7 +300,9 @@ function ensureAddButton(huiRoot: { shadowRoot: ShadowRoot; lovelace?: any }): v
     'position:fixed;bottom:24px;left:24px;z-index:6;padding:10px 16px;border:none;' +
     'border-radius:20px;background:var(--primary-color,#03a9f4);color:var(--text-primary-color,#fff);' +
     'cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);font:inherit;';
-  btn.addEventListener('click', () => saveConfig(huiRoot, STARTER));
+  btn.addEventListener('click', () =>
+    saveConfig(huiRoot, starterConfig(getHass(), huiRoot.lovelace)),
+  );
   shadow.appendChild(btn);
 }
 

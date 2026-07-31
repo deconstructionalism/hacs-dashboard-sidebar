@@ -1043,8 +1043,12 @@ function advancedFields(
     )}
     ${
       withAbbr
-        ? textField('Abbr (collapsed glyph, icon-less only)', block.abbr, (v) =>
-            patch({ abbr: v || undefined }),
+        ? textField(
+            'Abbreviation',
+            block.abbr,
+            (v) => patch({ abbr: v || undefined }),
+            undefined,
+            'The glyph shown in the collapsed view, used only when no icon is set.',
           )
         : nothing
     }

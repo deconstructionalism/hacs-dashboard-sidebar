@@ -393,6 +393,25 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(save().disabled).to.equal(true);
   });
 
+  it('re-disables Save after toggling a category boolean back to its default', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Content');
+    await clickLoc(el, 'body:1'); // the category
+    const save = (): HTMLButtonElement =>
+      root(el).querySelector('footer .primary') as HTMLButtonElement;
+    const checks = () =>
+      [...root(el).querySelectorAll('.form input[type="checkbox"]')] as HTMLInputElement[];
+    expect(save().disabled).to.equal(true);
+    const guide = () => checks()[checks().length - 1]; // Guide line is last
+    guide().click();
+    await el.updateComplete;
+    expect(save().disabled).to.equal(false);
+    guide().click();
+    await el.updateComplete;
+    // Back to the default (true); the key drops, so the config matches the start.
+    expect(save().disabled).to.equal(true);
+  });
+
   it('switches the footer to markdown through the tab menu', async () => {
     const el = await mount(cfg());
     await tab(el, 'Footer');

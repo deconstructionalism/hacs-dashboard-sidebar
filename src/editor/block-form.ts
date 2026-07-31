@@ -1043,7 +1043,7 @@ function advancedFields(
 ): TemplateResult {
   return html`<details class="advanced">
     <summary>Advanced</summary>
-    ${extra}
+    ${extra} ${navHighlightField(block, patch)}
     ${
       withAbbr
         ? textField(
@@ -1062,7 +1062,6 @@ function advancedFields(
       undefined,
       'A hook for targeting this element from the sidebar-level Card Mod.',
     )}
-    ${navHighlightField(block, patch)}
     ${cardModField(block.card_mod, (v) => patch({ card_mod: v }), CARD_MOD_ELEMENT_HINT)}
     ${elementClassRef(block.type ?? 'item')}
   </details>`;
@@ -1081,7 +1080,7 @@ function navHighlightField(
     return nothing;
   }
   return checkboxField(
-    'Highlight when active',
+    'Highlight When Active',
     el.active_highlight ?? true,
     (v) => patch({ active_highlight: v ? undefined : false }),
     'Highlight this while its navigate target is the current page.',
@@ -1311,10 +1310,16 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
         ${iconField('Icon Template', block.icon, (v) => patch({ icon: v || undefined }), hass, TEMPLATE_HINT)}
         ${colorTemplateField('Text Color Template', block.text_color, (v) => patch({ text_color: v || undefined }), hass)}
         ${colorTemplateField('Icon Color Template', block.icon_color, (v) => patch({ icon_color: v || undefined }), hass)}
-        ${checkboxField('Start collapsed', block.start_collapsed ?? true, (v) =>
-          patch({ start_collapsed: v }),
+        ${
+          // Store undefined at the default (true) so toggling back to it drops
+          // the key and leaves the config identical to the start state.
+          checkboxField('Start collapsed', block.start_collapsed ?? true, (v) =>
+            patch({ start_collapsed: v ? undefined : false }),
+          )
+        }
+        ${checkboxField('Guide line', block.guide_line ?? true, (v) =>
+          patch({ guide_line: v ? undefined : false }),
         )}
-        ${checkboxField('Guide line', block.guide_line ?? true, (v) => patch({ guide_line: v }))}
       `;
     case 'markdown':
       return html`

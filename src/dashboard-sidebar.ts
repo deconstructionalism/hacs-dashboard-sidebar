@@ -165,6 +165,12 @@ export class DashboardSidebar extends LitElement {
   /** Built card elements for card blocks, keyed by `region-index` (or footer). */
   private _cards = new Map<string, HTMLElement & { hass?: HomeAssistant }>();
 
+  /** Keys of chrome-less markdown cards (text blocks / footer text) to compact. */
+  private readonly _chromelessCards = new Set<string>();
+
+  /** Whether a markdown-compaction retry is already scheduled. */
+  private _compactMarkdownScheduled = false;
+
   /** Whether the whole-sidebar card-mod styles have already been applied. */
   private _cardModApplied = false;
 
@@ -365,17 +371,20 @@ export class DashboardSidebar extends LitElement {
   private async _buildCards(): Promise<void> {
     const cfg = this._config;
     const specs: Array<[string, string | LovelaceCardConfig]> = [];
+    this._chromelessCards.clear();
     this._eachBlock((block, region, i) => {
       if (block.type === 'card') {
         specs.push([`${region}-${i}`, block.card]);
       } else if (block.type === 'markdown') {
         specs.push([`${region}-${i}`, { type: 'markdown', content: block.content }]);
+        this._chromelessCards.add(`${region}-${i}`);
       }
     });
     if (cfg?.footer?.card !== undefined) {
       specs.push(['footer', cfg.footer.card]);
     } else if (cfg?.footer?.markdown !== undefined) {
       specs.push(['footer', { type: 'markdown', content: cfg.footer.markdown }]);
+      this._chromelessCards.add('footer');
     }
     if (specs.length === 0) {
       this._cards = new Map();
@@ -465,6 +474,59 @@ export class DashboardSidebar extends LitElement {
     this._wirePreviewSort();
     this._observeFooter();
     this._updatePinnedAnchor();
+    this._compactMarkdown();
+  }
+
+  /**
+   * Removes the built-in padding from a chrome-less markdown card (a text block
+   * or the text footer), so its text sits flush like the other sidebar text
+   * instead of inside the markdown card's 16px box. The padding lives in the
+   * card's shadow DOM, so set it inline on the `ha-markdown` element (which
+   * beats the card's own CSS), retrying until the card has rendered.
+   */
+  private _compactMarkdown(): void {
+    let retry = false;
+    this._chromelessCards.forEach((key) => {
+      const el = this._cards.get(key);
+      if (!el) {
+        return;
+      }
+      const md = this._deepQuery(el, 'ha-markdown');
+      if (md) {
+        md.style.padding = '0';
+      } else {
+        retry = true;
+      }
+    });
+    if (retry && !this._compactMarkdownScheduled) {
+      this._compactMarkdownScheduled = true;
+      requestAnimationFrame(() => {
+        this._compactMarkdownScheduled = false;
+        this._compactMarkdown();
+      });
+    }
+  }
+
+  /**
+   * Finds the first descendant matching `selector`, crossing open shadow roots,
+   * or null. Used to reach into a built card's shadow DOM.
+   */
+  private _deepQuery(root: HTMLElement, selector: string): HTMLElement | null {
+    const queue: Array<Element | ShadowRoot> = [root];
+    while (queue.length) {
+      const node = queue.shift() as ParentNode & { shadowRoot?: ShadowRoot | null };
+      const hit = node.querySelector?.(selector);
+      if (hit) {
+        return hit as HTMLElement;
+      }
+      node.querySelectorAll?.('*').forEach((child) => {
+        const sr = (child as HTMLElement).shadowRoot;
+        if (sr) {
+          queue.push(sr);
+        }
+      });
+    }
+    return null;
   }
 
   /**

@@ -4,6 +4,7 @@ import { starterConfig } from './bootstrap';
 import { validateConfig } from './validate';
 
 const hass = {
+  user: { name: 'Sam' },
   states: {
     'light.a': { attributes: { friendly_name: 'Lamp A' } },
     'light.b': {},
@@ -30,7 +31,7 @@ describe('starterConfig', () => {
     const cfg = starterConfig(hass, lovelace);
     expect(cfg.header?.map((b) => b.type)).toEqual(['clock', 'date', 'title']);
     expect(cfg.header?.[0]).toMatchObject({ type: 'clock', align: 'center' });
-    expect(cfg.header?.[2]).toMatchObject({ type: 'title', text: 'Hello {{ user }}' });
+    expect(cfg.header?.[2]).toMatchObject({ type: 'title', text: 'Hello Sam' });
   });
 
   it('adds one navigate link per non-subview, using its icon', () => {

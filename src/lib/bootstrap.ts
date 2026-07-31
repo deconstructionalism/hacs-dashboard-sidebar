@@ -28,10 +28,13 @@ const ADD_BUTTON_ID = 'dashboard-sidebar-add';
  * instance's lights as footer toggle buttons (colored by state).
  */
 export function starterConfig(hass: any, lovelace: any): DashboardSidebarConfig {
+  // Greet by name. Home Assistant's server-side templates do not reliably
+  // expose the current user, so bake the name in from hass at seed time.
+  const name = typeof hass?.user?.name === 'string' ? hass.user.name.trim() : '';
   const header = [
     { type: 'clock', align: 'center' },
     { type: 'date', align: 'center' },
-    { type: 'title', text: 'Hello {{ user }}', align: 'center' },
+    { type: 'title', text: name ? `Hello ${name}` : 'Hello', align: 'center' },
   ];
 
   // The base path is the current dashboard's URL segment (e.g. /lovelace or

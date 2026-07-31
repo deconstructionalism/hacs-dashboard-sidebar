@@ -173,6 +173,28 @@ describe('<dashboard-sidebar> config species', () => {
       }
     });
 
+    it('honors active_highlight: false to opt out', async () => {
+      const original = window.location.pathname;
+      window.history.pushState({}, '', '/lovelace/nav-home');
+      try {
+        const el = await mount({
+          body: [
+            {
+              type: 'item',
+              title: 'Home',
+              active_highlight: false,
+              tap_action: { action: 'navigate', navigation_path: '/lovelace/nav-home' },
+            },
+          ],
+        });
+        expect(
+          root(el).querySelector('.dashboard-sidebar-item')?.classList.contains('nav-active'),
+        ).to.equal(false);
+      } finally {
+        window.history.pushState({}, '', original);
+      }
+    });
+
     it('updates the highlight on navigation', async () => {
       const original = window.location.pathname;
       window.history.pushState({}, '', '/lovelace/one');

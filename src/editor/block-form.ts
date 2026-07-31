@@ -328,9 +328,15 @@ export function codeField(
   </label>`;
 }
 
-/** Shared hint for fields that accept Home Assistant markdown and Jinja. */
-export const TEMPLATE_HINT =
-  'Use Home Assistant markdown with Jinja to style and interpolate values from HA.';
+/**
+ * Hint for fields that resolve to plain text: the value is rendered as text, so
+ * only Jinja templating applies (not markdown).
+ */
+export const TEMPLATE_HINT = 'Use Home Assistant Jinja templates to interpolate values from HA.';
+
+/** Hint for the markdown fields, which render markdown as well as Jinja. */
+export const MARKDOWN_HINT =
+  'Use Home Assistant markdown with Jinja to interpolate values from HA.';
 
 /** Hint shown under color fields, noting any CSS color or a template works. */
 export const COLOR_HINT = 'Any CSS color (hex, rgb, var(--…)); a Jinja template also works.';
@@ -957,6 +963,7 @@ export function footerButtonFields(
     id?: string;
     card_mod?: Record<string, unknown>;
     tap_action?: { action?: string };
+    active_highlight?: boolean;
   },
   patch: Patch,
   ctx?: ValidationCtx,
@@ -981,6 +988,7 @@ export function footerButtonFields(
         undefined,
         'A hook for targeting this button from the sidebar-level Card Mod.',
       )}
+      ${navHighlightField(btn, patch)}
       ${cardModField(btn.card_mod, (v) => patch({ card_mod: v }), CARD_MOD_ELEMENT_HINT)}
       ${elementClassRef('footer-button')}
     </details>
@@ -1026,6 +1034,8 @@ function advancedFields(
     abbr?: string;
     icon?: unknown;
     card_mod?: Record<string, unknown>;
+    tap_action?: { action?: string };
+    active_highlight?: boolean;
   },
   patch: Patch,
   withAbbr: boolean,
@@ -1034,13 +1044,6 @@ function advancedFields(
   return html`<details class="advanced">
     <summary>Advanced</summary>
     ${extra}
-    ${textField(
-      'CSS class',
-      block.class,
-      (v) => patch({ class: v || undefined }),
-      undefined,
-      'A hook for targeting this element from the sidebar-level Card Mod.',
-    )}
     ${
       withAbbr
         ? textField(
@@ -1052,9 +1055,37 @@ function advancedFields(
           )
         : nothing
     }
+    ${textField(
+      'CSS class',
+      block.class,
+      (v) => patch({ class: v || undefined }),
+      undefined,
+      'A hook for targeting this element from the sidebar-level Card Mod.',
+    )}
+    ${navHighlightField(block, patch)}
     ${cardModField(block.card_mod, (v) => patch({ card_mod: v }), CARD_MOD_ELEMENT_HINT)}
     ${elementClassRef(block.type ?? 'item')}
   </details>`;
+}
+
+/**
+ * Renders the "Highlight when active" toggle, shown only when the element's tap
+ * action navigates (the highlight marks the element whose target is the open
+ * page). Default on; unchecking stores `active_highlight: false`.
+ */
+function navHighlightField(
+  el: { tap_action?: { action?: string }; active_highlight?: boolean },
+  patch: Patch,
+): TemplateResult | typeof nothing {
+  if (el.tap_action?.action !== 'navigate') {
+    return nothing;
+  }
+  return checkboxField(
+    'Highlight when active',
+    el.active_highlight ?? true,
+    (v) => patch({ active_highlight: v ? undefined : false }),
+    'Highlight this while its navigate target is the current page.',
+  );
 }
 
 /** The card-mod integration's repository, linked from the Card Mod fields. */
@@ -1290,7 +1321,7 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
         ${codeField('Content Template', block.content, (v) => patch({ content: v }), hass, {
           entities: true,
           icons: true,
-          description: TEMPLATE_HINT,
+          description: MARKDOWN_HINT,
         })}
         ${selectField('Align', block.align, ALIGN_OPTIONS, (v) => patch({ align: v }))}
         ${colorTemplateField('Text Color Template', block.text_color, (v) => patch({ text_color: v || undefined }), hass)}

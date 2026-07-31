@@ -42,9 +42,9 @@ import {
   footerButtonFields,
   iconChoiceField,
   intField,
+  MARKDOWN_HINT,
   type Patch,
   serviceDatalist,
-  TEMPLATE_HINT,
   type ValidationCtx,
   validateWidth,
 } from './block-form';
@@ -1768,7 +1768,7 @@ export class DashboardSidebarEditor extends LitElement {
               {
                 entities: true,
                 icons: true,
-                description: TEMPLATE_HINT,
+                description: MARKDOWN_HINT,
               },
             )}
             ${colorTemplateField(

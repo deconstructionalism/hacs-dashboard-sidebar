@@ -15,6 +15,14 @@ export const contentStyles = css`
     box-sizing: border-box;
   }
 
+  /* The footer's single card/markdown fills the footer bar width (the bar is a
+     flex row, which would otherwise size it to its content) and drops the
+     block spacing below it (the footer is already pinned to the bottom). */
+  .footer .content {
+    width: 100%;
+    margin-bottom: 0;
+  }
+
   .collapsed .content {
     display: none;
   }

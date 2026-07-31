@@ -19,8 +19,12 @@ const TOP_KEYS = new Set([
 /** CSS targeting hooks accepted on every block and footer button. */
 const COMMON = ['class', 'id', 'card_mod'];
 
-/** The tap/hold/double-tap action keys accepted on interactive elements. */
-const ACTIONS = ['tap_action', 'hold_action', 'double_tap_action'];
+/**
+ * The tap/hold/double-tap action keys, plus the navigate active-highlight
+ * toggle, accepted on the same interactive elements (title, clock, date, item,
+ * footer button).
+ */
+const ACTIONS = ['tap_action', 'hold_action', 'double_tap_action', 'active_highlight'];
 
 /** Recognized block types, and the keys each one accepts. */
 const BLOCK_KEYS: Record<string, Set<string>> = {
@@ -173,6 +177,11 @@ function validateItem(item: ItemBlock, ctx: string, errors: string[]): void {
   }
   checkAbbr(item.abbr, item.icon, ctx, errors);
   checkHooks(item, ctx, errors);
+  checkBool(
+    (item as { active_highlight?: unknown }).active_highlight,
+    `${ctx}.active_highlight`,
+    errors,
+  );
 }
 
 /**
@@ -191,6 +200,11 @@ function validateBlock(block: SidebarBlock, ctx: string, errors: string[]): void
   unknownKeys(block, BLOCK_KEYS[type], ctx, errors);
   if (type !== 'item') {
     checkHooks(block, ctx, errors);
+    checkBool(
+      (block as { active_highlight?: unknown }).active_highlight,
+      `${ctx}.active_highlight`,
+      errors,
+    );
   }
 
   switch (type) {
@@ -337,6 +351,11 @@ function validateFooterButton(btn: unknown, ctx: string, errors: string[]): void
     errors.push(`${ctx}: needs a tap_action`);
   }
   checkHooks(btn, ctx, errors);
+  checkBool(
+    (btn as { active_highlight?: unknown }).active_highlight,
+    `${ctx}.active_highlight`,
+    errors,
+  );
 }
 
 /**

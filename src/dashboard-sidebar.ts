@@ -70,6 +70,8 @@ interface ActionEl {
   hold_action?: ActionConfig;
   /** Action fired on a double tap. */
   double_tap_action?: ActionConfig;
+  /** Whether to highlight this when its navigate action targets the page. */
+  active_highlight?: boolean;
 }
 
 /**
@@ -274,12 +276,16 @@ export class DashboardSidebar extends LitElement {
 
   /**
    * Whether an element's tap action navigates to the current page: an exact
-   * path match, or the current path being a sub-path of the target. Never in a
-   * preview, where there is no live navigation.
+   * path match, or the current path being a sub-path of the target. Disabled
+   * per element with `active_highlight: false`.
    */
   private _navActive(cfg: ActionEl): boolean {
     const action = cfg.tap_action as { action?: string; navigation_path?: string } | undefined;
-    if (this.preview || action?.action !== 'navigate' || !action.navigation_path) {
+    if (
+      cfg.active_highlight === false ||
+      action?.action !== 'navigate' ||
+      !action.navigation_path
+    ) {
       return false;
     }
     const target = action.navigation_path.split(/[?#]/)[0].replace(/\/+$/, '');

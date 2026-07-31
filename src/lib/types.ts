@@ -59,6 +59,11 @@ export interface TitleBlock extends BlockCommon {
   hold_action?: ActionConfig;
   /** Optional action performed when double-tapped. Not templatable. */
   double_tap_action?: ActionConfig;
+  /**
+   * Whether to highlight this element while its navigate tap action targets the
+   * current page. Default true; set false to disable the active highlight.
+   */
+  active_highlight?: boolean;
 }
 
 /** A digital clock block. */
@@ -82,6 +87,11 @@ export interface ClockBlock extends BlockCommon {
   hold_action?: ActionConfig;
   /** Optional action performed when double-tapped. Not templatable. */
   double_tap_action?: ActionConfig;
+  /**
+   * Whether to highlight this element while its navigate tap action targets the
+   * current page. Default true; set false to disable the active highlight.
+   */
+  active_highlight?: boolean;
 }
 
 /** A date block. */
@@ -102,6 +112,11 @@ export interface DateBlock extends BlockCommon {
   hold_action?: ActionConfig;
   /** Optional action performed when double-tapped. Not templatable. */
   double_tap_action?: ActionConfig;
+  /**
+   * Whether to highlight this element while its navigate tap action targets the
+   * current page. Default true; set false to disable the active highlight.
+   */
+  active_highlight?: boolean;
 }
 
 /** A horizontal rule block. */
@@ -137,6 +152,11 @@ export interface ItemBlock extends BlockCommon {
   hold_action?: ActionConfig;
   /** Optional action performed when double-tapped. Not templatable. */
   double_tap_action?: ActionConfig;
+  /**
+   * Whether to highlight this element while its navigate tap action targets the
+   * current page. Default true; set false to disable the active highlight.
+   */
+  active_highlight?: boolean;
 }
 
 /** A collapsible group of items, nested one level deep. */
@@ -219,6 +239,11 @@ export interface FooterButtonConfig extends BlockCommon {
   hold_action?: ActionConfig;
   /** Optional action performed when double-tapped. Not templatable. */
   double_tap_action?: ActionConfig;
+  /**
+   * Whether to highlight this element while its navigate tap action targets the
+   * current page. Default true; set false to disable the active highlight.
+   */
+  active_highlight?: boolean;
 }
 
 /**

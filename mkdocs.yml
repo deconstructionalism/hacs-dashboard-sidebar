@@ -30,6 +30,7 @@ theme:
     - navigation.sections
     - navigation.top
     - content.code.copy
+    - content.tabs.link
     - search.suggest
     - toc.follow
 

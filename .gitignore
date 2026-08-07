@@ -4,3 +4,6 @@ dist/
 .DS_Store
 .eslintcache
 .stylelintcache
+
+# MkDocs build output
+site/

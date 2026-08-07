@@ -3,15 +3,22 @@
 ## Colors
 
 Most elements accept **text** and **icon** color templates — any CSS color, or a
-Jinja template that resolves to one:
+Jinja template that resolves to one.
 
-```yaml
-- type: item
-  title: Alarm
-  icon: mdi:shield
-  text_color: '{{ "red" if is_state("alarm_control_panel.home","triggered") else "" }}'
-  icon_color: var(--primary-color)
-```
+=== "Visual editor"
+
+    Set **Text Color** / **Icon Color** on the element (under **Advanced** for the
+    text blocks). Any CSS color or a Jinja template that resolves to one works.
+
+=== "YAML"
+
+    ```yaml
+    - type: item
+      title: Alarm
+      icon: mdi:shield
+      text_color: '{{ "red" if is_state("alarm_control_panel.home","triggered") else "" }}'
+      icon_color: var(--primary-color)
+    ```
 
 | Element | Color options |
 | --- | --- |
@@ -23,13 +30,18 @@ Jinja template that resolves to one:
 
 ## Background
 
-The whole sidebar takes any CSS `background` (Settings → Advanced), including
-gradients:
+The whole sidebar takes any CSS `background`, including gradients.
 
-```yaml
-dashboard_sidebar:
-  background: linear-gradient(180deg, #1b2735, #090a0f)
-```
+=== "Visual editor"
+
+    Set **Background** under **Settings → Advanced**.
+
+=== "YAML"
+
+    ```yaml
+    dashboard_sidebar:
+      background: linear-gradient(180deg, #1b2735, #090a0f)
+    ```
 
 ## card-mod
 
@@ -40,29 +52,34 @@ Card Mod YAML**:
 
 - **Whole sidebar** — Settings → Advanced. Styles the sidebar's shadow root;
   target the `dashboard-sidebar-*` classes below.
-- **Per element** — each element's Advanced section.
+- **Per element** — each element's Advanced section. **Automatically scoped** to
+  that one element, so a bare selector like `.dashboard-sidebar-item-label` only
+  affects the element you are editing, not every element in the sidebar.
 
-```yaml
-dashboard_sidebar:
-  card_mod:
-    style: |
-      .dashboard-sidebar-item-label { font-weight: 600; }
-      :host { border-right: 2px solid var(--primary-color); }
-```
+=== "Visual editor"
 
-!!! warning "Per-element card_mod is not scoped"
-    The sidebar's elements share one shadow root, so a selector in a *per-element*
-    Card Mod can style the **whole** sidebar. Target carefully (e.g. via a
-    [CSS class](#css-class) you assign), or prefer sidebar-level Card Mod with a
-    class hook.
+    Open the element (or **Settings** for the whole sidebar), expand
+    **Advanced → Card Mod YAML**, and write your styles. The targetable classes
+    are listed right under the field.
+
+=== "YAML"
+
+    ```yaml
+    dashboard_sidebar:
+      card_mod:
+        style: |
+          .dashboard-sidebar-item-label { font-weight: 600; }
+          :host { border-right: 2px solid var(--primary-color); }
+    ```
 
 If card-mod is not installed, the Card Mod fields are hidden and replaced with a
 prompt to install it.
 
 ## CSS class
 
-Give an element a `class` (Advanced) as a stable hook to target it from the
-sidebar-level Card Mod:
+Give an element a `class` as a stable hook to target it from the sidebar-level
+Card Mod. This is a **YAML-only** field (the visual editor styles elements
+through per-element Card Mod instead):
 
 ```yaml
 body:

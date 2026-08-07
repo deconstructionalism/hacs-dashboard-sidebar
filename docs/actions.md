@@ -2,8 +2,18 @@
 
 Interactive elements — **items**, **footer buttons**, **title/clock/date**, and
 the **text footer** — support three gestures: `tap_action`, `hold_action`
-(long press), and `double_tap_action`. Each is edited in its own collapsible
-section in the editor, with a **Test Action** button for the actionable types.
+(long press), and `double_tap_action`.
+
+=== "Visual editor"
+
+    Each gesture has its own collapsible section on the element, with a **Test
+    Action** button for the actionable types. Choose an **Action** from the
+    dropdown and fill in the keys it needs (entity, path, service, and so on).
+
+=== "YAML"
+
+    Each gesture is a mapping with an `action` key plus whatever that action
+    needs. See the table below for the keys per action.
 
 ## Action types
 
@@ -16,20 +26,28 @@ section in the editor, with a **Test Action** button for the actionable types.
 | `url` | `url_path` | Opens a web address in a new tab. |
 | `call-service` | `service`, `data`, `entity` | Calls a Home Assistant service. |
 
-```yaml
-tap_action:
-  action: call-service
-  service: light.turn_on
-  entity: light.kitchen
-  data:
-    brightness_pct: 40
-hold_action:
-  action: more-info
-  entity: light.kitchen
-double_tap_action:
-  action: navigate
-  navigation_path: /lovelace/lights
-```
+=== "Visual editor"
+
+    Pick the action in each gesture's section. For **call-service**, set the
+    service and its data; the action's own **Entity** field overrides the
+    element's entity, so one element can act on a different entity per gesture.
+
+=== "YAML"
+
+    ```yaml
+    tap_action:
+      action: call-service
+      service: light.turn_on
+      entity: light.kitchen
+      data:
+        brightness_pct: 40
+    hold_action:
+      action: more-info
+      entity: light.kitchen
+    double_tap_action:
+      action: navigate
+      navigation_path: /lovelace/lights
+    ```
 
 The action's own `entity` takes precedence over the element's `entity`, so one
 element can act on a different entity per gesture.
@@ -42,16 +60,19 @@ and footer buttons. It matches an exact path or a sub-path (e.g. a link to
 `/lovelace/home` highlights on `/lovelace/home/room`) and updates live as you
 navigate.
 
-Opt out per element with `active_highlight: false` (the editor shows a
-**Highlight When Active** toggle under **Advanced**, only when the tap action is
-navigate).
+=== "Visual editor"
 
-```yaml
-- type: item
-  title: Home
-  icon: mdi:home
-  active_highlight: false
-  tap_action:
-    action: navigate
-    navigation_path: /lovelace/home
-```
+    Opt out per element with the **Highlight When Active** toggle under
+    **Advanced** — it appears only when the tap action is navigate.
+
+=== "YAML"
+
+    ```yaml
+    - type: item
+      title: Home
+      icon: mdi:home
+      active_highlight: false
+      tap_action:
+        action: navigate
+        navigation_path: /lovelace/home
+    ```

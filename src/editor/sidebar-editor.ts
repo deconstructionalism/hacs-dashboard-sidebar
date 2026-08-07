@@ -2,6 +2,7 @@ import { type HomeAssistant, type LovelaceCardConfig } from 'custom-card-helpers
 import { LitElement, css, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { guard } from 'lit/directives/guard.js';
+import { keyed } from 'lit/directives/keyed.js';
 
 import type {
   BlockType,
@@ -1393,8 +1394,8 @@ export class DashboardSidebarEditor extends LitElement {
         ? 'The header is pinned to the top of the sidebar and does not scroll.'
         : 'Content scrolls on its own when it is taller than the sidebar.',
       region === 'header'
-        ? 'Collapsed: only clock and date blocks show — titles are hidden.'
-        : 'Collapsed: items and categories show as icons — card blocks are hidden.',
+        ? 'Collapsed: only clock and date blocks show; titles are hidden.'
+        : 'Collapsed: items and categories show as icons; card blocks are hidden.',
     );
     const blocks = this._working[region] ?? [];
     if (blocks.length === 0) {
@@ -1415,7 +1416,7 @@ export class DashboardSidebarEditor extends LitElement {
     return html`
       ${notes}
       <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
-        <div class="editor">${this._renderSelectedForm()}</div>
+        <div class="editor">${keyed(this._selected, this._renderSelectedForm())}</div>
         ${preview}
       </div>
     `;
@@ -1802,7 +1803,7 @@ export class DashboardSidebarEditor extends LitElement {
     return html`
       ${notes}
       <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
-        <div class="editor">${this._renderSelectedForm()}</div>
+        <div class="editor">${keyed(this._selected, this._renderSelectedForm())}</div>
         ${this._renderPreview(
           // Faded placeholders above stand in for content so the footer sits
           // pinned to the bottom, as it does live, not in a large empty box.

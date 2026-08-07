@@ -981,16 +981,20 @@ export function footerButtonFields(
     ${actionSections(btn as unknown as Record<string, unknown>, patch, ctx, hass)}
     <details class="advanced">
       <summary>Advanced</summary>
-      ${textField(
-        'CSS class',
-        btn.class,
-        (v) => patch({ class: v || undefined }),
-        undefined,
-        'A hook for targeting this button from the sidebar-level Card Mod.',
-      )}
+      ${
+        cardModInstalled()
+          ? textField(
+              'CSS class',
+              btn.class,
+              (v) => patch({ class: v || undefined }),
+              undefined,
+              'A hook for targeting this button from the sidebar-level Card Mod.',
+            )
+          : nothing
+      }
       ${navHighlightField(btn, patch)}
       ${cardModField(btn.card_mod, (v) => patch({ card_mod: v }), CARD_MOD_ELEMENT_HINT)}
-      ${elementClassRef('footer-button')}
+      ${cardModInstalled() ? elementClassRef('footer-button') : nothing}
     </details>
   `;
 }
@@ -1055,15 +1059,19 @@ function advancedFields(
           )
         : nothing
     }
-    ${textField(
-      'CSS class',
-      block.class,
-      (v) => patch({ class: v || undefined }),
-      undefined,
-      'A hook for targeting this element from the sidebar-level Card Mod.',
-    )}
+    ${
+      cardModInstalled()
+        ? textField(
+            'CSS class',
+            block.class,
+            (v) => patch({ class: v || undefined }),
+            undefined,
+            'A hook for targeting this element from the sidebar-level Card Mod.',
+          )
+        : nothing
+    }
     ${cardModField(block.card_mod, (v) => patch({ card_mod: v }), CARD_MOD_ELEMENT_HINT)}
-    ${elementClassRef(block.type ?? 'item')}
+    ${cardModInstalled() ? elementClassRef(block.type ?? 'item') : nothing}
   </details>`;
 }
 
@@ -1141,6 +1149,15 @@ export function elementClassRef(type: string): TemplateResult {
 /** Note shown on a per-element Card Mod, whose styles are scoped to that element. */
 const CARD_MOD_ELEMENT_HINT =
   'Scoped to this element. Target it directly with its class (e.g. .dashboard-sidebar-title) or :scope.';
+
+/**
+ * Whether the card-mod integration is installed (its custom element is defined).
+ * The CSS-class hook and the targetable-class reference only matter with
+ * card-mod: the sidebar renders in shadow DOM, so nothing but card-mod (or an
+ * equivalent shadow-piercing styler) can target those classes. When it is
+ * absent we hide both and let the Card Mod field's install prompt stand alone.
+ */
+export const cardModInstalled = (): boolean => !!customElements.get('card-mod');
 
 /**
  * Validates a card-mod value: it must be a mapping (`{ style: … }`), which is

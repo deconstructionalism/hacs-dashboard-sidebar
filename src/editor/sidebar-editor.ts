@@ -35,6 +35,7 @@ import {
   blockTypeLabel,
   cardModField,
   checkboxField,
+  cardModInstalled,
   codeField,
   colorField,
   colorTemplateField,
@@ -1352,7 +1353,7 @@ export class DashboardSidebarEditor extends LitElement {
             'Any valid CSS background, including gradients (e.g. linear-gradient(...)).',
           )}
           ${cardModField(c.card_mod, (v) => this._patchConfig({ card_mod: v }))}
-          ${this._cardModClassRef()}
+          ${cardModInstalled() ? this._cardModClassRef() : nothing}
         </details>
       </section>
     `;
@@ -2233,7 +2234,7 @@ export class DashboardSidebarEditor extends LitElement {
             (v) => this._patchBlock(sel.region, sel.index, { card: v }),
             () => [],
           )}
-          ${this._cardStatus()} ${elementClassRef('card')}
+          ${this._cardStatus()} ${cardModInstalled() ? elementClassRef('card') : nothing}
           <div class="form-actions">
             ${this._renderAddMenu(this._typeItems(sel.region), 'Add Element After', true)}
             ${deleteBtn}

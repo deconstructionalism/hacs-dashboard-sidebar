@@ -116,17 +116,12 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(saved?.position).to.equal('right');
   });
 
-  it('lists targetable CSS classes in the Settings tab', async () => {
+  it('hides the targetable CSS classes in Settings when card-mod is absent', async () => {
     const el = await mount(cfg());
     await tab(el, 'Settings');
-    const ref = root(el).querySelector('.class-ref') as HTMLDetailsElement;
-    expect(ref).to.exist;
-    expect(ref.open).to.equal(false); // starts collapsed
-    const rows = ref.querySelectorAll('.class-ref-row');
-    expect(rows.length).to.be.greaterThan(10);
-    const codes = [...ref.querySelectorAll('code')].map((c) => c.textContent);
-    expect(codes).to.include('.dashboard-sidebar-item-label');
-    expect(codes).to.include(':host');
+    expect(root(el).querySelector('.class-ref')).to.not.exist;
+    // The sidebar-level Card Mod field still prompts to install card-mod.
+    expect(root(el).querySelector('.card-mod-missing')).to.exist;
   });
 
   it('adds a block below the selected element from its form', async () => {
@@ -164,17 +159,18 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(root(el).querySelector('.advanced')).to.exist;
   });
 
-  it('lists only the relevant CSS classes in an element Advanced section', async () => {
+  it('hides the CSS class field and targetable classes on an element when card-mod is absent', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');
     await clickLoc(el, 'body:0'); // the item
-    const ref = root(el).querySelector('.advanced .class-ref') as HTMLDetailsElement;
-    expect(ref).to.exist;
-    const codes = [...ref.querySelectorAll('code')].map((c) => c.textContent);
-    expect(codes).to.include('.dashboard-sidebar-item-label');
-    // Item-only: no unrelated element classes.
-    expect(codes).to.not.include('.dashboard-sidebar-clock');
-    expect(codes).to.not.include(':host');
+    const form = root(el).querySelector('.form') as HTMLElement;
+    expect(form.querySelector('.class-ref'), 'targetable classes hidden').to.not.exist;
+    const cssClass = [...form.querySelectorAll('.field > span')].find(
+      (s) => s.textContent?.trim() === 'CSS class',
+    );
+    expect(cssClass, 'CSS class field hidden').to.equal(undefined);
+    // The install prompt stands in for the whole styling apparatus.
+    expect(form.querySelector('.card-mod-missing')).to.exist;
   });
 
   it('prompts to install card-mod when it is absent (no card_mod field)', async () => {
@@ -656,5 +652,52 @@ describe('<dashboard-sidebar-editor>', () => {
     await el.updateComplete;
     (root(el).querySelector('footer .primary') as HTMLButtonElement).click();
     expect(saved?.footer?.divider).to.equal(false);
+  });
+});
+
+// Defined last so its `before` registers card-mod only after every card-mod-absent
+// test above has run (custom elements cannot be un-defined within a page).
+describe('<dashboard-sidebar-editor> with card-mod installed', () => {
+  before(() => {
+    if (!customElements.get('card-mod')) {
+      customElements.define('card-mod', class extends HTMLElement {});
+    }
+  });
+
+  it('lists targetable CSS classes in the Settings tab', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Settings');
+    const ref = root(el).querySelector('.class-ref') as HTMLDetailsElement;
+    expect(ref).to.exist;
+    expect(ref.open).to.equal(false); // starts collapsed
+    const rows = ref.querySelectorAll('.class-ref-row');
+    expect(rows.length).to.be.greaterThan(10);
+    const codes = [...ref.querySelectorAll('code')].map((c) => c.textContent);
+    expect(codes).to.include('.dashboard-sidebar-item-label');
+    expect(codes).to.include(':host');
+  });
+
+  it('lists only the relevant CSS classes in an element Advanced section', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Content');
+    await clickLoc(el, 'body:0'); // the item
+    const ref = root(el).querySelector('.advanced .class-ref') as HTMLDetailsElement;
+    expect(ref).to.exist;
+    const codes = [...ref.querySelectorAll('code')].map((c) => c.textContent);
+    expect(codes).to.include('.dashboard-sidebar-item-label');
+    // Item-only: no unrelated element classes.
+    expect(codes).to.not.include('.dashboard-sidebar-clock');
+    expect(codes).to.not.include(':host');
+  });
+
+  it('shows the CSS class field on an element', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Content');
+    await clickLoc(el, 'body:0');
+    const form = root(el).querySelector('.form') as HTMLElement;
+    const cssClass = [...form.querySelectorAll('.field > span')].find(
+      (s) => s.textContent?.trim() === 'CSS class',
+    );
+    expect(cssClass, 'CSS class field shown').to.exist;
   });
 });

@@ -27,6 +27,8 @@ the [Config Reference](reference.md) (generated from the source, always current)
     **Settings → Advanced**, alongside the whole-sidebar
     [Card Mod](styling.md#card-mod).
 
+    ![The Settings tab, with sidebar-wide fields on the left and a live preview of the whole sidebar on the right.](assets/editor/settings.png)
+
 === "YAML"
 
     ```yaml
@@ -63,6 +65,11 @@ the choice is remembered per browser. While collapsed:
   [abbreviation](elements.md#item) when they have no icon); hovering shows a
   tooltip, and a category opens a popover of its items.
 - **Footer buttons** collapse into a single **⋯** menu.
+
+The editor's **Preview** has its own collapse toggle so you can check the icon
+strip while building:
+
+![The editor previewing the sidebar in its collapsed icon-strip state.](assets/editor/collapsed.png)
 
 ## Regions
 

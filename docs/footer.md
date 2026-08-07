@@ -27,6 +27,8 @@ vertical **⋯** menu (in both expanded and collapsed views).
     its own **Tap/Hold/Double Tap** actions. **Icon Color** and **Card Mod** live
     under **Advanced**. Drag to reorder.
 
+    ![The Footer tab with a footer button selected, its icon and action fields on the left.](assets/editor/footer-buttons.png)
+
 === "YAML"
 
     ```yaml

@@ -33,6 +33,8 @@ A heading of templatable text. Hidden while collapsed.
     Add a **Title** element. Set **Text** (templatable) and **Alignment**. An
     optional **Text Color** lives under **Advanced**.
 
+    ![The Header tab with a title element selected, its fields on the left and the header preview on the right.](assets/editor/header-title.png)
+
 === "YAML"
 
     ```yaml
@@ -110,6 +112,8 @@ A tappable row. Standalone in a region, or nested in a category.
     **Abbreviation** (the collapsed glyph when there is no icon), and **Card Mod**
     live under **Advanced**.
 
+    ![The Content tab with an item selected, showing its Title, Icon, Entity, and color fields.](assets/editor/content-item.png)
+
 === "YAML"
 
     ```yaml
@@ -137,6 +141,8 @@ A collapsible group of items, nested one level deep.
     Add a **Category**. Set its **Title** and **Icon**, then add child **Items**
     inside it. **Start Collapsed** and **Guide Line** (the vertical guide beside
     the items) are toggles on the category. Categories cannot nest further.
+
+    ![The Content tab with a category selected, its child items shown in the preview.](assets/editor/content-category.png)
 
 === "YAML"
 
@@ -196,3 +202,12 @@ chrome. Validated live against Home Assistant's card registry.
         entity: sensor.cpu
         # card_mod: { style: 'ha-card { padding: 8px }' }   # size/style via the card itself
     ```
+
+## Editing an element as YAML
+
+Every element can be edited as YAML without leaving the visual editor: select it,
+open the **⋯** menu, and choose **Edit As YAML**. This is handy for pasting a
+config, or for fields the form does not expose. Choose **Edit With UI** to switch
+back.
+
+![An element being edited as YAML inside the visual editor, the form replaced by a YAML box.](assets/editor/element-yaml.png)

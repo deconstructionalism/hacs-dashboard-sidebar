@@ -24,6 +24,8 @@
     "test:watch": "vitest",
     "docs:config": "node scripts/gen-config-docs.js",
     "docs:config:check": "node scripts/gen-config-docs.js --check",
+    "docs:shots": "node scripts/screenshots/shoot.mjs",
+    "docs:shots:check": "node scripts/screenshots/shoot.mjs --check",
     "check": "npm run lint && npm run format && npm run docs:config:check && npm run test:unit && npm run build"
   },
   "dependencies": {
@@ -32,6 +34,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@mdi/js": "^7.4.47",
     "@open-wc/testing": "^5.0.0",
     "@rollup/plugin-commonjs": "^28.0.2",
     "@rollup/plugin-json": "^6.1.0",

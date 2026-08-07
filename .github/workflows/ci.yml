@@ -43,6 +43,24 @@ jobs:
       - name: Browser render tests
         run: npm run test:browser
 
+  docs-screenshots:
+    # Smoke test only: proves the screenshot harness still drives the editor and
+    # produces every expected image. It does NOT commit images back — those are
+    # regenerated locally with `npm run docs:shots` and committed after review,
+    # since headless-Linux font/icon rendering differs from a local machine.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Screenshot harness smoke test
+        run: npm run docs:shots:check
+
   hacs-validate:
     runs-on: ubuntu-latest
     steps:

@@ -1,8 +1,8 @@
 # Footer
 
 The footer is pinned to the bottom of the sidebar and never scrolls. It has
-**exactly one** of three modes — a **Button Row**, a **Manual Card**, or
-**Text** — plus an optional top divider bar.
+**exactly one** of three modes — a **Button Row**, a **Card**, or a
+**Markdown** block — plus an optional top divider bar.
 
 === "Visual editor"
 
@@ -51,13 +51,13 @@ Each button supports the same [actions](actions.md), an `icon_color` template,
 and an **Advanced** section (`card_mod`). Collapsed, the whole row becomes a
 single **⋯** menu.
 
-## Manual Card
+## Card
 
 Any Lovelace card, full width.
 
 === "Visual editor"
 
-    In the **Footer** tab, use **⋯** → **Change to → Manual Card**, then paste any
+    In the **Footer** tab, use **⋯** → **Change to → Card**, then paste any
     Lovelace card config.
 
 === "YAML"
@@ -71,13 +71,13 @@ Any Lovelace card, full width.
           - light.kitchen
     ```
 
-## Text
+## Markdown
 
 Markdown with Jinja.
 
 === "Visual editor"
 
-    In the **Footer** tab, use **⋯** → **Change to → Text**, then write the
+    In the **Footer** tab, use **⋯** → **Change to → Markdown**, then write the
     markdown. A **Text Color** and **Tap/Hold/Double Tap** actions are available so
     the footer can act as a link or toggle.
 
@@ -91,5 +91,5 @@ Markdown with Jinja.
       # tap_action / hold_action / double_tap_action also supported
     ```
 
-The text footer can carry [tap/hold/double-tap actions](actions.md), so it can
-act as a link or toggle.
+The markdown footer can carry [tap/hold/double-tap actions](actions.md), so it
+can act as a link or toggle.

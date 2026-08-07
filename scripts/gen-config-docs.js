@@ -205,15 +205,43 @@ for (const name of order) {
   }
 }
 
-// Field-type glossary: the exported type aliases, so readers know what
-// `MaybeTemplate`, `Align`, the clock/date formats, etc. mean.
+// Which type names actually appear in a documented field. Used to keep the
+// glossary to types a config author will meet, and drop internal aliases
+// (Region, BlockType, ...) that no field references.
+const usedTypes = new Set();
+for (const node of interfaces.values()) {
+  for (const m of node.members) {
+    if (ts.isPropertySignature(m) && m.type) {
+      for (const tok of m.type.getText(source).match(/[A-Za-z_][A-Za-z0-9_]*/g) || []) {
+        usedTypes.add(tok);
+      }
+    }
+  }
+}
+
+// Pointers for types defined outside this file (imported from Home Assistant),
+// which the compiler cannot describe. Emitted only when a field uses them.
+const EXTERNAL = {
+  ActionConfig: {
+    def: 'action config',
+    desc: 'A Home Assistant action (the `tap_action` / `hold_action` / `double_tap_action` value). See [Actions](actions.md) for the shape and every action type.',
+  },
+  LovelaceCardConfig: {
+    def: 'card config',
+    desc: 'Any Home Assistant Lovelace card configuration, exactly as you would write it on a dashboard.',
+  },
+};
+
+// Field-type glossary: the referenced type aliases plus the external types,
+// so readers know what `MaybeTemplate`, `Align`, `ActionConfig`, etc. mean.
 out.push('## Field types');
 out.push('');
 out.push('The types used in the tables above.');
 out.push('');
 for (const node of aliases) {
   const name = node.name.text;
-  const def = oneLine(node.type.getText(source));
+  if (!usedTypes.has(name)) continue;
+  const def = oneLine(node.type.getText(source)).replace(/^\|\s*/, '');
   const desc = docFor(node);
   out.push(`### \`${name}\``);
   out.push('');
@@ -223,6 +251,15 @@ for (const node of aliases) {
     out.push(desc);
     out.push('');
   }
+}
+for (const [name, { def, desc }] of Object.entries(EXTERNAL)) {
+  if (!usedTypes.has(name)) continue;
+  out.push(`### \`${name}\``);
+  out.push('');
+  out.push(`\`${def}\``);
+  out.push('');
+  out.push(desc);
+  out.push('');
 }
 
 const markdown = out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';

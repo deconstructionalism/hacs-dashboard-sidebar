@@ -22,11 +22,11 @@ Jinja template that resolves to one.
 
 | Element | Color options |
 | --- | --- |
-| Title, Clock, Date, Text | `text_color` |
+| Title, Clock, Date, Markdown | `text_color` |
 | Item, Category | `text_color`, `icon_color` |
 | Divider | `color` (the line) |
 | Footer button | `icon_color` |
-| Text footer | `markdown_color` |
+| Markdown footer | `markdown_color` |
 
 ## Background
 
@@ -104,7 +104,7 @@ Card Mod field. Common ones:
 | `.dashboard-sidebar-title` / `-clock` / `-date` / `-divider` | those elements |
 | `.dashboard-sidebar-item` (+ `-item-icon`, `-item-label`, `-initials`) | item rows |
 | `.dashboard-sidebar-category` (+ `-category-header`, `-category-items`, `-chevron`) | categories |
-| `.dashboard-sidebar-markdown` | Text blocks |
-| `.dashboard-sidebar-content` | Manual card wrapper |
+| `.dashboard-sidebar-markdown` | Markdown blocks |
+| `.dashboard-sidebar-content` | Card wrapper |
 | `.dashboard-sidebar-footer-btn` (+ `-footer-icon`, `-footer-more`) | footer buttons |
 | `.dashboard-sidebar-popover` / `-tooltip` | collapsed popover / tooltip |

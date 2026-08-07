@@ -1,7 +1,7 @@
 # Actions
 
 Interactive elements — **items**, **footer buttons**, **title/clock/date**, and
-the **text footer** — support three gestures: `tap_action`, `hold_action`
+the **markdown footer** — support three gestures: `tap_action`, `hold_action`
 (long press), and `double_tap_action`.
 
 === "Visual editor"

@@ -81,9 +81,9 @@ Each region holds an ordered list of [elements](elements.md).
 
 === "Visual editor"
 
-    The **Header** and **Content** tabs edit the header and body regions; the
-    **Footer** tab edits the footer. Add an element with the **+** button, drag to
-    reorder, and select any element to edit it.
+    The **Header**, **Body**, and **Footer** tabs each edit the config key they
+    are named for. Add an element with the **+** button, drag to reorder, and
+    select any element to edit it.
 
 === "YAML"
 

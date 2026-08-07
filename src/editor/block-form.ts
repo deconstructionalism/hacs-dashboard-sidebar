@@ -682,11 +682,12 @@ export function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-/** Display labels for block types where title-casing the id is not enough. */
-const TYPE_LABELS: Partial<Record<BlockType, string>> = {
-  card: 'Manual Card',
-  markdown: 'Text',
-};
+/**
+ * Display labels for block types where title-casing the id is not enough.
+ * Kept empty on purpose: every label matches the YAML `type` (Card, Markdown,
+ * ...) so the UI and the config use the same words.
+ */
+const TYPE_LABELS: Partial<Record<BlockType, string>> = {};
 
 /**
  * Returns the human display label for a block type.

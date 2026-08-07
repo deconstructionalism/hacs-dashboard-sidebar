@@ -186,9 +186,9 @@ The bottom bar. Exactly one of `buttons`, `card`, or `markdown`: an ordered set 
 | `card` | `LovelaceCardConfig` | no | A manual Lovelace card, replacing the buttons. |
 | `markdown` | `MaybeTemplate` | no | Markdown content with Jinja templating, replacing the buttons. Templatable. |
 | `markdown_color` | `MaybeTemplate` | no | Optional text color for the markdown footer, any CSS color. Templatable. |
-| `tap_action` | `ActionConfig` | no | Action fired when the text (markdown) footer is tapped. Not templatable. |
-| `hold_action` | `ActionConfig` | no | Action fired when the text (markdown) footer is held. Not templatable. |
-| `double_tap_action` | `ActionConfig` | no | Action fired when the text (markdown) footer is double-tapped. Not templatable. |
+| `tap_action` | `ActionConfig` | no | Action fired when the markdown footer is tapped. Not templatable. |
+| `hold_action` | `ActionConfig` | no | Action fired when the markdown footer is held. Not templatable. |
+| `double_tap_action` | `ActionConfig` | no | Action fired when the markdown footer is double-tapped. Not templatable. |
 
 ## Footer button
 
@@ -241,26 +241,20 @@ Clock format: an alias (`iso` = %H:%M:%S, `24h` = %H:%M, `12h` = %-I:%M %p, `loc
 
 Date format: an alias (`iso` = %Y-%m-%d, `locale`) or a strftime pattern using only date tokens, e.g. `%A, %B %-d` (names localize).
 
-### `ClockHourFormat`
-
-`'12h' | '24h'`
-
-Clock hour convention applied to both the expanded and collapsed views.
-
 ### `SidebarBlock`
 
-`| TitleBlock | ClockBlock | DateBlock | DividerBlock | ItemBlock | CategoryBlock | MarkdownBlock | CardBlock`
+`TitleBlock | ClockBlock | DateBlock | DividerBlock | ItemBlock | CategoryBlock | MarkdownBlock | CardBlock`
 
 Any block that can appear in the header or body region.
 
-### `BlockType`
+### `ActionConfig`
 
-`'title' | 'clock' | 'date' | 'divider' | 'item' | 'category' | 'markdown' | 'card'`
+`action config`
 
-The discriminator value of every block kind.
+A Home Assistant action (the `tap_action` / `hold_action` / `double_tap_action` value). See [Actions](actions.md) for the shape and every action type.
 
-### `Region`
+### `LovelaceCardConfig`
 
-`'header' | 'body'`
+`card config`
 
-The two block regions, used as stable key prefixes for block state.
+Any Home Assistant Lovelace card configuration, exactly as you would write it on a dashboard.

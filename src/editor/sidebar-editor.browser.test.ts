@@ -70,12 +70,12 @@ describe('<dashboard-sidebar-editor>', () => {
   it('renders the four tabs', async () => {
     const el = await mount(cfg());
     const labels = [...root(el).querySelectorAll('.tab')].map((b) => b.textContent?.trim());
-    expect(labels).to.deep.equal(['Settings', 'Header', 'Content', 'Footer']);
+    expect(labels).to.deep.equal(['Settings', 'Header', 'Body', 'Footer']);
   });
 
   it('renders the region as a live sidebar preview', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     const sb = preview(el);
     expect(sb).to.exist;
     expect(sb?.preview).to.equal(true);
@@ -86,7 +86,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('drives the preview frame width from the configured width via --pv-w', async () => {
     const el = await mount({ ...cfg(), width: 300 });
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     const frame = root(el).querySelector('.pv-frame') as HTMLElement;
     // Width is applied in CSS (responsive); the custom property carries it so
     // the mobile media query can override the desktop cap.
@@ -261,7 +261,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('adds a block below the selected element from its form', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     const before = regionCount(el, 'body');
     // Nothing is auto-selected, so pick an element to reveal its "Add Below".
     await clickLoc(el, 'body:0');
@@ -277,7 +277,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('deletes the selected block from its form', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     const before = regionCount(el, 'body');
     await clickLoc(el, 'body:0');
     (root(el).querySelector('.form .danger') as HTMLButtonElement).click();
@@ -296,7 +296,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('hides the targetable classes on an element when card-mod is absent', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     await clickLoc(el, 'body:0'); // the item
     const form = root(el).querySelector('.form') as HTMLElement;
     expect(form.querySelector('.class-ref'), 'targetable classes hidden').to.not.exist;
@@ -306,7 +306,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('does not render a CSS class field (removed in favor of scoped Card Mod)', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     await clickLoc(el, 'body:0');
     const form = root(el).querySelector('.form') as HTMLElement;
     const cssClass = [...form.querySelectorAll('.field > span')].find(
@@ -318,7 +318,7 @@ describe('<dashboard-sidebar-editor>', () => {
   it('prompts to install card-mod when it is absent (no card_mod field)', async () => {
     // card-mod is not registered in the test environment.
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     await clickLoc(el, 'body:0');
     const prompt = root(el).querySelector('.card-mod-missing');
     expect(prompt).to.exist;
@@ -328,7 +328,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('reorders a region through a preview reorder event', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     let saved: DashboardSidebarConfig | undefined;
     el.onSave = (c) => {
       saved = c;
@@ -351,7 +351,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('moves the selected element with the header up/down tools', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     let saved: DashboardSidebarConfig | undefined;
     el.onSave = (c) => {
       saved = c;
@@ -373,7 +373,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('opens the selected element overflow menu with the YAML toggle', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     await clickLoc(el, 'body:0');
     (root(el).querySelector('.form-tools [title="More"]') as HTMLButtonElement).click();
     await el.updateComplete;
@@ -385,7 +385,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('toggles an element between the UI form and a YAML editor', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     await clickLoc(el, 'body:0');
     const openMenu = (): void =>
       (root(el).querySelector('.form-tools [title="More"]') as HTMLButtonElement).click();
@@ -408,7 +408,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('flags a schema-invalid element edited as YAML', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     await clickLoc(el, 'body:0');
     (root(el).querySelector('.form-tools [title="More"]') as HTMLButtonElement).click();
     await el.updateComplete;
@@ -442,7 +442,7 @@ describe('<dashboard-sidebar-editor>', () => {
     try {
       const el = await mount({ body: [{ type: 'card', card: { type: 'bogus' } }] });
       el.hass = {} as never;
-      await tab(el, 'Content');
+      await tab(el, 'Body');
       await clickLoc(el, 'body:0');
       await new Promise((r) => setTimeout(r, 600));
       await el.updateComplete;
@@ -456,7 +456,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('shows category items in the preview and offers add-item when selected', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     // The category renders its items inline, each with a location marker.
     expect(preview(el)?.shadowRoot?.querySelector('[data-loc="body:1.0"]')).to.exist;
     await clickLoc(el, 'body:1');
@@ -468,7 +468,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('expands/collapses a selected category through its overflow menu', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     await clickLoc(el, 'body:1'); // the "Rooms" category
     expect(preview(el)?.shadowRoot?.querySelector('[data-loc="body:1.0"]')).to.exist;
     (root(el).querySelector('.form-tools [title="More"]') as HTMLButtonElement).click();
@@ -483,7 +483,7 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(preview(el)?.shadowRoot?.querySelector('[data-loc="body:1.0"]')).to.not.exist;
   });
 
-  it('offers a Button Row/Manual Card/Text picker and no tab menu for an empty footer', async () => {
+  it('offers a Button Row/Card/Markdown picker and no tab menu for an empty footer', async () => {
     const el = await mount({ ...cfg(), footer: undefined });
     await tab(el, 'Footer');
     expect(root(el).querySelector('.empty-state')).to.exist;
@@ -494,8 +494,8 @@ describe('<dashboard-sidebar-editor>', () => {
       b.textContent?.trim(),
     );
     expect(labels).to.include('Button Row');
-    expect(labels).to.include('Manual Card');
-    expect(labels).to.include('Text');
+    expect(labels).to.include('Card');
+    expect(labels).to.include('Markdown');
   });
 
   it('shows left/right move arrows for a selected footer button', async () => {
@@ -533,7 +533,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('re-disables Save after toggling a category boolean back to its default', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     await clickLoc(el, 'body:1'); // the category
     const save = (): HTMLButtonElement =>
       root(el).querySelector('footer .primary') as HTMLButtonElement;
@@ -555,7 +555,7 @@ describe('<dashboard-sidebar-editor>', () => {
     await tab(el, 'Footer');
     (root(el).querySelector('.tab-notes .tool') as HTMLButtonElement).click();
     await el.updateComplete;
-    // Open the "Change to" submenu, then pick Text.
+    // Open the "Change to" submenu, then pick Markdown.
     (
       [...root(el).querySelectorAll('.add-menu-item')].find((b) =>
         b.textContent?.includes('Change to'),
@@ -563,7 +563,7 @@ describe('<dashboard-sidebar-editor>', () => {
     ).click();
     await el.updateComplete;
     const toMarkdown = [...root(el).querySelectorAll('.add-menu-item.submenu-item')].find((b) =>
-      b.textContent?.includes('Text'),
+      b.textContent?.includes('Markdown'),
     ) as HTMLButtonElement;
     toMarkdown.click();
     await el.updateComplete;
@@ -606,11 +606,11 @@ describe('<dashboard-sidebar-editor>', () => {
   it('shows an Element Settings header for the card and text footers', async () => {
     const card = await mount({ ...cfg(), footer: { card: { type: 'markdown', content: 'x' } } });
     await tab(card, 'Footer');
-    expect(root(card).querySelector('.form-title')?.textContent).to.contain('Manual Card');
+    expect(root(card).querySelector('.form-title')?.textContent).to.contain('Card');
 
     const text = await mount({ ...cfg(), footer: { markdown: 'x' } });
     await tab(text, 'Footer');
-    expect(root(text).querySelector('.form-title')?.textContent).to.contain('Text');
+    expect(root(text).querySelector('.form-title')?.textContent).to.contain('Markdown');
   });
 
   it('toggles the footer between UI and YAML editing from the tab menu', async () => {
@@ -707,7 +707,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('selects nothing on landing and shows the empty-state prompt', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     expect(root(el).querySelector('.form')).to.not.exist;
     expect(root(el).querySelector('.empty-state .empty-msg')?.textContent).to.contain(
       'Select an element',
@@ -719,7 +719,7 @@ describe('<dashboard-sidebar-editor>', () => {
     await tab(el, 'Header');
     await clickLoc(el, 'header:0');
     expect(root(el).querySelector('.form')).to.exist;
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     expect(root(el).querySelector('.form')).to.not.exist;
     await tab(el, 'Header');
     expect(root(el).querySelector('.form')).to.exist;
@@ -739,7 +739,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('keeps a selected sub-item selected when collapsing', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     await clickLoc(el, 'body:1.0'); // the "Kitchen" sub-item
     (root(el).querySelector('.pv-toggle') as HTMLButtonElement).click();
     await settle(el);
@@ -751,7 +751,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('selects a sub-item from the collapsed popover without expanding', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     (root(el).querySelector('.pv-toggle') as HTMLButtonElement).click(); // collapse
     await settle(el);
     expect(root(el).querySelector('.pv-frame.collapsed')).to.exist;
@@ -770,7 +770,7 @@ describe('<dashboard-sidebar-editor>', () => {
 
   it('shows a Preview header and toggles the collapsed look', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     expect(root(el).querySelector('.preview-title')?.textContent?.trim()).to.equal('Preview');
     expect(root(el).querySelector('.pv-frame.collapsed')).to.not.exist;
     (root(el).querySelector('.pv-toggle') as HTMLButtonElement).click();
@@ -821,7 +821,7 @@ describe('<dashboard-sidebar-editor> with card-mod installed', () => {
 
   it('lists only the relevant CSS classes in an element Advanced section', async () => {
     const el = await mount(cfg());
-    await tab(el, 'Content');
+    await tab(el, 'Body');
     await clickLoc(el, 'body:0'); // the item
     const ref = root(el).querySelector('.advanced .class-ref') as HTMLDetailsElement;
     expect(ref).to.exist;

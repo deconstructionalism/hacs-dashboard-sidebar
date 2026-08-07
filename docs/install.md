@@ -42,7 +42,7 @@ The starter is built from your instance so you have something real to edit:
 
 - **Header** — a centered clock, the date beneath it, and a `Hello <you>`
   greeting (your name, read from Home Assistant at creation time).
-- **Content** — one navigation link per dashboard view, using each view's icon,
+- **Body** — one navigation link per dashboard view, using each view's icon,
   with a **navigate** tap action (so the [active-page
   highlight](actions.md#active-page-highlight) works automatically).
 - **Footer** — up to four of your lights as toggle buttons, tinted by state.
@@ -50,10 +50,11 @@ The starter is built from your instance so you have something real to edit:
 ## Editing
 
 Click the **pencil** on the sidebar (in dashboard edit mode) to open the editor
-modal. It has four tabs — **Settings**, **Header**, **Content**, **Footer** —
-each with a **live preview** on the right that mirrors the real sidebar. Select
-any element in the preview to edit it, drag to reorder, and use each tab's
-**⋯** menu to switch between the UI form and raw **YAML** editing.
+modal. It has four tabs — **Settings**, **Header**, **Body**, **Footer** — each
+named for the config key it edits, and each with a **live preview** on the right
+that mirrors the real sidebar. Select any element in the preview to edit it, drag
+to reorder, and use each tab's **⋯** menu to switch between the UI form and raw
+**YAML** editing.
 
 Everything is saved back into the dashboard's Lovelace config; nothing is stored
 outside it.

@@ -1,22 +1,24 @@
 # Elements
 
 Header and body regions hold an ordered list of elements. Each has a `type`.
-Common options — `card_mod` (see [Styling](styling.md)) and an **Abbreviation**
-on items/categories — live under each element's **Advanced** section in the
-editor. (A `class` hook is also available in YAML; see [Styling](styling.md#css-class).)
+Common options live under each element's **Advanced** section in the editor: an
+**Abbreviation** (the short glyph shown for an item or category when the sidebar
+is collapsed and it has no icon) and **Card Mod** (advanced CSS styling, see
+[Styling](styling.md)). A `class` hook is also available in YAML; see
+[Styling](styling.md#css-class).
 
 !!! tip "Two ways to edit"
     Each element below has a **Visual editor** tab and a **YAML** tab for the same
-    result. In the editor, pick a region tab (**Header** or **Content**), press
+    result. In the editor, pick a region tab (**Header** or **Body**), press
     **+**, choose the element type, then fill in its fields.
 
 See the [Config Reference](reference.md) for every field on every element.
 
 ## Templating
 
-- **Text, title, item titles, icons, and color fields** resolve to plain text,
-  so only **Jinja** applies (not markdown), e.g. `{{ states('sensor.temp') }}`.
-- **Text blocks** and the **text footer** render through Home Assistant's
+- **Title, item titles, icons, and color fields** resolve to plain text, so only
+  **Jinja** applies (not markdown), e.g. `{{ states('sensor.temp') }}`.
+- **Markdown blocks** and the **markdown footer** render through Home Assistant's
   markdown card, so they support **markdown and Jinja**.
 
 !!! warning "Current user"
@@ -112,7 +114,7 @@ A tappable row. Standalone in a region, or nested in a category.
     **Abbreviation** (the collapsed glyph when there is no icon), and **Card Mod**
     live under **Advanced**.
 
-    ![The Content tab with an item selected, showing its Title, Icon, Entity, and color fields.](assets/editor/content-item.png)
+    ![The Body tab with an item selected, showing its Title, Icon, Entity, and color fields.](assets/editor/content-item.png)
 
 === "YAML"
 
@@ -142,7 +144,7 @@ A collapsible group of items, nested one level deep.
     inside it. **Start Collapsed** and **Guide Line** (the vertical guide beside
     the items) are toggles on the category. Categories cannot nest further.
 
-    ![The Content tab with a category selected, its child items shown in the preview.](assets/editor/content-category.png)
+    ![The Body tab with a category selected, its child items shown in the preview.](assets/editor/content-category.png)
 
 === "YAML"
 
@@ -163,14 +165,14 @@ A collapsible group of items, nested one level deep.
 
 Collapsed, a category becomes an icon that opens a popover of its items.
 
-## Text
+## Markdown
 
 Markdown with Jinja, rendered by Home Assistant's markdown card. Hidden while
-collapsed.
+collapsed. (`type: markdown`.)
 
 === "Visual editor"
 
-    Add a **Text** element and write **Content** (markdown + Jinja). Set
+    Add a **Markdown** element and write **Content** (markdown + Jinja). Set
     **Alignment**; **Text Color** lives under **Advanced**.
 
 === "YAML"
@@ -183,15 +185,15 @@ collapsed.
       text_color: var(--secondary-text-color)
     ```
 
-## Manual Card
+## Card
 
 Any Lovelace card, authored as YAML. Fills the sidebar width; keeps its own card
-chrome. Validated live against Home Assistant's card registry.
+chrome. Validated live against Home Assistant's card registry. (`type: card`.)
 
 === "Visual editor"
 
-    Add a **Manual Card** element and paste any Lovelace card config into its YAML
-    field. It is validated live against Home Assistant's card registry.
+    Add a **Card** element and paste any Lovelace card config into its YAML field.
+    It is validated live against Home Assistant's card registry.
 
 === "YAML"
 

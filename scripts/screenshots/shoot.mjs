@@ -63,16 +63,56 @@ const DEMO = {
   },
 };
 
+// A standalone sidebar for the "what does it look like" hero shots. Deliberately
+// exercises many element types at once: title, clock, date, dividers, items
+// (toggle / more-info / navigate), a category with children, and a markdown
+// block, over a footer button row.
+const HERO = {
+  position: 'left',
+  width: 264,
+  header: [
+    { type: 'title', text: 'Home', align: 'center' },
+    { type: 'clock', format: '%-I:%M %p', align: 'center' },
+    { type: 'date', format: '%A, %B %-d', align: 'center' },
+    { type: 'divider' },
+  ],
+  body: [
+    { type: 'item', title: 'Living Room', icon: 'mdi:sofa', entity: 'light.living', tap_action: { action: 'toggle' } },
+    { type: 'item', title: 'Front Door', icon: 'mdi:door', entity: 'lock.front', tap_action: { action: 'toggle' } },
+    { type: 'item', title: 'Thermostat', icon: 'mdi:thermostat', tap_action: { action: 'more-info' } },
+    {
+      type: 'category',
+      title: 'Rooms',
+      icon: 'mdi:floor-plan',
+      start_collapsed: false,
+      items: [
+        { title: 'Kitchen', icon: 'mdi:silverware-fork-knife', tap_action: { action: 'navigate', navigation_path: '/lovelace/kitchen' } },
+        { title: 'Bedroom', icon: 'mdi:bed', tap_action: { action: 'navigate', navigation_path: '/lovelace/bedroom' } },
+      ],
+    },
+    { type: 'divider' },
+    { type: 'markdown', content: '**72°F** and sunny' },
+  ],
+  footer: {
+    buttons: [
+      { icon: 'mdi:home', tap_action: { action: 'navigate', navigation_path: '/lovelace/home' } },
+      { icon: 'mdi:lightbulb-group', tap_action: { action: 'toggle' } },
+      { icon: 'mdi:lock', tap_action: { action: 'toggle' } },
+      { icon: 'mdi:cog', tap_action: { action: 'navigate', navigation_path: '/config' } },
+    ],
+  },
+};
+
 // Each shot: a filename and the driver steps to reach that state. `steps` runs
 // in the page against the window.H helpers defined in the host HTML.
 const SHOTS = [
   { name: 'settings', steps: async (H) => { await H.tab('Settings'); } },
   { name: 'header-title', steps: async (H) => { await H.tab('Header'); await H.selectLoc('header:0'); } },
-  { name: 'content-item', steps: async (H) => { await H.tab('Content'); await H.selectLoc('body:0'); } },
-  { name: 'content-category', steps: async (H) => { await H.tab('Content'); await H.selectLoc('body:2'); } },
-  { name: 'element-yaml', steps: async (H) => { await H.tab('Content'); await H.selectLoc('body:0'); await H.elementYaml(); } },
+  { name: 'content-item', steps: async (H) => { await H.tab('Body'); await H.selectLoc('body:0'); } },
+  { name: 'content-category', steps: async (H) => { await H.tab('Body'); await H.selectLoc('body:2'); } },
+  { name: 'element-yaml', steps: async (H) => { await H.tab('Body'); await H.selectLoc('body:0'); await H.elementYaml(); } },
   { name: 'footer-buttons', steps: async (H) => { await H.tab('Footer'); await H.selectLoc('footer:btn:0'); } },
-  { name: 'collapsed', steps: async (H) => { await H.tab('Content'); await H.collapse(); } },
+  { name: 'collapsed', steps: async (H) => { await H.tab('Body'); await H.collapse(); } },
 ];
 
 /** Bundle the editor (and the preview card) into one ESM string. */
@@ -170,6 +210,23 @@ for (const tag of ['ha-icon', 'ha-svg-icon']) {
   if (!customElements.get(tag)) customElements.define(tag, class extends IconStub {});
 }
 
+// The card builds markdown blocks and manual cards through HA's card helpers,
+// absent here. Stub them so a markdown block renders its text (with basic bold);
+// any other card falls back to a small labelled placeholder.
+window.loadCardHelpers = async () => ({
+  createCardElement: (cfg) => {
+    const el = document.createElement('div');
+    el.style.cssText = 'font:inherit;color:inherit';
+    if (cfg.type === 'markdown') {
+      el.innerHTML = String(cfg.content || '').replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');
+    } else {
+      el.style.cssText += ';padding:12px;border-radius:10px;background:var(--secondary-background-color);text-align:center;opacity:.85';
+      el.textContent = String(cfg.type || 'card').replace(/^custom:/, '') + ' card';
+    }
+    return el;
+  },
+});
+
 const editorEl = () => document.querySelector('dashboard-sidebar-editor');
 const previewEl = () => editorEl().shadowRoot.querySelector('.pv-frame dashboard-sidebar');
 async function settle() {
@@ -211,6 +268,32 @@ window.H = {
     item.click();
     await settle();
   },
+  // Mount a plain sidebar card (no editor) in a dashboard-like frame, for the
+  // "what does it look like" hero shots.
+  async sidebar(config, collapsed) {
+    const ed = editorEl();
+    if (ed) ed.remove();
+    localStorage.clear();
+    let hero = document.getElementById('hero');
+    if (!hero) {
+      hero = document.createElement('div');
+      hero.id = 'hero';
+      document.body.appendChild(hero);
+    }
+    hero.innerHTML = '';
+    hero.style.cssText = 'display:inline-block;padding:28px';
+    const frame = document.createElement('div');
+    frame.style.cssText =
+      'width:' + (collapsed ? 72 : 264) + 'px;height:600px;border-radius:14px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.22)';
+    const card = document.createElement('dashboard-sidebar');
+    frame.appendChild(card);
+    hero.appendChild(frame);
+    card.setConfig({ ...config, start_collapsed: !!collapsed });
+    await card.updateComplete;
+    await new Promise((r) => setTimeout(r, 60));
+    await card.updateComplete;
+    return true;
+  },
 };
 </script>
 </body>
@@ -240,6 +323,18 @@ async function main() {
     const path = join(outDir, shot.name + '.png');
     await page.locator('.panel').first().screenshot({ path });
     written.push({ name: shot.name, path });
+  }
+
+  // Hero shots: the actual rendered sidebar (not the editor), expanded and
+  // collapsed, for the docs to show what the thing looks like.
+  for (const [name, collapsed] of [
+    ['sidebar-expanded', false],
+    ['sidebar-collapsed', true],
+  ]) {
+    await page.evaluate(([cfg, col]) => window.H.sidebar(cfg, col), [HERO, collapsed]);
+    const path = join(outDir, name + '.png');
+    await page.locator('#hero').screenshot({ path });
+    written.push({ name, path });
   }
 
   await browser.close();

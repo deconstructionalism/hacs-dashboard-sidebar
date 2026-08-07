@@ -109,11 +109,11 @@ const ALL_TYPES: BlockType[] = [
   'card',
 ];
 
-/** The modal tabs, in order. `body` is labelled "Content". */
+/** The modal tabs, in order. The `body` region is labelled "Body". */
 const TABS: Array<{ id: 'settings' | 'header' | 'body' | 'footer'; label: string }> = [
   { id: 'settings', label: 'Settings' },
   { id: 'header', label: 'Header' },
-  { id: 'body', label: 'Content' },
+  { id: 'body', label: 'Body' },
   { id: 'footer', label: 'Footer' },
 ];
 
@@ -1474,7 +1474,7 @@ export class DashboardSidebarEditor extends LitElement {
     const notes = this._renderTabNotes(
       region === 'header'
         ? 'The header is pinned to the top of the sidebar and does not scroll.'
-        : 'Content scrolls on its own when it is taller than the sidebar.',
+        : 'The body scrolls on its own when it is taller than the sidebar.',
       region === 'header'
         ? 'Collapsed: only clock and date blocks show; titles are hidden.'
         : 'Collapsed: items and categories show as icons; card blocks are hidden.',
@@ -1589,8 +1589,8 @@ export class DashboardSidebarEditor extends LitElement {
     const others = (
       [
         ['buttons', 'Button Row'],
-        ['card', 'Manual Card'],
-        ['markdown', 'Text'],
+        ['card', 'Card'],
+        ['markdown', 'Markdown'],
       ] as const
     ).filter(([m]) => m !== mode);
     const close = (): void => {
@@ -1790,8 +1790,8 @@ export class DashboardSidebarEditor extends LitElement {
         ${this._renderEmptyState(
           this._renderAddMenu([
             { label: 'Button Row', run: () => this._addFooterButton() },
-            { label: 'Manual Card', run: () => this._setFooterMode('card') },
-            { label: 'Text', run: () => this._setFooterMode('markdown') },
+            { label: 'Card', run: () => this._setFooterMode('card') },
+            { label: 'Markdown', run: () => this._setFooterMode('markdown') },
           ]),
         )}
       `;
@@ -1823,7 +1823,7 @@ export class DashboardSidebarEditor extends LitElement {
         ${notes}
         <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
           <div class="editor form yaml-mode">
-            ${this._footerContentHeader('Manual Card')}
+            ${this._footerContentHeader('Card')}
             ${this._yamlEditor(
               footer?.card,
               (v) => this._setFooterCard(v),
@@ -1849,7 +1849,7 @@ export class DashboardSidebarEditor extends LitElement {
         ${notes}
         <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
           <div class="editor">
-            ${this._footerContentHeader('Text')}
+            ${this._footerContentHeader('Markdown')}
             ${codeField(
               'Content Template',
               footer?.markdown,

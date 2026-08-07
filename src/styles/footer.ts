@@ -4,7 +4,12 @@ import { css } from 'lit';
 export const footerStyles = css`
   .footer {
     display: flex;
-    flex-wrap: wrap;
+    /* Keep the buttons on one row and clip any that don't fit rather than
+       wrapping — during a collapse/expand the width animates through
+       intermediate sizes, and wrapping made the buttons stack vertically for a
+       frame before settling. The overflow menu already handles the real count. */
+    flex-wrap: nowrap;
+    overflow: hidden;
     gap: 4px;
     align-items: center;
     margin-top: 8px;

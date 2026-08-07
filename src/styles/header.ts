@@ -5,6 +5,16 @@ import { css } from 'lit';
  * menu rows so left-aligned text lines up with the item icons.
  */
 export const headerStyles = css`
+  /* Keep header text on one line and clip it, so it never wraps and grows the
+     block while the sidebar width animates during a collapse/expand. */
+  .app-title,
+  .clock,
+  .date {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .app-title {
     font-size: 1.25rem;
     font-weight: 500;

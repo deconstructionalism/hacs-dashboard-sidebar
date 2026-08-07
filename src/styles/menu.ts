@@ -7,6 +7,11 @@ import { css } from 'lit';
 export const menuStyles = css`
   .row {
     display: flex;
+    /* Never wrap the icon/label onto a second line — during a collapse/expand
+       the width animates through intermediate sizes, and wrapping made rows
+       reflow/grow for a frame. Clip instead. */
+    flex-wrap: nowrap;
+    overflow: hidden;
     align-items: center;
     gap: 12px;
     width: 100%;
@@ -26,6 +31,12 @@ export const menuStyles = css`
 
   .row .label {
     flex: 1;
+    /* Shrink below content width and clip to one line with an ellipsis rather
+       than wrapping while the sidebar animates. */
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 1rem;
   }
 

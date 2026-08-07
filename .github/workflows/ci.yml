@@ -22,6 +22,8 @@ jobs:
         run: npm run lint:css
       - name: Check formatting
         run: npm run format
+      - name: Config reference up to date
+        run: npm run docs:config:check
       - name: Unit tests
         run: npm run test:unit
       - name: Build

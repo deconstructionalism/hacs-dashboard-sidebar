@@ -22,7 +22,9 @@
     "test:unit": "vitest run",
     "test:browser": "web-test-runner",
     "test:watch": "vitest",
-    "check": "npm run lint && npm run format && npm run test:unit && npm run build"
+    "docs:config": "node scripts/gen-config-docs.js",
+    "docs:config:check": "node scripts/gen-config-docs.js --check",
+    "check": "npm run lint && npm run format && npm run docs:config:check && npm run test:unit && npm run build"
   },
   "dependencies": {
     "custom-card-helpers": "^1.9.0",

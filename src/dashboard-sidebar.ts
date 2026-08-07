@@ -106,6 +106,22 @@ export class DashboardSidebar extends LitElement {
   @property({ attribute: false }) public previewSelected?: string;
 
   /**
+   * In preview mode, whether clicks select elements and drag reorders them (the
+   * editable previews in the region tabs). A display-only preview — the Settings
+   * tab's whole-sidebar preview — sets this false, so it reads as a rendering,
+   * not an editor surface: no selection, no drag.
+   */
+  @property({ attribute: false }) public previewInteractive = true;
+
+  /**
+   * In preview mode, whether to render the whole sidebar filling its frame (so
+   * the body flexes and the footer pins to the bottom, as it does live) rather
+   * than a content-height single region. Set for the Settings tab's whole-
+   * sidebar preview. Reflected so CSS can key the fill layout off it.
+   */
+  @property({ type: Boolean, reflect: true, attribute: 'full' }) public previewFull = false;
+
+  /**
    * In preview mode, the location strings of categories to show collapsed
    * (e.g. `body:1`). Categories are expanded by default in a preview so their
    * items are selectable; the editor collapses specific ones on request.
@@ -640,7 +656,7 @@ export class DashboardSidebar extends LitElement {
    * collapsed preview.
    */
   private _wirePreviewSort(): void {
-    if (!this.preview || this.previewCollapsed) {
+    if (!this.preview || this.previewCollapsed || !this.previewInteractive) {
       return;
     }
     const root = this.renderRoot as ParentNode;
@@ -1181,7 +1197,11 @@ export class DashboardSidebar extends LitElement {
       <div
         class=${classMap(classes)}
         style=${styleMap(sidebarStyle)}
-        @click=${this.preview ? (ev: Event) => this._onPreviewClick(ev) : nothing}
+        @click=${
+          this.preview && this.previewInteractive
+            ? (ev: Event) => this._onPreviewClick(ev)
+            : nothing
+        }
       >
         ${
           this.preview

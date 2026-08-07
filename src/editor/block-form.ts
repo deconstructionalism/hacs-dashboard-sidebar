@@ -981,17 +981,6 @@ export function footerButtonFields(
     ${actionSections(btn as unknown as Record<string, unknown>, patch, ctx, hass)}
     <details class="advanced">
       <summary>Advanced</summary>
-      ${
-        cardModInstalled()
-          ? textField(
-              'CSS class',
-              btn.class,
-              (v) => patch({ class: v || undefined }),
-              undefined,
-              'A hook for targeting this button from the sidebar-level Card Mod.',
-            )
-          : nothing
-      }
       ${navHighlightField(btn, patch)}
       ${cardModField(btn.card_mod, (v) => patch({ card_mod: v }), CARD_MOD_ELEMENT_HINT)}
       ${cardModInstalled() ? elementClassRef('footer-button') : nothing}
@@ -1056,17 +1045,6 @@ function advancedFields(
             (v) => patch({ abbr: v || undefined }),
             undefined,
             'The glyph shown in the collapsed view, used only when no icon is set.',
-          )
-        : nothing
-    }
-    ${
-      cardModInstalled()
-        ? textField(
-            'CSS class',
-            block.class,
-            (v) => patch({ class: v || undefined }),
-            undefined,
-            'A hook for targeting this element from the sidebar-level Card Mod.',
           )
         : nothing
     }
@@ -1331,12 +1309,18 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
         ${
           // Store undefined at the default (true) so toggling back to it drops
           // the key and leaves the config identical to the start state.
-          checkboxField('Start collapsed', block.start_collapsed ?? true, (v) =>
-            patch({ start_collapsed: v ? undefined : false }),
+          checkboxField(
+            'Start Collapsed',
+            block.start_collapsed ?? true,
+            (v) => patch({ start_collapsed: v ? undefined : false }),
+            "Start this group collapsed; its items stay hidden under the header until it's expanded.",
           )
         }
-        ${checkboxField('Guide line', block.guide_line ?? true, (v) =>
-          patch({ guide_line: v ? undefined : false }),
+        ${checkboxField(
+          'Guide Line',
+          block.guide_line ?? true,
+          (v) => patch({ guide_line: v ? undefined : false }),
+          "Draw a vertical line beside the group's items to visually connect them.",
         )}
       `;
     case 'markdown':

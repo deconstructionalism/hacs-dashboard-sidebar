@@ -103,6 +103,141 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(root(el).querySelector('.empty-msg')?.textContent).to.contain('Add your first');
   });
 
+  it('renders a display-only whole-sidebar preview in the Settings tab', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Settings');
+    const pv = root(el).querySelector('.pv-frame dashboard-sidebar') as DashboardSidebar;
+    expect(pv, 'settings preview exists').to.exist;
+    // Display-only: no selection, no drag.
+    expect(pv.previewInteractive).to.equal(false);
+    // Whole-sidebar fill: the footer pins to the bottom like live.
+    expect(pv.previewFull).to.equal(true);
+    expect(pv.hasAttribute('full')).to.equal(true);
+    // The frame is a flex column and the sidebar grows within it (footer pins).
+    const frame = root(el).querySelector('.pv-frame') as HTMLElement;
+    expect(frame.classList.contains('pv-col')).to.equal(true);
+    expect(getComputedStyle(pv).display).to.equal('flex');
+    expect(getComputedStyle(pv).flexGrow).to.equal('1');
+    // Shows every region (header title + body item), not just one.
+    expect(pv.shadowRoot?.querySelector('[data-loc="header:0"]')).to.exist;
+    expect(pv.shadowRoot?.querySelector('[data-loc="body:0"]')).to.exist;
+    // A click in it does not select anything (Settings has no element form).
+    const item = pv.shadowRoot?.querySelector('[data-loc="body:0"]') as HTMLElement;
+    item.click();
+    await settle(el);
+    expect(root(el).querySelector('.form')).to.not.exist;
+  });
+
+  it('shows the width-cap note in the Settings tab when the width exceeds the preview cap', async () => {
+    const el = await mount({ ...cfg(), width: 10000 });
+    await tab(el, 'Settings');
+    const note = root(el).querySelector('.editor-note');
+    expect(note, 'width-cap note').to.exist;
+    expect(note?.textContent).to.contain('capped');
+    expect(note?.textContent).to.contain('10000px');
+  });
+
+  it('has a Sidebar Settings header whose menu toggles whole-config YAML', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Settings');
+    expect(root(el).querySelector('.form-title')?.textContent?.trim()).to.equal('Sidebar Settings');
+    // The renamed field reads "Position", not "Sidebar Position".
+    const posLabel = [...root(el).querySelectorAll('.settings .field > span')].find(
+      (s) => s.textContent?.trim() === 'Position',
+    );
+    expect(posLabel, 'Position field').to.exist;
+    // Open the overflow menu and switch to YAML.
+    (root(el).querySelector('.form-tools .tool') as HTMLButtonElement).click();
+    await el.updateComplete;
+    const yamlItem = [...root(el).querySelectorAll('.add-menu-item')].find((b) =>
+      /Edit As YAML/.test(b.textContent ?? ''),
+    ) as HTMLButtonElement;
+    expect(yamlItem, 'Edit As YAML item').to.exist;
+    yamlItem.click();
+    await el.updateComplete;
+    // The UI fields give way to a YAML/textarea editor.
+    expect(root(el).querySelector('.settings .yaml-field, .settings textarea')).to.exist;
+    expect(
+      [...root(el).querySelectorAll('.settings .field > span')].find(
+        (s) => s.textContent?.trim() === 'Position',
+      ),
+    ).to.equal(undefined);
+  });
+
+  it('edits the whole sidebar config through the Settings YAML editor', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Settings');
+    (root(el).querySelector('.form-tools .tool') as HTMLButtonElement).click();
+    await el.updateComplete;
+    (
+      [...root(el).querySelectorAll('.add-menu-item')].find((b) =>
+        /Edit As YAML/.test(b.textContent ?? ''),
+      ) as HTMLButtonElement
+    ).click();
+    await el.updateComplete;
+    const ta = root(el).querySelector('.settings textarea') as HTMLTextAreaElement;
+    expect(ta, 'fallback YAML textarea').to.exist;
+    ta.value = JSON.stringify({ ...cfg(), width: 555 });
+    ta.dispatchEvent(new Event('input'));
+    await el.updateComplete;
+    let saved: DashboardSidebarConfig | undefined;
+    el.onSave = (c) => {
+      saved = c;
+    };
+    (root(el).querySelector('footer .primary') as HTMLButtonElement).click();
+    expect(saved?.width).to.equal(555);
+  });
+
+  it('deletes the sidebar after confirming', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Settings');
+    let deleted = false;
+    let closed = false;
+    el.onDelete = () => {
+      deleted = true;
+    };
+    el.onClose = () => {
+      closed = true;
+    };
+    const delBtn = [...root(el).querySelectorAll('.settings .form-actions .add-btn.danger')].find(
+      (b) => /Delete Sidebar/.test(b.textContent ?? ''),
+    ) as HTMLButtonElement;
+    expect(delBtn, 'Delete Sidebar button').to.exist;
+    delBtn.click();
+    await el.updateComplete;
+    expect(root(el).querySelector('.confirm-scrim'), 'delete confirmation').to.exist;
+    const confirmBtn = [...root(el).querySelectorAll('.confirm-actions .danger-btn')].find((b) =>
+      /Delete sidebar/.test(b.textContent ?? ''),
+    ) as HTMLButtonElement;
+    confirmBtn.click();
+    await el.updateComplete;
+    expect(deleted, 'onDelete called').to.equal(true);
+    expect(closed, 'onClose called').to.equal(true);
+  });
+
+  it('cancels sidebar deletion with Keep sidebar', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Settings');
+    let deleted = false;
+    el.onDelete = () => {
+      deleted = true;
+    };
+    (
+      [...root(el).querySelectorAll('.settings .form-actions .add-btn.danger')].find((b) =>
+        /Delete Sidebar/.test(b.textContent ?? ''),
+      ) as HTMLButtonElement
+    ).click();
+    await el.updateComplete;
+    (
+      [...root(el).querySelectorAll('.confirm-actions button')].find((b) =>
+        /Keep sidebar/.test(b.textContent ?? ''),
+      ) as HTMLButtonElement
+    ).click();
+    await el.updateComplete;
+    expect(root(el).querySelector('.confirm-scrim')).to.not.exist;
+    expect(deleted).to.equal(false);
+  });
+
   it('edits sidebar settings (position via icon choice)', async () => {
     const el = await mount(cfg());
     await tab(el, 'Settings');
@@ -159,18 +294,25 @@ describe('<dashboard-sidebar-editor>', () => {
     expect(root(el).querySelector('.advanced')).to.exist;
   });
 
-  it('hides the CSS class field and targetable classes on an element when card-mod is absent', async () => {
+  it('hides the targetable classes on an element when card-mod is absent', async () => {
     const el = await mount(cfg());
     await tab(el, 'Content');
     await clickLoc(el, 'body:0'); // the item
     const form = root(el).querySelector('.form') as HTMLElement;
     expect(form.querySelector('.class-ref'), 'targetable classes hidden').to.not.exist;
+    // The install prompt stands in for the whole styling apparatus.
+    expect(form.querySelector('.card-mod-missing')).to.exist;
+  });
+
+  it('does not render a CSS class field (removed in favor of scoped Card Mod)', async () => {
+    const el = await mount(cfg());
+    await tab(el, 'Content');
+    await clickLoc(el, 'body:0');
+    const form = root(el).querySelector('.form') as HTMLElement;
     const cssClass = [...form.querySelectorAll('.field > span')].find(
       (s) => s.textContent?.trim() === 'CSS class',
     );
-    expect(cssClass, 'CSS class field hidden').to.equal(undefined);
-    // The install prompt stands in for the whole styling apparatus.
-    expect(form.querySelector('.card-mod-missing')).to.exist;
+    expect(cssClass, 'CSS class field removed').to.equal(undefined);
   });
 
   it('prompts to install card-mod when it is absent (no card_mod field)', async () => {
@@ -688,16 +830,5 @@ describe('<dashboard-sidebar-editor> with card-mod installed', () => {
     // Item-only: no unrelated element classes.
     expect(codes).to.not.include('.dashboard-sidebar-clock');
     expect(codes).to.not.include(':host');
-  });
-
-  it('shows the CSS class field on an element', async () => {
-    const el = await mount(cfg());
-    await tab(el, 'Content');
-    await clickLoc(el, 'body:0');
-    const form = root(el).querySelector('.form') as HTMLElement;
-    const cssClass = [...form.querySelectorAll('.field > span')].find(
-      (s) => s.textContent?.trim() === 'CSS class',
-    );
-    expect(cssClass, 'CSS class field shown').to.exist;
   });
 });

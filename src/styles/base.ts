@@ -118,6 +118,31 @@ export const baseStyles = css`
     margin-top: 0;
   }
 
+  /* Whole-sidebar preview (the Settings tab): fill the flex-column preview frame
+     all the way down — host, then sidebar — via flex (not a percentage height,
+     which does not resolve reliably through the frame's flex item) so the body
+     grows and the footer pins to the bottom, mirroring the live sidebar. */
+  :host([preview][full]) {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  :host([preview][full]) .sidebar {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+  }
+
+  :host([preview][full]) .region-body {
+    overflow-y: auto;
+  }
+
+  :host([preview][full]) .footer {
+    margin-top: 8px;
+  }
+
   .sidebar.collapsed {
     align-items: center;
     padding: 16px 6px;

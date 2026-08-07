@@ -142,6 +142,9 @@ export class DashboardSidebarEditor extends LitElement {
   /** Called when the editor should close (cancel or after save). */
   @property({ attribute: false }) public onClose?: () => void;
 
+  /** Called when the user confirms deleting the whole sidebar. */
+  @property({ attribute: false }) public onDelete?: () => void;
+
   /** The active tab. */
   @state() private _tab: 'settings' | 'header' | 'body' | 'footer' = 'settings';
 
@@ -156,6 +159,9 @@ export class DashboardSidebarEditor extends LitElement {
 
   /** Whether the unsaved-changes exit confirmation is showing. */
   @state() private _confirmingClose = false;
+
+  /** Whether the delete-sidebar confirmation is showing. */
+  @state() private _confirmingDelete = false;
 
   /** Tabs whose preview is showing the collapsed (icon-strip) look. */
   @state() private _collapsedTabs = new Set<string>();
@@ -175,6 +181,9 @@ export class DashboardSidebarEditor extends LitElement {
 
   /** Id of the element being edited as YAML, or null when editing with the UI. */
   @state() private _yamlEditId: string | null = null;
+
+  /** Whether the Settings tab is editing the whole sidebar config as YAML. */
+  @state() private _settingsYaml = false;
 
   /** The current YAML parse error for the selected element, or null. */
   @state() private _yamlError: string | null = null;
@@ -1249,6 +1258,7 @@ export class DashboardSidebarEditor extends LitElement {
           <button class="primary" ?disabled=${!this._canSave} @click=${this._save}>Save</button>
         </footer>
         ${this._confirmingClose ? this._renderConfirmClose() : nothing}
+        ${this._confirmingDelete ? this._renderConfirmDelete() : nothing}
       </div>
       ${this._renderAddMenuPopup()} ${this._renderElementMenu()} ${this._renderTabMenu()}
     `;
@@ -1286,6 +1296,38 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
+   * Renders the delete-sidebar confirmation over the panel.
+   */
+  private _renderConfirmDelete(): TemplateResult {
+    return html`
+      <div class="confirm-scrim">
+        <div class="confirm" role="alertdialog" aria-label="Delete sidebar">
+          <p>Delete the sidebar? This removes it from this dashboard.</p>
+          <div class="confirm-actions">
+            <button
+              @click=${() => {
+                this._confirmingDelete = false;
+              }}
+            >
+              Keep sidebar
+            </button>
+            <button
+              class="danger-btn"
+              @click=${() => {
+                this._confirmingDelete = false;
+                this.onDelete?.();
+                this.onClose?.();
+              }}
+            >
+              Delete sidebar
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
    * Renders the active tab's content.
    */
   private _renderTab(): TemplateResult {
@@ -1308,54 +1350,93 @@ export class DashboardSidebarEditor extends LitElement {
    */
   private _renderSettings(): TemplateResult {
     const c = this._working;
+    // A whole-sidebar preview so background, width, and sidebar-level Card Mod
+    // edits are visible here. Position and hide-on-mobile are left out on
+    // purpose: neither reads meaningfully in the framed preview.
+    const previewConfig: DashboardSidebarConfig = {
+      header: c.header,
+      body: c.body,
+      footer: c.footer,
+      width: c.width,
+      background: c.background,
+      card_mod: c.card_mod,
+    };
     return html`
-      <section class="region settings">
-        ${iconChoiceField(
-          'Sidebar Position',
-          c.position ?? 'left',
-          [
-            { value: 'left', icon: 'mdi:dock-left', title: 'Left' },
-            { value: 'right', icon: 'mdi:dock-right', title: 'Right' },
-          ],
-          (v) => this._patchConfig({ position: v }),
-        )}
-        ${intField(
-          'Expanded Width (px)',
-          c.width,
-          (v) => this._patchConfig({ width: v }),
-          {
-            error: this._fieldErrors['width'],
-            onBlur: (v) => this._validateField('width', v, validateWidth),
-          },
-          `Defaults to ${DEFAULT_WIDTH}px when left empty.`,
-          this._widthWarning(c.width),
-        )}
-        ${checkboxField(
-          'Start Collapsed',
-          c.start_collapsed ?? false,
-          // Store undefined (not false) when off so the key is dropped and an
-          // off-then-on-then-off toggle returns cleanly to the original config.
-          (v) => this._patchConfig({ start_collapsed: v || undefined }),
-          'Load the sidebar collapsed to its icon strip; it expands when you tap the toggle.',
-        )}
-        ${checkboxField(
-          'Hide Sidebar On Mobile',
-          c.hide_on_mobile ?? false,
-          (v) => this._patchConfig({ hide_on_mobile: v || undefined }),
-          'Hide the sidebar entirely on narrow (phone-width) screens.',
-        )}
-        <details class="advanced">
-          <summary>Advanced</summary>
-          ${colorField(
-            'Background CSS',
-            c.background,
-            (v) => this._patchConfig({ background: v || undefined }),
-            'Any valid CSS background, including gradients (e.g. linear-gradient(...)).',
-          )}
-          ${cardModField(c.card_mod, (v) => this._patchConfig({ card_mod: v }))}
-          ${cardModInstalled() ? this._cardModClassRef() : nothing}
-        </details>
-      </section>
+      ${this._renderTabNotes(
+        'These settings apply to the whole sidebar; the preview shows every area together.',
+        'Collapsed: the sidebar shows as its icon strip.',
+      )}
+      <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
+        <div class="editor settings ${this._settingsYaml ? 'yaml-mode' : ''}">
+          ${this._settingsHeader()}
+          ${
+            this._settingsYaml
+              ? this._yamlEditor(
+                  this._working,
+                  (v) => this._replaceInPlace(this._working, v),
+                  (parsed) => validateConfig(parsed as DashboardSidebarConfig),
+                )
+              : html`
+                  ${iconChoiceField(
+                    'Position',
+                    c.position ?? 'left',
+                    [
+                      { value: 'left', icon: 'mdi:dock-left', title: 'Left' },
+                      { value: 'right', icon: 'mdi:dock-right', title: 'Right' },
+                    ],
+                    (v) => this._patchConfig({ position: v }),
+                  )}
+                  ${intField(
+                    'Expanded Width (px)',
+                    c.width,
+                    (v) => this._patchConfig({ width: v }),
+                    {
+                      error: this._fieldErrors['width'],
+                      onBlur: (v) => this._validateField('width', v, validateWidth),
+                    },
+                    `Defaults to ${DEFAULT_WIDTH}px when left empty.`,
+                    this._widthWarning(c.width),
+                  )}
+                  ${checkboxField(
+                    'Start Collapsed',
+                    c.start_collapsed ?? false,
+                    // Store undefined (not false) when off so the key is dropped and an
+                    // off-then-on-then-off toggle returns cleanly to the original config.
+                    (v) => this._patchConfig({ start_collapsed: v || undefined }),
+                    'Load the sidebar collapsed to its icon strip; it expands when you tap the toggle.',
+                  )}
+                  ${checkboxField(
+                    'Hide Sidebar On Mobile',
+                    c.hide_on_mobile ?? false,
+                    (v) => this._patchConfig({ hide_on_mobile: v || undefined }),
+                    'Hide the sidebar entirely on narrow (phone-width) screens.',
+                  )}
+                  <details class="advanced">
+                    <summary>Advanced</summary>
+                    ${colorField(
+                      'Background CSS',
+                      c.background,
+                      (v) => this._patchConfig({ background: v || undefined }),
+                      'Any valid CSS background, including gradients (e.g. linear-gradient(...)).',
+                    )}
+                    ${cardModField(c.card_mod, (v) => this._patchConfig({ card_mod: v }))}
+                    ${cardModInstalled() ? this._cardModClassRef() : nothing}
+                  </details>
+                `
+          }
+          <div class="form-actions">
+            <button
+              class="add-btn danger"
+              @click=${() => {
+                this._confirmingDelete = true;
+              }}
+            >
+              Delete Sidebar
+            </button>
+          </div>
+        </div>
+        ${this._renderPreview(html`${this._previewEl('settings', previewConfig, false, true)}`, true)}
+      </div>
     `;
   }
 
@@ -1439,6 +1520,20 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
+   * The "preview is capped narrower than the configured width" note, shown when
+   * the expanded preview is width-capped to fit the editor. Empty while the
+   * preview is collapsed (the cap does not apply to the icon strip).
+   */
+  private _previewCapNote(): TemplateResult | typeof nothing {
+    return !this._tabCollapsed && this._previewWidthCapped()
+      ? this._editorNote(
+          `The preview is capped to fit the editor, so it is narrower than the ` +
+            `${this._working.width ?? DEFAULT_WIDTH}px expanded width.`,
+        )
+      : nothing;
+  }
+
+  /**
    * Renders the full-width notes above the split: the tab's scroll-behavior note
    * (with its divider line), then the collapsed-state note below that line when
    * the preview is collapsed.
@@ -1448,14 +1543,7 @@ export class DashboardSidebarEditor extends LitElement {
     collapsedNote: string,
     menu: TemplateResult | typeof nothing = nothing,
   ): TemplateResult {
-    const belowBar = this._tabCollapsed
-      ? this._editorNote(collapsedNote)
-      : this._previewWidthCapped()
-        ? this._editorNote(
-            `The preview is capped to fit the editor, so it is narrower than the ` +
-              `${this._working.width ?? DEFAULT_WIDTH}px expanded width.`,
-          )
-        : nothing;
+    const belowBar = this._tabCollapsed ? this._editorNote(collapsedNote) : this._previewCapNote();
     return html`
       <div class="tab-notes">
         <p class="tab-note">${scrollNote}</p>
@@ -1902,8 +1990,14 @@ export class DashboardSidebarEditor extends LitElement {
     if (!this._elementMenuOpen || !rect) {
       return nothing;
     }
-    const sel = this._locate(this._selected);
-    const category = sel?.kind === 'block' && sel.block.type === 'category' ? sel : null;
+    let items: TemplateResult;
+    if (this._tab === 'settings') {
+      items = this._renderSettingsMenuItems();
+    } else {
+      const sel = this._locate(this._selected);
+      const category = sel?.kind === 'block' && sel.block.type === 'category' ? sel : null;
+      items = this._renderElementMenuItems(category);
+    }
     return html`
       <div
         class="menu-scrim"
@@ -1911,9 +2005,7 @@ export class DashboardSidebarEditor extends LitElement {
           this._elementMenuOpen = false;
         }}
       ></div>
-      <div class="add-menu" style=${this._menuStyle(rect, 'right')}>
-        ${this._renderElementMenuItems(category)}
-      </div>
+      <div class="add-menu" style=${this._menuStyle(rect, 'right')}>${items}</div>
     `;
   }
 
@@ -1957,6 +2049,50 @@ export class DashboardSidebarEditor extends LitElement {
     // Entering YAML surfaces any existing schema errors of the element up front;
     // leaving clears the editor error (the UI banner re-derives it live).
     this._yamlError = toYaml ? this._selectedSchemaErrors().join(' • ') || null : null;
+    this._elementMenuOpen = false;
+  }
+
+  /**
+   * The Settings tab's sticky header: the "Sidebar Settings" title and the
+   * overflow ("...") menu that switches to editing the whole config as YAML.
+   */
+  private _settingsHeader(): TemplateResult {
+    return html`
+      <div class="form-head">
+        <div class="form-title">Sidebar Settings</div>
+        <div class="form-tools">
+          <button
+            class="tool"
+            title="More"
+            aria-label="More"
+            @click=${(e: Event) => this._openElementMenu(e)}
+          >
+            <ha-icon icon="mdi:dots-vertical"></ha-icon>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * The Settings overflow menu: a single toggle between the UI form and editing
+   * the whole sidebar config as YAML.
+   */
+  private _renderSettingsMenuItems(): TemplateResult {
+    return html`
+      <button class="add-menu-item" @click=${() => this._toggleSettingsYaml()}>
+        ${this._settingsYaml ? 'Edit With UI' : 'Edit As YAML'}
+      </button>
+    `;
+  }
+
+  /**
+   * Toggles the Settings tab between the UI form and the whole-config YAML
+   * editor, surfacing any schema errors on entering.
+   */
+  private _toggleSettingsYaml(): void {
+    this._settingsYaml = !this._settingsYaml;
+    this._yamlError = this._settingsYaml ? validateConfig(this._working).join(' • ') || null : null;
     this._elementMenuOpen = false;
   }
 
@@ -2274,7 +2410,12 @@ export class DashboardSidebarEditor extends LitElement {
    * only when it changes so live cards are not re-instantiated on every
    * keystroke, while the selection and collapse state track every render.
    */
-  private _previewEl(key: string, config: DashboardSidebarConfig): DashboardSidebar {
+  private _previewEl(
+    key: string,
+    config: DashboardSidebarConfig,
+    interactive = true,
+    full = false,
+  ): DashboardSidebar {
     let el = this._previews.get(key);
     if (!el) {
       el = document.createElement('dashboard-sidebar') as DashboardSidebar;
@@ -2282,20 +2423,24 @@ export class DashboardSidebarEditor extends LitElement {
       // Set the attribute up front too, so the sidebar's :host([preview])
       // compacting rules apply on the very first paint (not a reflection later).
       el.setAttribute('preview', '');
-      el.addEventListener(PREVIEW_SELECT_EVENT, (ev: Event) => {
-        this._onPreviewSelect((ev as CustomEvent<{ loc: string }>).detail.loc);
-      });
-      el.addEventListener(PREVIEW_REORDER_EVENT, (ev: Event) => {
-        this._applyReorder(
-          (ev as CustomEvent<{ from: string; to: string; oldIndex?: number; newIndex?: number }>)
-            .detail,
-        );
-      });
+      if (interactive) {
+        el.addEventListener(PREVIEW_SELECT_EVENT, (ev: Event) => {
+          this._onPreviewSelect((ev as CustomEvent<{ loc: string }>).detail.loc);
+        });
+        el.addEventListener(PREVIEW_REORDER_EVENT, (ev: Event) => {
+          this._applyReorder(
+            (ev as CustomEvent<{ from: string; to: string; oldIndex?: number; newIndex?: number }>)
+              .detail,
+          );
+        });
+      }
       this._previews.set(key, el);
     }
     el.hass = this.hass;
+    el.previewInteractive = interactive;
+    el.previewFull = full;
     el.previewCollapsed = this._tabCollapsed;
-    el.previewSelected = this._selectedLoc();
+    el.previewSelected = interactive ? this._selectedLoc() : undefined;
     el.previewCollapsedCats = this._collapsedCatLocs();
     const json = JSON.stringify(config);
     if (this._previewCfg.get(el) !== json) {
@@ -2646,6 +2791,17 @@ export class DashboardSidebarEditor extends LitElement {
       align-items: center;
       justify-content: space-between;
       margin-bottom: 6px;
+      /* Pin the Preview label + collapse toggle so they stay in view when the
+         whole content scrolls as one (stacked layout). A no-op on wide layouts,
+         where the preview column already sits above its own scroll frame. */
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background-color: var(--primary-background-color, #fff);
+      background-image: linear-gradient(
+        var(--card-background-color, #fff),
+        var(--card-background-color, #fff)
+      );
     }
 
     .preview-title {
@@ -2785,6 +2941,18 @@ export class DashboardSidebarEditor extends LitElement {
       height: auto;
     }
 
+    /* The whole-sidebar (Settings) preview instead fills the flex-column frame,
+       so its body flexes and the footer pins to the bottom, like live. This is
+       set in the outer scope because host-targeting page rules win over the
+       sidebar's own :host([preview][full]) rules. */
+    .pv-frame.pv-col dashboard-sidebar[full] {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-height: 0;
+      height: auto;
+    }
+
     @media (width < 640px) {
       /* Full-screen modal on mobile. */
       .panel {
@@ -2831,12 +2999,24 @@ export class DashboardSidebarEditor extends LitElement {
     }
 
     /* The form header row: the element-setting label plus the move/overflow
-       tools aligned to the right. */
+       tools aligned to the right. Pinned to the top so it stays in view as the
+       form scrolls (UI and YAML mode alike); the opaque backdrop matches
+       .content so fields pass cleanly underneath. */
     .form-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      padding-bottom: 8px;
+      background-color: var(--primary-background-color, #fff);
+      background-image: linear-gradient(
+        var(--card-background-color, #fff),
+        var(--card-background-color, #fff)
+      );
+      border-bottom: 1px solid var(--divider-color, rgb(0 0 0 / 12%));
     }
 
     /* Matches the PREVIEW label so the two columns' headers read as a pair. */

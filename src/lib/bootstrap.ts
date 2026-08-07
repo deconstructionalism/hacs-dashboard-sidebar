@@ -159,6 +159,20 @@ function saveConfig(huiRoot: { lovelace?: any }, config: DashboardSidebarConfig)
 }
 
 /**
+ * Removes the sidebar from the Lovelace config. The reconcile loop then tears
+ * down the rendered sidebar on its next pass (config is gone).
+ */
+function deleteConfig(huiRoot: { lovelace?: any }): void {
+  const lovelace = huiRoot.lovelace;
+  if (!lovelace?.saveConfig) {
+    return;
+  }
+  const next = { ...(lovelace.config ?? {}) };
+  delete next[CONFIG_KEY];
+  void lovelace.saveConfig(next);
+}
+
+/**
  * A key that changes only when the host layout (side or width) must be rebuilt,
  * so pure content edits can update the element in place instead.
  */
@@ -329,6 +343,7 @@ function openEditor(huiRoot: { shadowRoot: ShadowRoot; lovelace?: any }): void {
   editor.config = readConfig(huiRoot) ?? {};
   editor.onSave = (config) => saveConfig(huiRoot, config);
   editor.onClose = () => editor.remove();
+  editor.onDelete = () => deleteConfig(huiRoot);
   shadow.appendChild(editor);
 }
 

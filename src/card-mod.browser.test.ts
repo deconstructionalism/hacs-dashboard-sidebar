@@ -77,4 +77,64 @@ describe('<dashboard-sidebar> card-mod delegation', () => {
     await el.updateComplete;
     expect(StubCardMod.calls.length).to.equal(1);
   });
+
+  it('scopes a per-element card_mod to that element by data-loc', async () => {
+    await mount({
+      header: [
+        {
+          type: 'title',
+          text: 'One',
+          card_mod: { style: '.dashboard-sidebar-title { color: red; }' },
+        },
+        { type: 'title', text: 'Two' },
+      ],
+    });
+    const call = StubCardMod.calls.find((c) => c.type.startsWith('dashboard-sidebar:'));
+    expect(call, 'element-level card-mod call').to.exist;
+    expect(call!.type).to.equal('dashboard-sidebar:header:0');
+    expect((call!.element as HTMLElement).getAttribute('data-loc')).to.equal('header:0');
+    const style = (call!.config as { style: string }).style;
+    // Self (compound) branch matches the title, which carries the class itself.
+    expect(style).to.contain('[data-loc="header:0"]:is(.dashboard-sidebar-title)');
+    // Descendant branch for nested targets.
+    expect(style).to.contain('[data-loc="header:0"] :is(.dashboard-sidebar-title)');
+  });
+
+  it('the scoped style really isolates one element from its siblings', async () => {
+    // Prove the rewritten CSS colors only the matching data-loc element.
+    const { scopeCss } = await import('./lib/card-mod');
+    const scoped = scopeCss(
+      '.dashboard-sidebar-title { color: rgb(255, 0, 0); }',
+      '[data-loc="header:0"]',
+    );
+    expect(scoped, 'scopeCss output').to.be.a('string');
+    const host = document.createElement('div');
+    const sr = host.attachShadow({ mode: 'open' });
+    sr.innerHTML = `<style>${scoped}</style>
+      <div data-loc="header:0" class="dashboard-sidebar-title">One</div>
+      <div data-loc="header:1" class="dashboard-sidebar-title">Two</div>`;
+    document.body.appendChild(host);
+    const one = sr.querySelector('[data-loc="header:0"]') as HTMLElement;
+    const two = sr.querySelector('[data-loc="header:1"]') as HTMLElement;
+    expect(getComputedStyle(one).color).to.equal('rgb(255, 0, 0)');
+    expect(getComputedStyle(two).color).to.not.equal('rgb(255, 0, 0)');
+    host.remove();
+  });
+
+  it('leaves a non-string (object-form) element style unwrapped', async () => {
+    await mount({
+      header: [
+        {
+          type: 'title',
+          text: 'One',
+          card_mod: { style: { '.dashboard-sidebar-title': 'color: red;' } },
+        },
+      ],
+    });
+    const call = StubCardMod.calls.find((c) => c.type.startsWith('dashboard-sidebar:'));
+    expect(call, 'element-level card-mod call').to.exist;
+    expect((call!.config as { style: unknown }).style).to.deep.equal({
+      '.dashboard-sidebar-title': 'color: red;',
+    });
+  });
 });

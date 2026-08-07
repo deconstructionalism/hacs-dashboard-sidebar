@@ -38,3 +38,46 @@ export function applyCardMod(
     return false;
   }
 }
+
+/**
+ * Rewrites CSS so every rule matches only the element identified by `hostSel`
+ * (e.g. `[data-loc="header:0"]`) or its descendants — the basis for scoping a
+ * per-element card_mod to just that element.
+ *
+ * Each rule's selector list `orig` becomes `hostSel:is(orig), hostSel :is(orig)`.
+ * The first branch is the compound (self) match, so a bare class that names the
+ * element itself — the title carries `.dashboard-sidebar-title` — matches, which
+ * plain `@scope` can't do for its own root. The second branch matches descendant
+ * targets (an item's icon, a category's chevron). Grouping rules (`@media`,
+ * `@supports`) are recursed into; nested rules stay relative to their now-scoped
+ * parent. Parsing goes through a constructed stylesheet so the browser's own CSS
+ * engine handles comments, nesting, and at-rules. Returns null when the CSS
+ * cannot be parsed (caller then applies it unscoped rather than dropping it).
+ */
+export function scopeCss(css: string, hostSel: string): string | null {
+  let sheet: CSSStyleSheet;
+  try {
+    sheet = new CSSStyleSheet();
+    sheet.replaceSync(css);
+  } catch {
+    return null;
+  }
+  const rewrite = (rules: CSSRuleList): void => {
+    for (const rule of Array.from(rules)) {
+      if (rule instanceof CSSStyleRule) {
+        const orig = rule.selectorText;
+        // Scope this rule; leave any nested rules relative to the scoped parent.
+        rule.selectorText = `${hostSel}:is(${orig}), ${hostSel} :is(${orig})`;
+      } else {
+        const grouping = rule as CSSRule & { cssRules?: CSSRuleList };
+        if (grouping.cssRules) {
+          rewrite(grouping.cssRules);
+        }
+      }
+    }
+  };
+  rewrite(sheet.cssRules);
+  return Array.from(sheet.cssRules)
+    .map((r) => r.cssText)
+    .join('\n');
+}

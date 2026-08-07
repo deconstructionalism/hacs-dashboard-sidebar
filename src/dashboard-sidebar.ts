@@ -12,7 +12,7 @@ import { styleMap } from 'lit/directives/style-map.js';
 import Sortable from 'sortablejs';
 
 import { runAction } from './lib/action';
-import { applyCardMod } from './lib/card-mod';
+import { applyCardMod, scopeCss } from './lib/card-mod';
 import {
   EDIT_EVENT,
   PREVIEW_REORDER_EVENT,
@@ -689,9 +689,27 @@ export class DashboardSidebar extends LitElement {
       }
       this._elementCardModSigs.set(node, sig);
       if (cfg) {
-        applyCardMod(node, cfg, `dashboard-sidebar:${loc}`);
+        applyCardMod(node, this._scopeElementCardMod(cfg, loc), `dashboard-sidebar:${loc}`);
       }
     });
+  }
+
+  /**
+   * Scopes a per-element `card_mod` so its selectors only affect this element
+   * (and its subtree), by rewriting the `style` CSS to key every rule to the
+   * element's unique `data-loc`. A bare selector such as `.dashboard-sidebar-title`
+   * then matches only this element, so styling one title no longer bleeds onto
+   * every other title. Empty / non-string styles (the object form) and CSS that
+   * fails to parse are passed through unchanged.
+   */
+  private _scopeElementCardMod(cfg: Record<string, unknown>, loc: string): Record<string, unknown> {
+    const style = cfg.style;
+    if (typeof style !== 'string' || style.trim() === '') {
+      return cfg;
+    }
+    const sel = `[data-loc="${loc.replace(/["\\]/g, '\\$&')}"]`;
+    const scoped = scopeCss(style, sel);
+    return scoped === null ? cfg : { ...cfg, style: scoped };
   }
 
   /**

@@ -1138,8 +1138,9 @@ export function elementClassRef(type: string): TemplateResult {
   </details>`;
 }
 
-/** Warning shown on a per-element Card Mod, whose styles are not element-scoped. */
-const CARD_MOD_ELEMENT_HINT = 'Not element-scoped; selectors here can affect the whole sidebar.';
+/** Note shown on a per-element Card Mod, whose styles are scoped to that element. */
+const CARD_MOD_ELEMENT_HINT =
+  'Scoped to this element. Target it directly with its class (e.g. .dashboard-sidebar-title) or :scope.';
 
 /**
  * Validates a card-mod value: it must be a mapping (`{ style: … }`), which is

@@ -304,23 +304,29 @@ function teardown(shadow: ShadowRoot): void {
 
 /**
  * Shows a floating "add sidebar" button while editing a sidebar-less dashboard.
+ * A plain pill in the bottom-left, offset past the HA sidebar so it never sits
+ * over the nav rail.
  */
 function ensureAddButton(huiRoot: { shadowRoot: ShadowRoot; lovelace?: any }): void {
   const shadow = huiRoot.shadowRoot;
-  if (shadow.getElementById(ADD_BUTTON_ID)) {
-    return;
+  let btn = shadow.getElementById(ADD_BUTTON_ID) as HTMLButtonElement | null;
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = ADD_BUTTON_ID;
+    btn.textContent = '＋ Sidebar';
+    btn.style.cssText =
+      'position:fixed;z-index:6;bottom:24px;left:16px;padding:10px 16px;border:none;' +
+      'border-radius:20px;background:var(--primary-color,#03a9f4);color:var(--text-primary-color,#fff);' +
+      'cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);font:inherit;';
+    btn.addEventListener('click', () =>
+      saveConfig(huiRoot, starterConfig(getHass(), huiRoot.lovelace)),
+    );
+    shadow.appendChild(btn);
   }
-  const btn = document.createElement('button');
-  btn.id = ADD_BUTTON_ID;
-  btn.textContent = '＋ Sidebar';
-  btn.style.cssText =
-    'position:fixed;bottom:24px;left:24px;z-index:6;padding:10px 16px;border:none;' +
-    'border-radius:20px;background:var(--primary-color,#03a9f4);color:var(--text-primary-color,#fff);' +
-    'cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);font:inherit;';
-  btn.addEventListener('click', () =>
-    saveConfig(huiRoot, starterConfig(getHass(), huiRoot.lovelace)),
-  );
-  shadow.appendChild(btn);
+  // The dashboard content starts to the right of the HA sidebar, so anchor the
+  // button to that left edge (updated live as the sidebar collapses/expands).
+  const contentLeft = (huiRoot as unknown as HTMLElement).getBoundingClientRect?.().left ?? 0;
+  btn.style.left = `${Math.round(contentLeft) + 16}px`;
 }
 
 /**

@@ -1,8 +1,8 @@
 site_name: Dashboard Sidebar
 site_description: A configurable, in-place-editable sidebar for Home Assistant Lovelace dashboards.
-site_url: https://deconstructionalism.github.io/hacs-dashboard-sidebar/
-repo_url: https://github.com/deconstructionalism/hacs-dashboard-sidebar
-repo_name: deconstructionalism/hacs-dashboard-sidebar
+site_url: https://deconstructionalism.github.io/homeassistant-dashboard-sidebar/
+repo_url: https://github.com/deconstructionalism/homeassistant-dashboard-sidebar
+repo_name: deconstructionalism/homeassistant-dashboard-sidebar
 edit_uri: edit/main/docs/
 
 theme:

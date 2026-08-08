@@ -1,5 +1,5 @@
 {
-  "name": "hacs-dashboard-sidebar",
+  "name": "homeassistant-dashboard-sidebar",
   "version": "1.0.0",
   "description": "A collapsible dashboard sidebar card for Home Assistant Lovelace.",
   "type": "module",
@@ -7,7 +7,7 @@
   "author": "deconstructionalism",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deconstructionalism/hacs-dashboard-sidebar.git"
+    "url": "git+https://github.com/deconstructionalism/homeassistant-dashboard-sidebar.git"
   },
   "scripts": {
     "build": "rollup -c",

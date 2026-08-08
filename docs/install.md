@@ -15,7 +15,7 @@ downloads it and makes it load on every dashboard.
 
 1. Open **HACS** from the Home Assistant sidebar.
 2. Click the **⋮** menu (top right) and choose **Custom repositories**.
-3. Paste `https://github.com/deconstructionalism/hacs-dashboard-sidebar` in the
+3. Paste `https://github.com/deconstructionalism/homeassistant-dashboard-sidebar` in the
    **Repository** field, pick **Dashboard** as the type, and click **Add**.
 4. Search HACS for **Dashboard Sidebar**, open it, and click **Download**.
 5. **Hard-refresh** your browser so the new code loads: **Ctrl+Shift+R**
@@ -23,7 +23,7 @@ downloads it and makes it load on every dashboard.
 
 !!! note "Not using HACS?"
     Download `dashboard-sidebar-card.js` from the latest
-    [release](https://github.com/deconstructionalism/hacs-dashboard-sidebar/releases)
+    [release](https://github.com/deconstructionalism/homeassistant-dashboard-sidebar/releases)
     and copy it to `/config/www/`. Then in Home Assistant go to
     **Settings > Dashboards > (⋮) > Resources**, add
     `/local/dashboard-sidebar-card.js`, and set the type to **JavaScript Module**.
@@ -64,7 +64,7 @@ never appears. Add the sidebar by editing the dashboard's YAML directly:
 
     ```yaml
     resources:
-      - url: /hacsfiles/hacs-dashboard-sidebar/dashboard-sidebar-card.js
+      - url: /hacsfiles/homeassistant-dashboard-sidebar/dashboard-sidebar-card.js
         type: module
     ```
 
@@ -73,7 +73,7 @@ never appears. Add the sidebar by editing the dashboard's YAML directly:
     ```yaml
     title: Home
     resources:
-      - url: /hacsfiles/hacs-dashboard-sidebar/dashboard-sidebar-card.js
+      - url: /hacsfiles/homeassistant-dashboard-sidebar/dashboard-sidebar-card.js
         type: module
     dashboard_sidebar:
       header:

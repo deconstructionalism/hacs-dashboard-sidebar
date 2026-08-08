@@ -2,7 +2,7 @@
 
 Thanks for helping out. This is a Lovelace **dashboard resource** (a JS module),
 not a Python integration. User-facing docs live at
-<https://deconstructionalism.github.io/hacs-dashboard-sidebar/>; this file is for
+<https://deconstructionalism.github.io/homeassistant-dashboard-sidebar/>; this file is for
 working on the code.
 
 ## Setup
@@ -48,7 +48,7 @@ literals so the styles are linted like real CSS.
 3. Add a dashboard resource pointing at `/local/dashboard-sidebar-card.js`
    (type: JavaScript Module)
 4. Add a sidebar to a dashboard (see the
-   [docs](https://deconstructionalism.github.io/hacs-dashboard-sidebar/install/))
+   [docs](https://deconstructionalism.github.io/homeassistant-dashboard-sidebar/install/))
 
 ## Regenerate, don't hand-edit
 

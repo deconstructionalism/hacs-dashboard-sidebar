@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Thanks for the report. Please check the
-        [docs](https://deconstructionalism.github.io/hacs-dashboard-sidebar/) and
+        [docs](https://deconstructionalism.github.io/homeassistant-dashboard-sidebar/) and
         existing issues first.
   - type: textarea
     id: what-happened

@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 //  DASHBOARD SIDEBAR
 //  A collapsible dashboard sidebar for Home Assistant Lovelace.
-//  https://github.com/deconstructionalism/hacs-dashboard-sidebar
+//  https://github.com/deconstructionalism/homeassistant-dashboard-sidebar
 // ---------------------------------------------------------------------------
 
 import './dashboard-sidebar';

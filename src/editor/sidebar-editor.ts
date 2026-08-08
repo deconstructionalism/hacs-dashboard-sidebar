@@ -22,6 +22,7 @@ import {
   PREVIEW_REORDER_EVENT,
   PREVIEW_SELECT_EVENT,
 } from '../lib/const';
+import { POSITIONS } from '../lib/schema.generated';
 import {
   validateBlockConfig,
   validateConfig,
@@ -116,6 +117,12 @@ const TABS: Array<{ id: 'settings' | 'header' | 'body' | 'footer'; label: string
   { id: 'body', label: 'Body' },
   { id: 'footer', label: 'Footer' },
 ];
+
+/** Icon and label for each schema `position` value, keyed for the chooser. */
+const POSITION_META: Record<string, { value: string; icon: string; title: string }> = {
+  left: { value: 'left', icon: 'mdi:dock-left', title: 'Left' },
+  right: { value: 'right', icon: 'mdi:dock-right', title: 'Right' },
+};
 
 /** The resolved location of the selected element within the working copy. */
 type Selected =
@@ -1380,10 +1387,7 @@ export class DashboardSidebarEditor extends LitElement {
                   ${iconChoiceField(
                     'Position',
                     c.position ?? 'left',
-                    [
-                      { value: 'left', icon: 'mdi:dock-left', title: 'Left' },
-                      { value: 'right', icon: 'mdi:dock-right', title: 'Right' },
-                    ],
+                    POSITIONS.map((value) => POSITION_META[value]),
                     (v) => this._patchConfig({ position: v }),
                   )}
                   ${intField(

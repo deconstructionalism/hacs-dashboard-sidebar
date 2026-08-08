@@ -1,0 +1,3 @@
+dist
+# Generated from src/lib/types.ts by scripts/gen-schema.js
+src/lib/schema.generated.ts

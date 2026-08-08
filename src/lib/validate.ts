@@ -1,93 +1,41 @@
+import {
+  ALIGNS,
+  BLOCK_FIELDS,
+  FOOTER_BUTTON_FIELDS,
+  FOOTER_FIELDS,
+  TOP_FIELDS,
+} from './schema.generated';
 import type { DashboardSidebarConfig, ItemBlock, SidebarBlock } from './types';
 
-/** Accepted alignment values. */
-const ALIGNS = ['left', 'center', 'right'];
+/** Accepted alignment values, as a set for lookups. */
+const ALIGN_SET = new Set<string>(ALIGNS);
 
 /** Recognized keys on the top-level config. */
-const TOP_KEYS = new Set([
-  'position',
-  'width',
-  'start_collapsed',
-  'hide_on_mobile',
-  'background',
-  'header',
-  'body',
-  'footer',
-  'card_mod',
-]);
-
-/** CSS targeting hooks accepted on every block and footer button. */
-const COMMON = ['class', 'id', 'card_mod'];
+const TOP_KEYS = new Set<string>(TOP_FIELDS);
 
 /**
- * The tap/hold/double-tap action keys, plus the navigate active-highlight
- * toggle, accepted on the same interactive elements (title, clock, date, item,
- * footer button).
+ * Legacy clock keys still accepted so old configs do not error. They are not
+ * part of the current schema: the clock renderer and the editor fold them into
+ * the `format` pattern (see the migration in dashboard-sidebar.ts).
  */
-const ACTIONS = ['tap_action', 'hold_action', 'double_tap_action', 'active_highlight'];
+const LEGACY_CLOCK_KEYS = ['hour_format', 'collapsed_format'];
 
-/** Recognized block types, and the keys each one accepts. */
-const BLOCK_KEYS: Record<string, Set<string>> = {
-  title: new Set(['type', 'text', 'align', 'text_color', ...ACTIONS, ...COMMON]),
-  clock: new Set([
-    'type',
-    'format',
-    'timezone',
-    'hour_format',
-    'collapsed_format',
-    'align',
-    'text_color',
-    ...ACTIONS,
-    ...COMMON,
+/**
+ * Recognized block types, and the keys each one accepts. Field sets come from
+ * the generated schema; the clock also tolerates its legacy keys.
+ */
+const BLOCK_KEYS: Record<string, Set<string>> = Object.fromEntries(
+  Object.entries(BLOCK_FIELDS).map(([type, fields]) => [
+    type,
+    new Set<string>(type === 'clock' ? [...fields, ...LEGACY_CLOCK_KEYS] : fields),
   ]),
-  date: new Set(['type', 'format', 'timezone', 'align', 'text_color', ...ACTIONS, ...COMMON]),
-  divider: new Set(['type', 'color', ...COMMON]),
-  item: new Set([
-    'type',
-    'title',
-    'icon',
-    'abbr',
-    'text_color',
-    'icon_color',
-    'entity',
-    ...ACTIONS,
-    ...COMMON,
-  ]),
-  category: new Set([
-    'type',
-    'title',
-    'icon',
-    'abbr',
-    'text_color',
-    'icon_color',
-    'start_collapsed',
-    'guide_line',
-    'items',
-    ...COMMON,
-  ]),
-  markdown: new Set(['type', 'content', 'align', 'text_color', ...COMMON]),
-  card: new Set(['type', 'card', 'align', 'background', ...COMMON]),
-};
+);
 
 /** Recognized keys on the footer. */
-const FOOTER_KEYS = new Set([
-  'divider',
-  'buttons',
-  'card',
-  'markdown',
-  'markdown_color',
-  ...ACTIONS,
-]);
+const FOOTER_KEYS = new Set<string>(FOOTER_FIELDS);
 
 /** Recognized keys on a footer button. */
-const FOOTER_BUTTON_KEYS = new Set([
-  'icon',
-  'icon_color',
-  'title',
-  'entity',
-  ...ACTIONS,
-  ...COMMON,
-]);
+const FOOTER_BUTTON_KEYS = new Set<string>(FOOTER_BUTTON_FIELDS);
 
 /**
  * Reports any keys on `obj` that are not in the `allowed` set, prefixing each
@@ -114,7 +62,7 @@ function checkBool(value: unknown, ctx: string, errors: string[]): void {
  * Records an error when a defined alignment is not left, center, or right.
  */
 function checkAlign(value: unknown, ctx: string, errors: string[]): void {
-  if (value !== undefined && (typeof value !== 'string' || !ALIGNS.includes(value))) {
+  if (value !== undefined && (typeof value !== 'string' || !ALIGN_SET.has(value))) {
     errors.push(`${ctx}: must be left, center, or right`);
   }
 }

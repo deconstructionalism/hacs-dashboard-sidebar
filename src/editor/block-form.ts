@@ -3,6 +3,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 
 import { runAction } from '../lib/action';
 import { formatClock, formatDate } from '../lib/format';
+import { ALIGNS } from '../lib/schema.generated';
 import type { BlockType, SidebarBlock } from '../lib/types';
 
 /** Merges a partial update into the object being edited, then re-renders. */
@@ -78,8 +79,8 @@ export function fieldOpts(
   return { error: ctx.errorFor(key), onBlur: (value) => ctx.onBlur(key, value, validate) };
 }
 
-/** Alignment choices shared by the text and card blocks. */
-const ALIGN_OPTIONS = ['left', 'center', 'right'];
+/** Alignment choices shared by the text and card blocks (from the schema). */
+const ALIGN_OPTIONS = [...ALIGNS];
 
 /** Tap-action kinds offered by the action editor, with Title Case labels. */
 const ACTION_OPTIONS: SelectOption[] = [

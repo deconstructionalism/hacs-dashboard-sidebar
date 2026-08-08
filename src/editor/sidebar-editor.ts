@@ -15,6 +15,9 @@ import type {
 } from '../lib/types';
 import type { DashboardSidebar } from '../dashboard-sidebar';
 import '../dashboard-sidebar';
+import { confirmDialog } from './editor-dialogs';
+import { menuStyle, popupMenu } from './editor-menus';
+import { renderEmptyState, renderGhost } from './editor-preview';
 import { editorStyles } from './editor-styles';
 import {
   DEFAULT_WIDTH,
@@ -1276,63 +1279,39 @@ export class DashboardSidebarEditor extends LitElement {
    * Renders the unsaved-changes exit confirmation over the panel.
    */
   private _renderConfirmClose(): TemplateResult {
-    return html`
-      <div class="confirm-scrim">
-        <div class="confirm" role="alertdialog" aria-label="Unsaved changes">
-          <p>You have unsaved changes. Exit without saving?</p>
-          <div class="confirm-actions">
-            <button
-              @click=${() => {
-                this._confirmingClose = false;
-              }}
-            >
-              Keep editing
-            </button>
-            <button
-              class="danger-btn"
-              @click=${() => {
-                this._confirmingClose = false;
-                this.onClose?.();
-              }}
-            >
-              Discard changes
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
+    return confirmDialog({
+      label: 'Unsaved changes',
+      message: 'You have unsaved changes. Exit without saving?',
+      keepLabel: 'Keep editing',
+      confirmLabel: 'Discard changes',
+      onKeep: () => {
+        this._confirmingClose = false;
+      },
+      onConfirm: () => {
+        this._confirmingClose = false;
+        this.onClose?.();
+      },
+    });
   }
 
   /**
    * Renders the delete-sidebar confirmation over the panel.
    */
   private _renderConfirmDelete(): TemplateResult {
-    return html`
-      <div class="confirm-scrim">
-        <div class="confirm" role="alertdialog" aria-label="Delete sidebar">
-          <p>Delete the sidebar? This removes it from this dashboard.</p>
-          <div class="confirm-actions">
-            <button
-              @click=${() => {
-                this._confirmingDelete = false;
-              }}
-            >
-              Keep sidebar
-            </button>
-            <button
-              class="danger-btn"
-              @click=${() => {
-                this._confirmingDelete = false;
-                this.onDelete?.();
-                this.onClose?.();
-              }}
-            >
-              Delete sidebar
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
+    return confirmDialog({
+      label: 'Delete sidebar',
+      message: 'Delete the sidebar? This removes it from this dashboard.',
+      keepLabel: 'Keep sidebar',
+      confirmLabel: 'Delete sidebar',
+      onKeep: () => {
+        this._confirmingDelete = false;
+      },
+      onConfirm: () => {
+        this._confirmingDelete = false;
+        this.onDelete?.();
+        this.onClose?.();
+      },
+    });
   }
 
   /**
@@ -1486,9 +1465,7 @@ export class DashboardSidebarEditor extends LitElement {
     );
     const blocks = this._working[region] ?? [];
     if (blocks.length === 0) {
-      return html`
-        ${notes} ${this._renderEmptyState(this._renderAddMenu(this._typeItems(region)))}
-      `;
+      return html` ${notes} ${renderEmptyState(this._renderAddMenu(this._typeItems(region)))} `;
     }
     // The header is pinned to the top, so cross-hatch the space below it to
     // stand in for the content that would follow; the body is itself the
@@ -1496,7 +1473,7 @@ export class DashboardSidebarEditor extends LitElement {
     const preview =
       region === 'header'
         ? this._renderPreview(
-            html`${this._renderRegionPreview(region)}${this._renderGhost('down')}`,
+            html`${this._renderRegionPreview(region)}${renderGhost('down')}`,
             true,
           )
         : this._renderPreview(this._renderRegionPreview(region));
@@ -1505,21 +1482,6 @@ export class DashboardSidebarEditor extends LitElement {
       <div class="split ${this._tabCollapsed ? 'pv-collapsed' : ''}">
         <div class="editor">${keyed(this._selected, this._renderSelectedForm())}</div>
         ${preview}
-      </div>
-    `;
-  }
-
-  /**
-   * Renders the borderless empty-state for a region with no elements: a short
-   * explanation that the area only appears once it has content, plus the given
-   * add control. No preview frame, so an empty area is not made to look as if it
-   * renders anything.
-   */
-  private _renderEmptyState(add: TemplateResult): TemplateResult {
-    return html`
-      <div class="empty-state">
-        <p class="empty-msg">Add your first element for this area to show up.</p>
-        ${add}
       </div>
     `;
   }
@@ -1604,7 +1566,7 @@ export class DashboardSidebarEditor extends LitElement {
     };
     return html`
       <div class="menu-scrim" @click=${close}></div>
-      <div class="add-menu" style=${this._menuStyle(rect, 'right')}>
+      <div class="add-menu" style=${menuStyle(rect, 'right')}>
         <button
           class="add-menu-item"
           @click=${() => {
@@ -1664,25 +1626,6 @@ export class DashboardSidebarEditor extends LitElement {
       return 'markdown';
     }
     return 'buttons';
-  }
-
-  /**
-   * Renders faded skeleton rows standing in for the content beside a pinned
-   * region: fading up (toward the top) above a footer, or down (toward the
-   * bottom) below a header.
-   */
-  private _renderGhost(fade: 'up' | 'down'): TemplateResult {
-    const widths = [72, 54, 84, 48, 66, 60, 78, 50];
-    return html`
-      <div class="pv-ghost fade-${fade}">
-        ${widths.map(
-          (w) =>
-            html`<div class="ghost-row">
-              <span class="ghost-icon"></span><span class="ghost-bar" style="width: ${w}%"></span>
-            </div>`,
-        )}
-      </div>
-    `;
   }
 
   /**
@@ -1792,7 +1735,7 @@ export class DashboardSidebarEditor extends LitElement {
     if (empty) {
       return html`
         ${notes}
-        ${this._renderEmptyState(
+        ${renderEmptyState(
           this._renderAddMenu([
             { label: 'Button Row', run: () => this._addFooterButton() },
             { label: 'Card', run: () => this._setFooterMode('card') },
@@ -1813,7 +1756,7 @@ export class DashboardSidebarEditor extends LitElement {
             )}
           </div>
           ${this._renderPreview(
-            html`${this._renderGhost('up')}
+            html`${renderGhost('up')}
             ${this._previewEl('footer', {
               width: this._working.width,
               footer: this._working.footer,
@@ -1837,7 +1780,7 @@ export class DashboardSidebarEditor extends LitElement {
             ${this._cardStatus()}
           </div>
           ${this._renderPreview(
-            html`${this._renderGhost('up')}
+            html`${renderGhost('up')}
             ${this._previewEl('footer-card', {
               footer: {
                 card: footer?.card ?? { type: 'markdown', content: '' },
@@ -1880,7 +1823,7 @@ export class DashboardSidebarEditor extends LitElement {
             )}
           </div>
           ${this._renderPreview(
-            html`${this._renderGhost('up')}
+            html`${renderGhost('up')}
             ${this._previewEl('footer-markdown', {
               footer: {
                 markdown: footer?.markdown ?? '',
@@ -1901,7 +1844,7 @@ export class DashboardSidebarEditor extends LitElement {
         ${this._renderPreview(
           // Faded placeholders above stand in for content so the footer sits
           // pinned to the bottom, as it does live, not in a large empty box.
-          html`${this._renderGhost('up')}
+          html`${renderGhost('up')}
           ${this._previewEl('footer', {
             width: this._working.width,
             footer: { buttons, divider: footer?.divider ?? true },
@@ -2010,7 +1953,7 @@ export class DashboardSidebarEditor extends LitElement {
           this._elementMenuOpen = false;
         }}
       ></div>
-      <div class="add-menu" style=${this._menuStyle(rect, 'right')}>${items}</div>
+      <div class="add-menu" style=${menuStyle(rect, 'right')}>${items}</div>
     `;
   }
 
@@ -2491,28 +2434,6 @@ export class DashboardSidebarEditor extends LitElement {
   }
 
   /**
-   * Fixed-position style for a menu anchored to a trigger rect: drops below the
-   * trigger, or flips above it when there is more room up, and caps its height
-   * to the available space (the menu scrolls internally past that). `align`
-   * pins the menu's left or right edge to the trigger.
-   */
-  private _menuStyle(rect: DOMRect, align: 'left' | 'right'): string {
-    const margin = 8;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    const below = spaceBelow >= spaceAbove;
-    const maxHeight = Math.max(120, (below ? spaceBelow : spaceAbove) - margin - 4);
-    const vertical = below
-      ? `top: ${rect.bottom + 4}px`
-      : `bottom: ${window.innerHeight - rect.top + 4}px`;
-    const horizontal =
-      align === 'right'
-        ? `right: ${Math.max(margin, window.innerWidth - rect.right)}px`
-        : `left: ${Math.max(margin, rect.left)}px`;
-    return `${vertical}; ${horizontal}; max-height: ${maxHeight}px`;
-  }
-
-  /**
    * Renders the add menu, fixed-positioned near its trigger so it escapes the
    * modal's clipping.
    */
@@ -2521,28 +2442,9 @@ export class DashboardSidebarEditor extends LitElement {
     if (!this._addMenuOpen || !rect) {
       return nothing;
     }
-    return html`
-      <div
-        class="menu-scrim"
-        @click=${() => {
-          this._addMenuOpen = false;
-        }}
-      ></div>
-      <div class="add-menu" style=${this._menuStyle(rect, 'left')}>
-        ${this._addMenuItems.map(
-          (item) =>
-            html`<button
-              class="add-menu-item"
-              @click=${() => {
-                item.run();
-                this._addMenuOpen = false;
-              }}
-            >
-              ${item.label}
-            </button>`,
-        )}
-      </div>
-    `;
+    return popupMenu(rect, this._addMenuItems, () => {
+      this._addMenuOpen = false;
+    });
   }
 
   static styles = editorStyles;

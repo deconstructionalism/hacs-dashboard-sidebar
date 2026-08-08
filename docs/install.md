@@ -36,6 +36,48 @@ Lovelace config under `dashboard_sidebar`).
     fresh, add a new dashboard, or remove the `dashboard_sidebar:` block from the
     current dashboard's **Raw configuration editor**.
 
+### YAML-mode dashboards (no edit button)
+
+A dashboard in **YAML mode** has no edit button, so the **＋ Sidebar** button
+never appears. Add the sidebar by editing the dashboard's YAML directly:
+
+1. **Load the resource in YAML.** YAML-mode dashboards do not read the UI
+   resource registry, so declare the module in the dashboard's own `resources:`
+   list (use `/local/dashboard-sidebar-card.js` for a manual, non-HACS install):
+
+    ```yaml
+    resources:
+      - url: /hacsfiles/hacs-dashboard-sidebar/dashboard-sidebar-card.js
+        type: module
+    ```
+
+2. **Add a top-level `dashboard_sidebar:` key**, alongside `views:`:
+
+    ```yaml
+    title: Home
+    resources:
+      - url: /hacsfiles/hacs-dashboard-sidebar/dashboard-sidebar-card.js
+        type: module
+    dashboard_sidebar:
+      header:
+        - type: clock
+          align: center
+      body:
+        - type: item
+          title: Overview
+          icon: mdi:home
+          tap_action:
+            action: navigate
+            navigation_path: /lovelace/0
+    views:
+      - title: Home
+        cards: []
+    ```
+
+Reload the dashboard. See the [Config Reference](reference.md) for every field
+and [Sidebar Settings](configuration.md) for the options. There is no visual
+editor for a YAML-mode dashboard, so edit the `dashboard_sidebar:` block by hand.
+
 ### The starter sidebar
 
 The starter is built from your instance so you have something real to edit:

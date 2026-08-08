@@ -1,0 +1,61 @@
+name: Bug report
+description: Something is broken or behaving unexpectedly.
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please check the
+        [docs](https://deconstructionalism.github.io/hacs-dashboard-sidebar/) and
+        existing issues first.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What went wrong, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Add a sidebar with ...
+        2. Collapse it ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Sidebar config (dashboard_sidebar YAML)
+      description: The relevant part of your config. Redact anything sensitive.
+      render: yaml
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Card version (from HACS) and Home Assistant version.
+      placeholder: 'card 0.2.0, HA 2024.8'
+    validations:
+      required: true
+  - type: dropdown
+    id: card-mod
+    attributes:
+      label: Is card-mod installed?
+      options:
+        - 'No'
+        - 'Yes'
+        - "Don't know"
+    validations:
+      required: false
+  - type: textarea
+    id: console
+    attributes:
+      label: Browser console errors
+      description: Any errors from the browser dev-tools console.
+      render: shell
+    validations:
+      required: false

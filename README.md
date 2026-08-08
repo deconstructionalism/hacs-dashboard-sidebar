@@ -1,11 +1,16 @@
 # Dashboard Sidebar
 
-A collapsible dashboard sidebar card for Home Assistant Lovelace — navigation,
-clock, and custom content in a side rail that collapses to an icon strip.
+[![CI](https://github.com/deconstructionalism/hacs-dashboard-sidebar/actions/workflows/ci.yml/badge.svg)](https://github.com/deconstructionalism/hacs-dashboard-sidebar/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/deconstructionalism/hacs-dashboard-sidebar?sort=semver)](https://github.com/deconstructionalism/hacs-dashboard-sidebar/releases)
+[![HACS: Dashboard](https://img.shields.io/badge/HACS-Dashboard-41BDF5.svg)](https://hacs.xyz)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-> Status: **early scaffold.** The build/lint/release tooling is in place and the
-> card registers and renders; the sidebar injection and collapse behavior are
-> being built out.
+A collapsible dashboard sidebar card for Home Assistant Lovelace: navigation,
+clock, and custom content in a side rail that collapses to an icon strip. It is
+edited in place through a four-tab visual editor (Settings, Header, Body,
+Footer), and everything it produces is plain YAML under a `dashboard_sidebar` key.
+
+📖 **[Documentation](https://deconstructionalism.github.io/hacs-dashboard-sidebar/)**: configuration reference, the visual editor, styling, and actions.
 
 ## Development
 
@@ -15,8 +20,13 @@ npm run build      # bundle to dist/dashboard-sidebar-card.js
 npm run watch      # rebuild on change (with sourcemaps)
 npm run lint       # eslint (TS) + stylelint (CSS-in-JS)
 npm run format     # prettier check
-npm run check      # lint + format + build
+npm run test       # vitest (unit) + web-test-runner (browser)
+npm run check      # lint + format + drift checks + unit tests + build (what CI runs)
 ```
+
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the full script list, the
+architecture map, the "regenerate, don't hand-edit" rules for the generated
+schema/reference, and the test conventions.
 
 ### Tooling
 

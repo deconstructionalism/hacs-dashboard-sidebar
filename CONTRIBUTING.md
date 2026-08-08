@@ -27,6 +27,29 @@ npm run check        # the full gate: lint + format + drift checks + unit tests 
 | `npm run docs:shots` | regenerate the editor screenshots for the docs |
 | `mkdocs serve` | preview the docs site (needs `pip install mkdocs-material`) |
 
+### Tooling
+
+| Concern | Tool |
+| --- | --- |
+| Language | TypeScript (Lit 3, decorators) |
+| Bundler | Rollup (terser-minified ES module) |
+| TS/JS lint | ESLint flat config + typescript-eslint + lit/wc |
+| CSS-in-JS lint | Stylelint via `postcss-lit` (lints `css` blocks) |
+| Formatting | Prettier |
+
+`npm run lint:css` runs Stylelint against the `.ts` sources; `postcss-lit`
+extracts the CSS inside Lit `` css`…` `` and `` html`<style>…` `` template
+literals so the styles are linted like real CSS.
+
+### Local testing in Home Assistant
+
+1. `npm run build`
+2. Copy `dist/dashboard-sidebar-card.js` to `/config/www/`
+3. Add a dashboard resource pointing at `/local/dashboard-sidebar-card.js`
+   (type: JavaScript Module)
+4. Add a sidebar to a dashboard (see the
+   [docs](https://deconstructionalism.github.io/hacs-dashboard-sidebar/install/))
+
 ## Regenerate, don't hand-edit
 
 `src/lib/types.ts` is the **single source of truth** for the config schema. Two

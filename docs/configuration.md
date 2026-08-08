@@ -18,10 +18,10 @@ the [Config Reference](reference.md) (generated from the source, always current)
     Open the editor and go to the **Settings** tab. The main options are laid out
     as fields:
 
-    - **Position** — which edge the sidebar docks to (left or right).
-    - **Width** — the expanded width in pixels. Defaults to 240 when left empty.
-    - **Start Collapsed** — load collapsed to the icon strip.
-    - **Hide on Mobile** — hide entirely on narrow (phone) screens.
+    - **Position**: which edge the sidebar docks to (left or right).
+    - **Width**: the expanded width in pixels. Defaults to 240 when left empty.
+    - **Start Collapsed**: load collapsed to the icon strip.
+    - **Hide on Mobile**: hide entirely on narrow (phone) screens.
 
     **Background** (any CSS background, including gradients) lives under
     **Settings → Advanced**, alongside the whole-sidebar
@@ -50,10 +50,10 @@ the [Config Reference](reference.md) (generated from the source, always current)
 | `start_collapsed` | boolean | `false` | Load collapsed to the icon strip. |
 | `hide_on_mobile` | boolean | `false` | Hide entirely on narrow (phone) screens. |
 | `background` | CSS `background` | theme card bg | Any CSS background, including gradients. |
-| `header` | list | — | Blocks pinned to the top. |
-| `body` | list | — | Blocks in the scrolling region. |
-| `footer` | mapping | — | The bottom bar (see [Footer](footer.md)). |
-| `card_mod` | mapping | — | card-mod styling for the whole sidebar (see [Styling](styling.md)). |
+| `header` | list | - | Blocks pinned to the top. |
+| `body` | list | - | Blocks in the scrolling region. |
+| `footer` | mapping | - | The bottom bar (see [Footer](footer.md)). |
+| `card_mod` | mapping | - | card-mod styling for the whole sidebar (see [Styling](styling.md)). |
 
 ## Collapsing
 
@@ -73,9 +73,9 @@ strip while building:
 
 ## Regions
 
-- **Header** — pinned to the top, never scrolls.
-- **Body** — scrolls on its own when taller than the sidebar.
-- **Footer** — pinned to the bottom, never scrolls.
+- **Header**: pinned to the top, never scrolls.
+- **Body**: scrolls on its own when taller than the sidebar.
+- **Footer**: pinned to the bottom, never scrolls.
 
 Each region holds an ordered list of [elements](elements.md).
 

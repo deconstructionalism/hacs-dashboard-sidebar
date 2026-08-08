@@ -1,8 +1,8 @@
 # Footer
 
 The footer is pinned to the bottom of the sidebar and never scrolls. It has
-**exactly one** of three modes — a **Button Row**, a **Card**, or a
-**Markdown** block — plus an optional top divider bar.
+**exactly one** of three modes (a **Button Row**, a **Card**, or a
+**Markdown** block) plus an optional top divider bar.
 
 === "Visual editor"
 

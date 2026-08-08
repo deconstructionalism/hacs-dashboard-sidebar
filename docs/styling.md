@@ -2,7 +2,7 @@
 
 ## Colors
 
-Most elements accept **text** and **icon** color templates — any CSS color, or a
+Most elements accept **text** and **icon** color templates: any CSS color, or a
 Jinja template that resolves to one.
 
 === "Visual editor"
@@ -50,9 +50,9 @@ For full CSS control, Dashboard Sidebar integrates with the
 it via HACS). Card Mod is available at two levels, both edited under **Advanced →
 Card Mod YAML**:
 
-- **Whole sidebar** — Settings → Advanced. Styles the sidebar's shadow root;
+- **Whole sidebar**: Settings → Advanced. Styles the sidebar's shadow root;
   target the `dashboard-sidebar-*` classes below.
-- **Per element** — each element's Advanced section. **Automatically scoped** to
+- **Per element**: each element's Advanced section. **Automatically scoped** to
   that one element, so a bare selector like `.dashboard-sidebar-item-label` only
   affects the element you are editing, not every element in the sidebar.
 

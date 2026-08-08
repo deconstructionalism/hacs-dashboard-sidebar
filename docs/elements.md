@@ -14,6 +14,14 @@ is collapsed and it has no icon) and **Card Mod** (advanced CSS styling, see
 
 See the [Config Reference](reference.md) for every field on every element.
 
+!!! tip "Icons and entities"
+    **Icons** use the Material Design Icons set, written `mdi:name` (for example
+    `mdi:home`). The editor has an icon picker, or browse names at
+    [pictogrammers.com/library/mdi](https://pictogrammers.com/library/mdi/).
+    An **entity** is a device or sensor in Home Assistant (for example
+    `light.kitchen`); find its id under **Settings > Devices & Services >
+    Entities**.
+
 ## Templating
 
 - **Title, item titles, icons, and color fields** resolve to plain text, so only
@@ -127,7 +135,7 @@ A tappable row. Standalone in a region, or nested in a category.
       icon_color: var(--primary-color)
       tap_action:
         action: toggle
-      # hold_action, double_tap_action — see Actions
+      # hold_action, double_tap_action (see Actions)
       # Advanced: abbr (collapsed glyph when no icon), card_mod
     ```
 

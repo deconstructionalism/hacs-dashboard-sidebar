@@ -1,7 +1,7 @@
 # Actions
 
-Interactive elements — **items**, **footer buttons**, **title/clock/date**, and
-the **markdown footer** — support three gestures: `tap_action`, `hold_action`
+Interactive elements (**items**, **footer buttons**, **title/clock/date**, and
+the **markdown footer**) support three gestures: `tap_action`, `hold_action`
 (long press), and `double_tap_action`.
 
 === "Visual editor"
@@ -19,7 +19,7 @@ the **markdown footer** — support three gestures: `tap_action`, `hold_action`
 
 | Action | Keys | Does |
 | --- | --- | --- |
-| `none` | — | Nothing. |
+| `none` | - | Nothing. |
 | `toggle` | `entity` | Toggles the entity, using the right service per domain (lock/unlock, cover open/close, else turn_on/off). |
 | `more-info` | `entity` | Opens the entity's more-info dialog. |
 | `navigate` | `navigation_path` | Navigates to a dashboard path. |
@@ -55,7 +55,7 @@ element can act on a different entity per gesture.
 ## Active-page highlight
 
 An element whose **tap action navigates** is highlighted when it points at the
-page you're currently on — the theme accent color, with a tinted pill on rows
+page you're currently on: the theme accent color, with a tinted pill on rows
 and footer buttons. It matches an exact path or a sub-path (e.g. a link to
 `/lovelace/home` highlights on `/lovelace/home/room`) and updates live as you
 navigate.
@@ -63,7 +63,7 @@ navigate.
 === "Visual editor"
 
     Opt out per element with the **Highlight When Active** toggle under
-    **Advanced** — it appears only when the tap action is navigate.
+    **Advanced**, shown only when the tap action is navigate.
 
 === "YAML"
 

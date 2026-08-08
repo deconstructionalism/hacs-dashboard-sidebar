@@ -71,6 +71,3 @@ jobs:
         uses: hacs/action@main
         with:
           category: plugin
-          # The images check is only required for default-store inclusion; skip
-          # it until a screenshot is added to the README.
-          ignore: images

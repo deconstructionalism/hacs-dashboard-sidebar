@@ -34,6 +34,9 @@ theme:
     - search.suggest
     - toc.follow
 
+extra_css:
+  - stylesheets/extra.css
+
 markdown_extensions:
   - admonition
   - attr_list

@@ -7,15 +7,15 @@ though everything it produces is plain YAML under a `dashboard_sidebar` key.
 
 ## What it looks like
 
-<div markdown style="display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap">
-<figure markdown style="margin:0">
-![A sidebar with a title, clock, date, navigation items, a Rooms group, and a footer button row.](assets/editor/sidebar-expanded.png){ width="280" }
-<figcaption>Expanded</figcaption>
-</figure>
-<figure markdown style="margin:0">
-![The same sidebar collapsed to a slim icon strip.](assets/editor/sidebar-collapsed.png){ width="90" }
-<figcaption>Collapsed</figcaption>
-</figure>
+<div style="display:flex; gap:24px; align-items:flex-end; flex-wrap:wrap; margin:1em 0">
+  <figure style="margin:0; text-align:center">
+    <img src="assets/editor/sidebar-expanded.png" alt="A sidebar with a title, clock, date, navigation items, a Rooms group, and a footer button row." style="height:440px; width:auto; max-width:none">
+    <figcaption>Expanded</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center">
+    <img src="assets/editor/sidebar-collapsed.png" alt="The same sidebar collapsed to a slim icon strip." style="height:440px; width:auto; max-width:none">
+    <figcaption>Collapsed</figcaption>
+  </figure>
 </div>
 
 !!! tip "These docs show every task two ways"

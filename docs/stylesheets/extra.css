@@ -1,0 +1,8 @@
+/* Keep inline code (field names, type names) in tables from breaking mid-word,
+   e.g. "SidebarPo|sition" or "start_col|lapsed" in the config reference. The
+   table scrolls horizontally if a value is too wide to fit. */
+.md-typeset table code {
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}

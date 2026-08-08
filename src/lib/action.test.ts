@@ -4,10 +4,10 @@ import { runAction } from './action';
 import type { HomeAssistant } from 'custom-card-helpers';
 
 /** A fake hass that records callService invocations. */
-function fakeHass(): {
+const fakeHass = (): {
   hass: HomeAssistant;
   calls: Array<{ domain: string; service: string; data?: unknown; target?: unknown }>;
-} {
+} => {
   const calls: Array<{ domain: string; service: string; data?: unknown; target?: unknown }> = [];
   const hass = {
     states: {
@@ -21,7 +21,7 @@ function fakeHass(): {
     },
   } as unknown as HomeAssistant;
   return { hass, calls };
-}
+};
 
 const NODE = {} as unknown as HTMLElement;
 

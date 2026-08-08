@@ -18,11 +18,11 @@ interface CardModElement {
  * card-mod handled it, false when card-mod is absent or threw. Any failure is
  * swallowed so card-mod can never break the sidebar itself.
  */
-export function applyCardMod(
+export const applyCardMod = (
   host: HTMLElement,
   config: unknown,
   type = 'dashboard-sidebar',
-): boolean {
+): boolean => {
   const CardMod = customElements.get('card-mod') as unknown as CardModElement | undefined;
   if (typeof CardMod?.applyToElement !== 'function') {
     return false;
@@ -37,7 +37,7 @@ export function applyCardMod(
     console.warn('[dashboard-sidebar] card-mod failed:', err);
     return false;
   }
-}
+};
 
 /**
  * Rewrites CSS so every rule matches only the element identified by `hostSel`
@@ -54,7 +54,7 @@ export function applyCardMod(
  * engine handles comments, nesting, and at-rules. Returns null when the CSS
  * cannot be parsed (caller then applies it unscoped rather than dropping it).
  */
-export function scopeCss(css: string, hostSel: string): string | null {
+export const scopeCss = (css: string, hostSel: string): string | null => {
   let sheet: CSSStyleSheet;
   try {
     sheet = new CSSStyleSheet();
@@ -80,4 +80,4 @@ export function scopeCss(css: string, hostSel: string): string | null {
   return Array.from(sheet.cssRules)
     .map((r) => r.cssText)
     .join('\n');
-}
+};

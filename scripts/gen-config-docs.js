@@ -52,17 +52,17 @@ const SECTION_ORDER = [
 ];
 
 /** Collapse a JSDoc comment (which may span lines) to a single-line string. */
-function oneLine(text) {
+const oneLine = (text) => {
   return (text || '')
     .replace(/\s*\n\s*/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-}
+};
 
 /** Escape the pipe characters that would otherwise break a markdown table. */
-function cell(text) {
+const cell = (text) => {
   return oneLine(text).replace(/\|/g, '\\|');
-}
+};
 
 const program = ts.createProgram([TYPES, CONST], {
   ...ts.getDefaultCompilerOptions(),
@@ -90,11 +90,11 @@ for (const file of program.getSourceFiles()) {
 }
 
 /** Replace `{@link NAME}` with the constant's value when known, else its name. */
-function resolveLinks(text) {
+const resolveLinks = (text) => {
   return (text || '').replace(/\{@link\s+([A-Za-z0-9_]+)\s*\}/g, (_, name) =>
     linkValues.has(name) ? linkValues.get(name) : name,
   );
-}
+};
 
 const interfaces = new Map();
 const aliases = [];
@@ -108,14 +108,14 @@ source.forEachChild((node) => {
 });
 
 /** The `getDocumentationComment` text for a named declaration. */
-function docFor(node) {
+const docFor = (node) => {
   const sym = node.name && checker.getSymbolAtLocation(node.name);
   if (!sym) return '';
   return resolveLinks(oneLine(ts.displayPartsToString(sym.getDocumentationComment(checker))));
-}
+};
 
 /** The string-literal discriminator (the `type` field), if the interface has one. */
-function discriminator(node) {
+const discriminator = (node) => {
   for (const m of node.members) {
     if (ts.isPropertySignature(m) && m.name && m.name.getText(source) === 'type' && m.type) {
       const t = m.type.getText(source);
@@ -124,19 +124,19 @@ function discriminator(node) {
     }
   }
   return undefined;
-}
+};
 
 /** Which interface, if any, this interface extends. */
-function extendsName(node) {
+const extendsName = (node) => {
   for (const clause of node.heritageClauses || []) {
     if (clause.token === ts.SyntaxKind.ExtendsKeyword) {
       return clause.types[0]?.expression.getText(source);
     }
   }
   return undefined;
-}
+};
 
-function renderFieldTable(node) {
+const renderFieldTable = (node) => {
   const rows = [];
   for (const m of node.members) {
     if (!ts.isPropertySignature(m) || !m.name) continue;
@@ -150,7 +150,7 @@ function renderFieldTable(node) {
   return ['| Field | Type | Required | Description |', '| --- | --- | --- | --- |', ...rows].join(
     '\n',
   );
-}
+};
 
 const out = [];
 out.push('<!-- Auto-generated from src/lib/types.ts by scripts/gen-config-docs.js.');
@@ -168,7 +168,10 @@ out.push('');
 // Render the known sections in curated order, then any extra interfaces we did
 // not list (so nothing silently goes undocumented).
 const rendered = new Set();
-const order = [...SECTION_ORDER, ...[...interfaces.keys()].filter((n) => !SECTION_ORDER.includes(n))];
+const order = [
+  ...SECTION_ORDER,
+  ...[...interfaces.keys()].filter((n) => !SECTION_ORDER.includes(n)),
+];
 
 for (const name of order) {
   const node = interfaces.get(name);
@@ -262,7 +265,11 @@ for (const [name, { def, desc }] of Object.entries(EXTERNAL)) {
   out.push('');
 }
 
-const markdown = out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
+const markdown =
+  out
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trimEnd() + '\n';
 
 const check = process.argv.includes('--check');
 if (check) {

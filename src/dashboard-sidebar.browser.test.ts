@@ -11,22 +11,22 @@ let createdCards: unknown[] = [];
  * Mounts a fresh element, applies the config, and waits for the first render
  * and any async card builds.
  */
-async function mount(config: DashboardSidebarConfig): Promise<DashboardSidebar> {
+const mount = async (config: DashboardSidebarConfig): Promise<DashboardSidebar> => {
   const el = await fixture<DashboardSidebar>(html`<dashboard-sidebar></dashboard-sidebar>`);
   el.setConfig(config);
   await el.updateComplete;
   await aTimeout(0);
   await el.updateComplete;
   return el;
-}
+};
 
 /**
  * Returns the element's shadow root, asserting it exists.
  */
-function root(el: DashboardSidebar): ShadowRoot {
+const root = (el: DashboardSidebar): ShadowRoot => {
   expect(el.shadowRoot).to.exist;
   return el.shadowRoot as ShadowRoot;
-}
+};
 
 /** A tap action reused across item and footer fixtures. */
 const TAP = { action: 'toggle' } as const;
@@ -520,10 +520,10 @@ describe('<dashboard-sidebar> config species', () => {
 
   describe('collapsed preview pinned popovers', () => {
     /** Mounts a collapsed preview with the given config and selection. */
-    async function pinned(
+    const pinned = async (
       config: DashboardSidebarConfig,
       selected: string,
-    ): Promise<DashboardSidebar> {
+    ): Promise<DashboardSidebar> => {
       const el = await fixture<DashboardSidebar>(html`<dashboard-sidebar></dashboard-sidebar>`);
       el.preview = true;
       el.previewCollapsed = true;
@@ -535,7 +535,7 @@ describe('<dashboard-sidebar> config species', () => {
       await aTimeout(0);
       await el.updateComplete;
       return el;
-    }
+    };
 
     it("keeps a category's popover open while its child is selected", async () => {
       const el = await pinned(

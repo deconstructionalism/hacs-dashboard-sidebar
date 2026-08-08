@@ -9,9 +9,9 @@ const TEMPLATE_RE = /\{\{|\{%|\{#/;
  * Returns true when a string carries a Jinja template and therefore needs
  * server-side rendering rather than literal use.
  */
-export function isTemplate(value: string | undefined): value is string {
+export const isTemplate = (value: string | undefined): value is string => {
   return typeof value === 'string' && TEMPLATE_RE.test(value);
-}
+};
 
 /** Shape of a `render_template` websocket message payload. */
 interface RenderResult {

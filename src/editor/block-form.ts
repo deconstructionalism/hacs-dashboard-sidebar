@@ -28,18 +28,18 @@ export interface ValidationCtx {
 /**
  * Validates a `domain.service` string, allowing empty.
  */
-export function validateService(value: string): string | null {
+export const validateService = (value: string): string | null => {
   const v = value.trim();
   if (!v) {
     return null;
   }
   return /^[a-z_]+\.[a-z0-9_]+$/i.test(v) ? null : 'Use the form domain.service';
-}
+};
 
 /**
  * Validates that a non-empty value parses as JSON, allowing empty.
  */
-export function validateJsonField(value: string): string | null {
+export const validateJsonField = (value: string): string | null => {
   const v = value.trim();
   if (!v) {
     return null;
@@ -50,34 +50,34 @@ export function validateJsonField(value: string): string | null {
   } catch {
     return 'Invalid JSON';
   }
-}
+};
 
 /**
  * Validates a width: empty (use default) or a positive integer.
  */
-export function validateWidth(value: string): string | null {
+export const validateWidth = (value: string): string | null => {
   const v = value.trim();
   if (!v) {
     return null;
   }
   const n = Number(v);
   return Number.isInteger(n) && n > 0 ? null : 'Must be a positive number';
-}
+};
 
 /**
  * Builds the validation opts for a field from a context, or undefined when no
  * context is supplied.
  */
-export function fieldOpts(
+export const fieldOpts = (
   ctx: ValidationCtx | undefined,
   key: string,
   validate: (value: string) => string | null,
-): FieldOpts | undefined {
+): FieldOpts | undefined => {
   if (!ctx) {
     return undefined;
   }
   return { error: ctx.errorFor(key), onBlur: (value) => ctx.onBlur(key, value, validate) };
-}
+};
 
 /** Alignment choices shared by the text and card blocks (from the schema). */
 const ALIGN_OPTIONS = [...ALIGNS];
@@ -112,13 +112,13 @@ const URL_HINT = 'Web address to open in a new tab.';
 /**
  * Renders a labelled single-line text input.
  */
-export function textField(
+export const textField = (
   label: string,
   value: string | undefined,
   onInput: (value: string) => void,
   opts?: FieldOpts,
   description?: string,
-): TemplateResult {
+): TemplateResult => {
   return html`<label class="field ${opts?.error ? 'invalid' : ''}">
     <span>${label}</span>
     <input
@@ -130,7 +130,7 @@ export function textField(
     ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
     ${description ? html`<small class="field-desc">${description}</small>` : nothing}
   </label>`;
-}
+};
 
 /** strftime tokens supported in a clock format, for the custom-format help. */
 export const TIME_HELP: Array<{ code: string; desc: string }> = [
@@ -193,30 +193,30 @@ export const CLOCK_PRESET_VALUES = new Set(CLOCK_PRESETS);
  * Builds the clock Format dropdown options, each labelled with the current time
  * rendered in that pattern.
  */
-function clockFormatOptions(): SelectOption[] {
+const clockFormatOptions = (): SelectOption[] => {
   const now = new Date();
   const loc = navigator.language;
   return CLOCK_PRESETS.map((value) => ({ value, label: formatClock(now, value, loc) }));
-}
+};
 
 /**
  * Builds the date Format dropdown options, each labelled with today's date
  * rendered in that preset (the empty preset shows the locale default).
  */
-function dateFormatOptions(): SelectOption[] {
+const dateFormatOptions = (): SelectOption[] => {
   const now = new Date();
   const loc = navigator.language;
   return DATE_PRESETS.map((value) => ({ value, label: formatDate(now, value || 'locale', loc) }));
-}
+};
 
 /**
  * Renders an optional time-zone dropdown listing every available IANA zone, with
  * a system-zone default.
  */
-export function timezoneField(
+export const timezoneField = (
   value: string | undefined,
   onChange: (value: string) => void,
-): TemplateResult {
+): TemplateResult => {
   const supported = (Intl as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf;
   const zones = typeof supported === 'function' ? supported('timeZone') : [];
   const options: SelectOption[] = [
@@ -224,7 +224,7 @@ export function timezoneField(
     ...zones.map((z) => ({ label: z, value: z })),
   ];
   return selectField('Timezone', value ?? '', options, onChange);
-}
+};
 
 /** strftime tokens supported in a date format, for the format field's help. */
 export const DATE_HELP: Array<{ code: string; desc: string }> = [
@@ -246,14 +246,14 @@ export const DATE_HELP: Array<{ code: string; desc: string }> = [
  * Renders a format (strftime) field: a labelled text input with an info button
  * that reveals the supported tokens, and an explanation below the input.
  */
-export function formatField(
+export const formatField = (
   label: string,
   value: string | undefined,
   onInput: (value: string) => void,
   opts: FieldOpts | undefined,
   tokens: Array<{ code: string; desc: string }>,
   description: string,
-): TemplateResult {
+): TemplateResult => {
   return html`<div class="field format-field ${opts?.error ? 'invalid' : ''}">
     <span class="field-head">
       ${label}
@@ -278,7 +278,7 @@ export function formatField(
     ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
     <small class="field-desc">${description}</small>
   </div>`;
-}
+};
 
 /**
  * Renders a field backed by Home Assistant's `<ha-code-editor>` (CodeMirror)
@@ -286,7 +286,7 @@ export function formatField(
  * template helpers, entity ids, and/or mdi icons. Falls back to a plain text
  * input otherwise (e.g. outside HA, or in tests).
  */
-export function codeField(
+export const codeField = (
   label: string,
   value: string | undefined,
   onInput: (value: string) => void,
@@ -298,7 +298,7 @@ export function codeField(
     error?: string;
     description?: string;
   },
-): TemplateResult {
+): TemplateResult => {
   const desc = opts?.description
     ? html`<small class="field-desc">${opts.description}</small>`
     : nothing;
@@ -327,7 +327,7 @@ export function codeField(
     />
     ${error}${desc}
   </label>`;
-}
+};
 
 /**
  * Hint for fields that resolve to plain text: the value is rendered as text, so
@@ -352,13 +352,13 @@ export const ENTITY_DATALIST_ID = 'dsb-entity-options';
  * shown below with a clear button. {@link entityDatalist} must be rendered once
  * in the same tree.
  */
-export function entityField(
+export const entityField = (
   label: string,
   value: string | undefined,
   onChange: (value: string) => void,
   hass?: HomeAssistant,
   description?: string,
-): TemplateResult {
+): TemplateResult => {
   const id = (value ?? '').trim();
   const states = (hass?.states ?? {}) as Record<
     string,
@@ -384,20 +384,20 @@ export function entityField(
     />
     ${description ? html`<small class="field-desc">${description}</small>` : nothing}
   </label>`;
-}
+};
 
 /**
  * Renders a resolved-selection card: the id over its (optional) friendly name,
  * with a clear button and optional explanation. Used in place of the input once
  * an entity or service value resolves to a real one.
  */
-function pickedCard(
+const pickedCard = (
   label: string,
   id: string,
   name: string | undefined,
   onClear: () => void,
   description?: string,
-): TemplateResult {
+): TemplateResult => {
   return html`<div class="field">
     <span>${label}</span>
     <div class="field-picked">
@@ -417,14 +417,14 @@ function pickedCard(
     </div>
     ${description ? html`<small class="field-desc">${description}</small>` : nothing}
   </div>`;
-}
+};
 
 /**
  * Builds the shared entity `<datalist>` from the current Home Assistant states,
  * with each entity's friendly name as the option label. Rendered once by the
  * editor; every {@link entityField} references it by {@link ENTITY_DATALIST_ID}.
  */
-export function entityDatalist(hass?: HomeAssistant): TemplateResult {
+export const entityDatalist = (hass?: HomeAssistant): TemplateResult => {
   const states = (hass?.states ?? {}) as Record<
     string,
     { attributes?: { friendly_name?: string } }
@@ -436,7 +436,7 @@ export function entityDatalist(hass?: HomeAssistant): TemplateResult {
       return html`<option value=${id} label=${name ?? nothing}></option>`;
     })}
   </datalist>`;
-}
+};
 
 /** id of the shared service `<datalist>` the editor renders once per modal. */
 export const SERVICE_DATALIST_ID = 'dsb-service-options';
@@ -446,18 +446,18 @@ export const SERVICE_DATALIST_ID = 'dsb-service-options';
  * `services` translation category rather than on the service registry entry.
  * Falls back to any registry name/description.
  */
-function serviceDescription(
+const serviceDescription = (
   hass: HomeAssistant | undefined,
   domain: string,
   service: string,
-): string | undefined {
+): string | undefined => {
   const localized = hass?.localize?.(`component.${domain}.services.${service}.description`);
   const entry = (
     hass?.services as
       Record<string, Record<string, { name?: string; description?: string }>> | undefined
   )?.[domain]?.[service];
   return localized || entry?.description || entry?.name || undefined;
-}
+};
 
 /**
  * Renders a service field: a native text input backed by the shared service
@@ -466,14 +466,14 @@ function serviceDescription(
  * service description) with a clear button. {@link serviceDatalist} must be
  * rendered once in the same tree.
  */
-export function serviceField(
+export const serviceField = (
   label: string,
   value: string | undefined,
   onInput: (value: string) => void,
   opts?: FieldOpts,
   hass?: HomeAssistant,
   description?: string,
-): TemplateResult {
+): TemplateResult => {
   const id = (value ?? '').trim();
   const [domain, service] = id.split('.');
   const services = (hass?.services ?? {}) as Record<
@@ -505,14 +505,14 @@ export function serviceField(
     ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
     ${description ? html`<small class="field-desc">${description}</small>` : nothing}
   </label>`;
-}
+};
 
 /**
  * Builds the shared service `<datalist>` (every `domain.service`) from the
  * current Home Assistant service registry. Rendered once by the editor; every
  * {@link serviceField} references it by {@link SERVICE_DATALIST_ID}.
  */
-export function serviceDatalist(hass?: HomeAssistant): TemplateResult {
+export const serviceDatalist = (hass?: HomeAssistant): TemplateResult => {
   const services = (hass?.services ?? {}) as Record<string, Record<string, unknown>>;
   const options: Array<{ id: string; label?: string }> = [];
   for (const domain of Object.keys(services).sort()) {
@@ -526,32 +526,32 @@ export function serviceDatalist(hass?: HomeAssistant): TemplateResult {
   return html`<datalist id=${SERVICE_DATALIST_ID}>
     ${options.map((o) => html`<option value=${o.id} label=${o.label ?? nothing}></option>`)}
   </datalist>`;
-}
+};
 
 /**
  * Renders an icon field: a code editor with mdi-icon (and template) autocomplete
  * when available, else a plain text input.
  */
-export function iconField(
+export const iconField = (
   label: string,
   value: string | undefined,
   onInput: (value: string) => void,
   hass?: HomeAssistant,
   description?: string,
-): TemplateResult {
+): TemplateResult => {
   return codeField(label, value, onInput, hass, { icons: true, description });
-}
+};
 
 /**
  * Renders a labelled multi-line text area.
  */
-export function areaField(
+export const areaField = (
   label: string,
   value: string,
   onInput: (value: string) => void,
   opts?: FieldOpts,
   extra?: { description?: string; mono?: boolean; autosize?: boolean; minRows?: number },
-): TemplateResult {
+): TemplateResult => {
   const minRows = extra?.minRows ?? 4;
   const cls = [extra?.mono ? 'mono' : '', extra?.autosize ? 'autosize' : '']
     .filter(Boolean)
@@ -574,7 +574,7 @@ export function areaField(
     ${opts?.error ? html`<span class="field-error">${opts.error}</span>` : nothing}
     ${extra?.description ? html`<small class="field-desc">${extra.description}</small>` : nothing}
   </label>`;
-}
+};
 
 /**
  * Renders a YAML editor for a card config using Home Assistant's
@@ -582,11 +582,11 @@ export function areaField(
  * emitting the parsed object on each valid edit. Falls back to a plain textarea
  * that accepts JSON, used in tests and outside HA.
  */
-export function yamlField(
+export const yamlField = (
   label: string,
   value: unknown,
   onChange: (value: unknown) => void,
-): TemplateResult {
+): TemplateResult => {
   if (customElements.get('ha-yaml-editor')) {
     return html`<div class="field yaml-field">
       <span>${label}</span>
@@ -612,7 +612,7 @@ export function yamlField(
       // Keep the last valid value while the JSON is mid-edit.
     }
   });
-}
+};
 
 /** A dropdown option: a raw string (shown title-cased) or an explicit label. */
 export type SelectOption = string | { label: string; value: string };
@@ -621,13 +621,13 @@ export type SelectOption = string | { label: string; value: string };
  * Renders a labelled dropdown. String options are shown title-cased; object
  * options carry their own display label. Can be disabled.
  */
-export function selectField(
+export const selectField = (
   label: string,
   value: string | undefined,
   options: SelectOption[],
   onChange: (value: string) => void,
   opts?: { disabled?: boolean; description?: string },
-): TemplateResult {
+): TemplateResult => {
   const norm = (o: SelectOption): { label: string; value: string } =>
     typeof o === 'string' ? { label: titleCase(o), value: o } : o;
   return html`<label class="field">
@@ -650,18 +650,18 @@ export function selectField(
     </select>
     ${opts?.description ? html`<small class="field-desc">${opts.description}</small>` : nothing}
   </label>`;
-}
+};
 
 /**
  * Renders a labelled checkbox. Can be disabled.
  */
-export function checkboxField(
+export const checkboxField = (
   label: string,
   checked: boolean,
   onChange: (checked: boolean) => void,
   description?: string,
   disabled?: boolean,
-): TemplateResult {
+): TemplateResult => {
   return html`<label class="field field-inline">
     <input
       type="checkbox"
@@ -674,14 +674,14 @@ export function checkboxField(
       ${description ? html`<small class="field-desc">${description}</small>` : nothing}
     </span>
   </label>`;
-}
+};
 
 /**
  * Capitalizes the first letter of a word, for display labels.
  */
-export function titleCase(value: string): string {
+export const titleCase = (value: string): string => {
   return value.charAt(0).toUpperCase() + value.slice(1);
-}
+};
 
 /**
  * Display labels for block types where title-casing the id is not enough.
@@ -693,22 +693,22 @@ const TYPE_LABELS: Partial<Record<BlockType, string>> = {};
 /**
  * Returns the human display label for a block type.
  */
-export function blockTypeLabel(type: BlockType): string {
+export const blockTypeLabel = (type: BlockType): string => {
   return TYPE_LABELS[type] ?? titleCase(type);
-}
+};
 
 /**
  * Renders a labelled integer input that accepts only digits, reporting
  * undefined when cleared.
  */
-export function intField(
+export const intField = (
   label: string,
   value: number | undefined,
   onInput: (value: number | undefined) => void,
   opts?: FieldOpts,
   description?: string,
   warning?: string,
-): TemplateResult {
+): TemplateResult => {
   return html`<label class="field ${opts?.error ? 'invalid' : ''}">
     <span>${label}</span>
     <input
@@ -727,7 +727,7 @@ export function intField(
     ${warning ? html`<small class="field-warn">${warning}</small>` : nothing}
     ${description ? html`<small class="field-desc">${description}</small>` : nothing}
   </label>`;
-}
+};
 
 /**
  * Renders a labelled color field: a native color swatch alongside a free-text
@@ -736,12 +736,12 @@ export function intField(
  * reopens on every click regardless of focus, falling back to the native open
  * where `showPicker` is unavailable.
  */
-export function colorField(
+export const colorField = (
   label: string,
   value: string | undefined,
   onInput: (value: string) => void,
   description?: string,
-): TemplateResult {
+): TemplateResult => {
   const swatch = /^#[0-9a-fA-F]{6}$/.test(value ?? '') ? (value as string) : '#000000';
   return html`<div class="field">
     <span>${label}</span>
@@ -768,34 +768,34 @@ export function colorField(
     </div>
     ${description ? html`<small class="field-desc">${description}</small>` : nothing}
   </div>`;
-}
+};
 
 /**
  * Renders a color field as a template code editor (like the Text Template
  * field), so a CSS color or a Jinja template can be entered with entity
  * autocompletion. No color-swatch picker.
  */
-export function colorTemplateField(
+export const colorTemplateField = (
   label: string,
   value: string | undefined,
   onInput: (value: string) => void,
   hass?: HomeAssistant,
-): TemplateResult {
+): TemplateResult => {
   return codeField(label, value, onInput, hass, {
     entities: true,
     description: COLOR_HINT,
   });
-}
+};
 
 /**
  * Renders a labelled single-choice group of icon buttons.
  */
-export function iconChoiceField(
+export const iconChoiceField = (
   label: string,
   value: string,
   options: Array<{ value: string; icon: string; title: string }>,
   onChange: (value: string) => void,
-): TemplateResult {
+): TemplateResult => {
   return html`<div class="field">
     <span>${label}</span>
     <div class="icon-choice">
@@ -814,12 +814,12 @@ export function iconChoiceField(
       )}
     </div>
   </div>`;
-}
+};
 
 /**
  * Parses a JSON object from a textarea, or undefined when empty/invalid.
  */
-function parseJson(value: string): Record<string, unknown> | undefined {
+const parseJson = (value: string): Record<string, unknown> | undefined => {
   const trimmed = value.trim();
   if (!trimmed) {
     return undefined;
@@ -829,14 +829,14 @@ function parseJson(value: string): Record<string, unknown> | undefined {
   } catch {
     return undefined;
   }
-}
+};
 
 /**
  * Renders one action editor (`key` is `tap_action`/`hold_action`/
  * `double_tap_action`) inside a collapsed-by-default section titled `summary`,
  * above the Advanced section.
  */
-export function actionFields(
+export const actionFields = (
   action: {
     action?: string;
     navigation_path?: string;
@@ -851,7 +851,7 @@ export function actionFields(
   key: string,
   summary: string,
   entity?: string,
-): TemplateResult {
+): TemplateResult => {
   const kind = action?.action ?? 'none';
   const set = (partial: Record<string, unknown>): void =>
     patch({ [key]: { ...action, action: kind, ...partial } });
@@ -950,12 +950,12 @@ export function actionFields(
         : nothing
     }
   </details>`;
-}
+};
 
 /**
  * Renders the editable fields for one footer button, applying edits via patch.
  */
-export function footerButtonFields(
+export const footerButtonFields = (
   btn: {
     icon?: string;
     icon_color?: string;
@@ -970,7 +970,7 @@ export function footerButtonFields(
   patch: Patch,
   ctx?: ValidationCtx,
   hass?: HomeAssistant,
-): TemplateResult {
+): TemplateResult => {
   return html`
     ${iconField('Icon Template', btn.icon, (v) => patch({ icon: v }), hass, TEMPLATE_HINT)}
     ${colorTemplateField('Icon Color Template', btn.icon_color, (v) => patch({ icon_color: v || undefined }), hass)}
@@ -988,16 +988,16 @@ export function footerButtonFields(
       ${cardModInstalled() ? elementClassRef('footer-button') : nothing}
     </details>
   `;
-}
+};
 
 /**
  * Renders the Timezone and Custom Format fields for a clock or date, shown in
  * the Advanced section.
  */
-function clockDateAdvanced(
+const clockDateAdvanced = (
   block: { type: string; format?: string; timezone?: string },
   patch: Patch,
-): TemplateResult {
+): TemplateResult => {
   const isClock = block.type === 'clock';
   const raw = (block.format ?? '').trim();
   const presets = isClock ? CLOCK_PRESET_VALUES : DATE_PRESET_VALUES;
@@ -1015,14 +1015,14 @@ function clockDateAdvanced(
         : 'Optional strftime pattern; overrides the Format dropdown, e.g. %A, %B %-d.',
     )}
   `;
-}
+};
 
 /**
  * Renders the CSS class (and, for items/categories, abbr) hook plus the card-mod
  * field under a native collapsible Advanced section. `extra` is placed above the
  * hooks (e.g. the clock/date Timezone and Custom Format fields).
  */
-function advancedFields(
+const advancedFields = (
   block: {
     type?: string;
     class?: string;
@@ -1035,7 +1035,7 @@ function advancedFields(
   patch: Patch,
   withAbbr: boolean,
   extra: TemplateResult | typeof nothing = nothing,
-): TemplateResult {
+): TemplateResult => {
   return html`<details class="advanced">
     <summary>Advanced</summary>
     ${extra} ${navHighlightField(block, patch)}
@@ -1053,17 +1053,17 @@ function advancedFields(
     ${cardModField(block.card_mod, (v) => patch({ card_mod: v }), CARD_MOD_ELEMENT_HINT)}
     ${cardModInstalled() ? elementClassRef(block.type ?? 'item') : nothing}
   </details>`;
-}
+};
 
 /**
  * Renders the "Highlight when active" toggle, shown only when the element's tap
  * action navigates (the highlight marks the element whose target is the open
  * page). Default on; unchecking stores `active_highlight: false`.
  */
-function navHighlightField(
+const navHighlightField = (
   el: { tap_action?: { action?: string }; active_highlight?: boolean },
   patch: Patch,
-): TemplateResult | typeof nothing {
+): TemplateResult | typeof nothing => {
   if (el.tap_action?.action !== 'navigate') {
     return nothing;
   }
@@ -1073,7 +1073,7 @@ function navHighlightField(
     (v) => patch({ active_highlight: v ? undefined : false }),
     'Highlight this while its navigate target is the current page.',
   );
-}
+};
 
 /** The card-mod integration's repository, linked from the Card Mod fields. */
 const CARD_MOD_URL = 'https://github.com/thomasloven/lovelace-card-mod';
@@ -1111,7 +1111,7 @@ const ELEMENT_CLASSES: Record<string, Array<{ sel: string; desc: string }>> = {
  * to one element type, for use in its Advanced section. Empty for an unknown
  * type.
  */
-export function elementClassRef(type: string): TemplateResult {
+export const elementClassRef = (type: string): TemplateResult => {
   const classes = ELEMENT_CLASSES[type];
   if (!classes) {
     return html``;
@@ -1124,7 +1124,7 @@ export function elementClassRef(type: string): TemplateResult {
       )}
     </div>
   </details>`;
-}
+};
 
 /** Note shown on a per-element Card Mod, whose styles are scoped to that element. */
 const CARD_MOD_ELEMENT_HINT =
@@ -1143,7 +1143,7 @@ export const cardModInstalled = (): boolean => !!customElements.get('card-mod');
  * Validates a card-mod value: it must be a mapping (`{ style: … }`), which is
  * the shape the integration expects. Returns an error message, or null.
  */
-function cardModError(value: unknown): string | null {
+const cardModError = (value: unknown): string | null => {
   if (value === undefined) {
     return null;
   }
@@ -1151,7 +1151,7 @@ function cardModError(value: unknown): string | null {
     return 'Card Mod must be a mapping, e.g. "style: |".';
   }
   return null;
-}
+};
 
 /**
  * Renders the Card Mod YAML field: a `{ style, … }` object passed to the
@@ -1160,11 +1160,11 @@ function cardModError(value: unknown): string | null {
  * since the config would otherwise silently do nothing. `hint` adds an extra
  * note (e.g. the per-element scope warning).
  */
-export function cardModField(
+export const cardModField = (
   value: Record<string, unknown> | undefined,
   onChange: (value: Record<string, unknown> | undefined) => void,
   hint?: string,
-): TemplateResult {
+): TemplateResult => {
   const link = html`<a href=${CARD_MOD_URL} target="_blank" rel="noopener noreferrer">card-mod</a>`;
   if (!customElements.get('card-mod')) {
     return html`<div class="field card-mod-missing">
@@ -1182,7 +1182,7 @@ export function cardModField(
       Customize styles with CSS via ${link}. ${hint ?? ''}
     </small>
   `;
-}
+};
 
 /** Block types that carry tap/hold/double-tap actions. */
 const ACTION_TYPES = new Set(['title', 'clock', 'date', 'item']);
@@ -1197,29 +1197,29 @@ const ACTION_SECTIONS: Array<{ key: string; summary: string }> = [
 /**
  * Renders the Tap/Hold/Double Tap Action sections for a block or footer button.
  */
-export function actionSections(
+export const actionSections = (
   el: Record<string, unknown>,
   patch: Patch,
   ctx: ValidationCtx | undefined,
   hass: HomeAssistant | undefined,
-): TemplateResult {
+): TemplateResult => {
   const entity = typeof el.entity === 'string' ? el.entity : undefined;
   return html`${ACTION_SECTIONS.map(({ key, summary }) =>
     actionFields((el[key] as { action?: string }) ?? {}, patch, ctx, hass, key, summary, entity),
   )}`;
-}
+};
 
 /**
  * Renders the editable fields for one block: its type-specific fields, the
  * Tap/Hold/Double Tap Action sections (for the types that support them), and the
  * shared Advanced (Timezone/Custom Format for clock/date, plus class/id/abbr).
  */
-export function blockFields(
+export const blockFields = (
   block: SidebarBlock,
   patch: Patch,
   ctx?: ValidationCtx,
   hass?: HomeAssistant,
-): TemplateResult {
+): TemplateResult => {
   const withAbbr = block.type === 'item' || block.type === 'category';
   const action = ACTION_TYPES.has(block.type ?? '')
     ? actionSections(block as unknown as Record<string, unknown>, patch, ctx, hass)
@@ -1232,12 +1232,16 @@ export function blockFields(
     withAbbr,
     advancedExtra,
   )}`;
-}
+};
 
 /**
  * Renders the type-specific fields for one block.
  */
-function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant): TemplateResult {
+const blockTypeFields = (
+  block: SidebarBlock,
+  patch: Patch,
+  hass?: HomeAssistant,
+): TemplateResult => {
   switch (block.type) {
     case 'title':
       return html`
@@ -1340,4 +1344,4 @@ function blockTypeFields(block: SidebarBlock, patch: Patch, hass?: HomeAssistant
     default:
       return html``;
   }
-}
+};

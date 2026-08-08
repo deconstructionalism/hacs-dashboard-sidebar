@@ -41,22 +41,46 @@ const DEMO = {
     { type: 'divider' },
   ],
   body: [
-    { type: 'item', title: 'Living Room', icon: 'mdi:sofa', entity: 'light.living', tap_action: { action: 'toggle' } },
-    { type: 'item', title: 'Front Door', icon: 'mdi:door', entity: 'lock.front', tap_action: { action: 'toggle' } },
+    {
+      type: 'item',
+      title: 'Living Room',
+      icon: 'mdi:sofa',
+      entity: 'light.living',
+      tap_action: { action: 'toggle' },
+    },
+    {
+      type: 'item',
+      title: 'Front Door',
+      icon: 'mdi:door',
+      entity: 'lock.front',
+      tap_action: { action: 'toggle' },
+    },
     {
       type: 'category',
       title: 'Rooms',
       icon: 'mdi:floor-plan',
       items: [
-        { title: 'Kitchen', icon: 'mdi:silverware-fork-knife', tap_action: { action: 'navigate', navigation_path: '/lovelace/kitchen' } },
-        { title: 'Bedroom', icon: 'mdi:bed', tap_action: { action: 'navigate', navigation_path: '/lovelace/bedroom' } },
+        {
+          title: 'Kitchen',
+          icon: 'mdi:silverware-fork-knife',
+          tap_action: { action: 'navigate', navigation_path: '/lovelace/kitchen' },
+        },
+        {
+          title: 'Bedroom',
+          icon: 'mdi:bed',
+          tap_action: { action: 'navigate', navigation_path: '/lovelace/bedroom' },
+        },
       ],
     },
     { type: 'markdown', content: '**72°** outside' },
   ],
   footer: {
     buttons: [
-      { icon: 'mdi:cog', title: 'Settings', tap_action: { action: 'navigate', navigation_path: '/config' } },
+      {
+        icon: 'mdi:cog',
+        title: 'Settings',
+        tap_action: { action: 'navigate', navigation_path: '/config' },
+      },
       { icon: 'mdi:lightbulb', entity: 'light.living', tap_action: { action: 'toggle' } },
       { icon: 'mdi:power', tap_action: { action: 'toggle' } },
     ],
@@ -77,17 +101,42 @@ const HERO = {
     { type: 'divider' },
   ],
   body: [
-    { type: 'item', title: 'Living Room', icon: 'mdi:sofa', entity: 'light.living', tap_action: { action: 'toggle' } },
-    { type: 'item', title: 'Front Door', icon: 'mdi:door', entity: 'lock.front', tap_action: { action: 'toggle' } },
-    { type: 'item', title: 'Thermostat', icon: 'mdi:thermostat', tap_action: { action: 'more-info' } },
+    {
+      type: 'item',
+      title: 'Living Room',
+      icon: 'mdi:sofa',
+      entity: 'light.living',
+      tap_action: { action: 'toggle' },
+    },
+    {
+      type: 'item',
+      title: 'Front Door',
+      icon: 'mdi:door',
+      entity: 'lock.front',
+      tap_action: { action: 'toggle' },
+    },
+    {
+      type: 'item',
+      title: 'Thermostat',
+      icon: 'mdi:thermostat',
+      tap_action: { action: 'more-info' },
+    },
     {
       type: 'category',
       title: 'Rooms',
       icon: 'mdi:floor-plan',
       start_collapsed: false,
       items: [
-        { title: 'Kitchen', icon: 'mdi:silverware-fork-knife', tap_action: { action: 'navigate', navigation_path: '/lovelace/kitchen' } },
-        { title: 'Bedroom', icon: 'mdi:bed', tap_action: { action: 'navigate', navigation_path: '/lovelace/bedroom' } },
+        {
+          title: 'Kitchen',
+          icon: 'mdi:silverware-fork-knife',
+          tap_action: { action: 'navigate', navigation_path: '/lovelace/kitchen' },
+        },
+        {
+          title: 'Bedroom',
+          icon: 'mdi:bed',
+          tap_action: { action: 'navigate', navigation_path: '/lovelace/bedroom' },
+        },
       ],
     },
     { type: 'divider' },
@@ -106,17 +155,59 @@ const HERO = {
 // Each shot: a filename and the driver steps to reach that state. `steps` runs
 // in the page against the window.H helpers defined in the host HTML.
 const SHOTS = [
-  { name: 'settings', steps: async (H) => { await H.tab('Settings'); } },
-  { name: 'header-title', steps: async (H) => { await H.tab('Header'); await H.selectLoc('header:0'); } },
-  { name: 'content-item', steps: async (H) => { await H.tab('Body'); await H.selectLoc('body:0'); } },
-  { name: 'content-category', steps: async (H) => { await H.tab('Body'); await H.selectLoc('body:2'); } },
-  { name: 'element-yaml', steps: async (H) => { await H.tab('Body'); await H.selectLoc('body:0'); await H.elementYaml(); } },
-  { name: 'footer-buttons', steps: async (H) => { await H.tab('Footer'); await H.selectLoc('footer:btn:0'); } },
-  { name: 'collapsed', steps: async (H) => { await H.tab('Body'); await H.collapse(); } },
+  {
+    name: 'settings',
+    steps: async (H) => {
+      await H.tab('Settings');
+    },
+  },
+  {
+    name: 'header-title',
+    steps: async (H) => {
+      await H.tab('Header');
+      await H.selectLoc('header:0');
+    },
+  },
+  {
+    name: 'content-item',
+    steps: async (H) => {
+      await H.tab('Body');
+      await H.selectLoc('body:0');
+    },
+  },
+  {
+    name: 'content-category',
+    steps: async (H) => {
+      await H.tab('Body');
+      await H.selectLoc('body:2');
+    },
+  },
+  {
+    name: 'element-yaml',
+    steps: async (H) => {
+      await H.tab('Body');
+      await H.selectLoc('body:0');
+      await H.elementYaml();
+    },
+  },
+  {
+    name: 'footer-buttons',
+    steps: async (H) => {
+      await H.tab('Footer');
+      await H.selectLoc('footer:btn:0');
+    },
+  },
+  {
+    name: 'collapsed',
+    steps: async (H) => {
+      await H.tab('Body');
+      await H.collapse();
+    },
+  },
 ];
 
 /** Bundle the editor (and the preview card) into one ESM string. */
-async function bundleEditor() {
+const bundleEditor = async () => {
   const result = await build({
     stdin: {
       contents: [
@@ -137,7 +228,7 @@ async function bundleEditor() {
     logLevel: 'silent',
   });
   return result.outputFiles[0].text;
-}
+};
 
 /**
  * The host page. A light HA-like theme (so the editor's CSS variables resolve),
@@ -145,7 +236,7 @@ async function bundleEditor() {
  * mirrors the browser-test helpers. The bundled editor is inlined so the page is
  * self-contained and loads over file:// with no module-CORS issues.
  */
-function hostHtml(editorJs) {
+const hostHtml = (editorJs) => {
   return `<!doctype html>
 <html>
 <head>
@@ -298,9 +389,9 @@ window.H = {
 </script>
 </body>
 </html>`;
-}
+};
 
-async function main() {
+const main = async () => {
   const editorJs = await bundleEditor();
   const html = hostHtml(editorJs);
   const htmlDir = mkdtempSync(join(tmpdir(), 'ds-host-'));
@@ -309,7 +400,10 @@ async function main() {
   mkdirSync(outDir, { recursive: true });
 
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1000, height: 900 }, deviceScaleFactor: 2 });
+  const page = await browser.newPage({
+    viewport: { width: 1000, height: 900 },
+    deviceScaleFactor: 2,
+  });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('file://' + htmlPath);
@@ -356,8 +450,12 @@ async function main() {
     }
   }
   if (!ok) process.exit(1);
-  console.log(check ? `\nSmoke test passed (${written.length} images).` : `\nWrote ${written.length} images to ${outDir}`);
-}
+  console.log(
+    check
+      ? `\nSmoke test passed (${written.length} images).`
+      : `\nWrote ${written.length} images to ${outDir}`,
+  );
+};
 
 main().catch((e) => {
   console.error(e);

@@ -41,78 +41,78 @@ const FOOTER_BUTTON_KEYS = new Set<string>(FOOTER_BUTTON_FIELDS);
  * Reports any keys on `obj` that are not in the `allowed` set, prefixing each
  * message with the config path `ctx`.
  */
-function unknownKeys(obj: object, allowed: Set<string>, ctx: string, errors: string[]): void {
+const unknownKeys = (obj: object, allowed: Set<string>, ctx: string, errors: string[]): void => {
   Object.keys(obj).forEach((key) => {
     if (!allowed.has(key)) {
       errors.push(`${ctx}: unknown option "${key}"`);
     }
   });
-}
+};
 
 /**
  * Records an error when a defined value is not a boolean.
  */
-function checkBool(value: unknown, ctx: string, errors: string[]): void {
+const checkBool = (value: unknown, ctx: string, errors: string[]): void => {
   if (value !== undefined && typeof value !== 'boolean') {
     errors.push(`${ctx}: must be true or false`);
   }
-}
+};
 
 /**
  * Records an error when a defined alignment is not left, center, or right.
  */
-function checkAlign(value: unknown, ctx: string, errors: string[]): void {
+const checkAlign = (value: unknown, ctx: string, errors: string[]): void => {
   if (value !== undefined && (typeof value !== 'string' || !ALIGN_SET.has(value))) {
     errors.push(`${ctx}: must be left, center, or right`);
   }
-}
+};
 
 /**
  * Records an error when a defined value is not a string.
  */
-function checkString(value: unknown, ctx: string, errors: string[]): void {
+const checkString = (value: unknown, ctx: string, errors: string[]): void => {
   if (value !== undefined && typeof value !== 'string') {
     errors.push(`${ctx}: must be a string`);
   }
-}
+};
 
 /**
  * Records an error when `abbr` is set alongside an icon, since the collapsed
  * glyph override only applies when there is no icon to show.
  */
-function checkAbbr(abbr: unknown, icon: unknown, ctx: string, errors: string[]): void {
+const checkAbbr = (abbr: unknown, icon: unknown, ctx: string, errors: string[]): void => {
   checkString(abbr, `${ctx}.abbr`, errors);
   if (abbr !== undefined && icon !== undefined) {
     errors.push(`${ctx}: abbr is only allowed when icon is not set`);
   }
-}
+};
 
 /**
  * Records an error when a defined value is not a plain mapping.
  */
-function checkMapping(value: unknown, ctx: string, errors: string[]): void {
+const checkMapping = (value: unknown, ctx: string, errors: string[]): void => {
   if (
     value !== undefined &&
     (typeof value !== 'object' || value === null || Array.isArray(value))
   ) {
     errors.push(`${ctx}: must be a mapping`);
   }
-}
+};
 
 /**
  * Validates the optional card-mod hooks (`class`, `id`, and `card_mod`).
  */
-function checkHooks(block: unknown, ctx: string, errors: string[]): void {
+const checkHooks = (block: unknown, ctx: string, errors: string[]): void => {
   const b = block as { class?: unknown; id?: unknown; card_mod?: unknown };
   checkString(b.class, `${ctx}.class`, errors);
   checkString(b.id, `${ctx}.id`, errors);
   checkMapping(b.card_mod, `${ctx}.card_mod`, errors);
-}
+};
 
 /**
  * Validates a single item spec: known keys, a title, and a tap_action.
  */
-function validateItem(item: ItemBlock, ctx: string, errors: string[]): void {
+const validateItem = (item: ItemBlock, ctx: string, errors: string[]): void => {
   unknownKeys(item, BLOCK_KEYS.item, ctx, errors);
   if (item.type !== undefined && item.type !== 'item') {
     errors.push(`${ctx}: expected an item`);
@@ -130,12 +130,12 @@ function validateItem(item: ItemBlock, ctx: string, errors: string[]): void {
     `${ctx}.active_highlight`,
     errors,
   );
-}
+};
 
 /**
  * Validates one header/body block, dispatching on its declared type.
  */
-function validateBlock(block: SidebarBlock, ctx: string, errors: string[]): void {
+const validateBlock = (block: SidebarBlock, ctx: string, errors: string[]): void => {
   if (!block || typeof block !== 'object') {
     errors.push(`${ctx}: must be a mapping`);
     return;
@@ -232,12 +232,12 @@ function validateBlock(block: SidebarBlock, ctx: string, errors: string[]): void
     default:
       break;
   }
-}
+};
 
 /**
  * Validates a region (header or body) as a list of blocks.
  */
-function validateRegion(value: unknown, ctx: string, errors: string[]): void {
+const validateRegion = (value: unknown, ctx: string, errors: string[]): void => {
   if (value === undefined) {
     return;
   }
@@ -246,12 +246,12 @@ function validateRegion(value: unknown, ctx: string, errors: string[]): void {
     return;
   }
   value.forEach((block, i) => validateBlock(block as SidebarBlock, `${ctx}[${i}]`, errors));
-}
+};
 
 /**
  * Validates the footer: divider flag, and buttons XOR a card.
  */
-function validateFooter(footer: unknown, ctx: string, errors: string[]): void {
+const validateFooter = (footer: unknown, ctx: string, errors: string[]): void => {
   if (footer === undefined) {
     return;
   }
@@ -281,12 +281,12 @@ function validateFooter(footer: unknown, ctx: string, errors: string[]): void {
       f.buttons.forEach((btn, i) => validateFooterButton(btn, `${ctx}.buttons[${i}]`, errors));
     }
   }
-}
+};
 
 /**
  * Validates a single footer button: known keys, an icon, and a tap_action.
  */
-function validateFooterButton(btn: unknown, ctx: string, errors: string[]): void {
+const validateFooterButton = (btn: unknown, ctx: string, errors: string[]): void => {
   if (!btn || typeof btn !== 'object') {
     errors.push(`${ctx}: must be a mapping`);
     return;
@@ -304,13 +304,13 @@ function validateFooterButton(btn: unknown, ctx: string, errors: string[]): void
     `${ctx}.active_highlight`,
     errors,
   );
-}
+};
 
 /**
  * Validates a full sidebar config and returns every problem found, so the
  * element can surface them all at once. The list is empty when valid.
  */
-export function validateConfig(config: DashboardSidebarConfig): string[] {
+export const validateConfig = (config: DashboardSidebarConfig): string[] => {
   const errors: string[] = [];
   if (!config || typeof config !== 'object') {
     return ['dashboard_sidebar: config must be a mapping'];
@@ -333,30 +333,30 @@ export function validateConfig(config: DashboardSidebarConfig): string[] {
   }
   validateFooter(config.footer, 'footer', errors);
   return errors;
-}
+};
 
 /**
  * Strips the leading context path (e.g. `element` / `element.align`) from each
  * message, for surfacing single-element errors without the placeholder prefix.
  */
-function stripCtx(errors: string[]): string[] {
+const stripCtx = (errors: string[]): string[] => {
   return errors.map((e) => e.replace(/^element[.:]?\s*/, ''));
-}
+};
 
 /**
  * Validates one header/body block against its type's schema, returning the
  * problems found. Used to check a YAML-edited element live.
  */
-export function validateBlockConfig(block: unknown): string[] {
+export const validateBlockConfig = (block: unknown): string[] => {
   const errors: string[] = [];
   validateBlock(block as SidebarBlock, 'element', errors);
   return stripCtx(errors);
-}
+};
 
 /**
  * Validates one category child item against the item schema.
  */
-export function validateItemConfig(item: unknown): string[] {
+export const validateItemConfig = (item: unknown): string[] => {
   const errors: string[] = [];
   const type = (item as { type?: unknown })?.type;
   if (type === 'category' || type === 'divider') {
@@ -365,13 +365,13 @@ export function validateItemConfig(item: unknown): string[] {
     validateItem(item as ItemBlock, 'element', errors);
   }
   return stripCtx(errors);
-}
+};
 
 /**
  * Validates one footer button against the footer-button schema.
  */
-export function validateFooterButtonConfig(btn: unknown): string[] {
+export const validateFooterButtonConfig = (btn: unknown): string[] => {
   const errors: string[] = [];
   validateFooterButton(btn, 'element', errors);
   return stripCtx(errors);
-}
+};

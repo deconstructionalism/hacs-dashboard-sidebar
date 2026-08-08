@@ -25,12 +25,12 @@ export interface RunnableAction {
  * call-service passes the modern `data` and `target`. `node` is the element the
  * more-info event is dispatched from.
  */
-export function runAction(
+export const runAction = (
   node: HTMLElement,
   hass: HomeAssistant,
   action: RunnableAction | undefined,
   elementEntity?: string,
-): void {
+): void => {
   const kind = action?.action;
   if (!action || !kind || kind === 'none') {
     return;
@@ -75,4 +75,4 @@ export function runAction(
     default:
       break;
   }
-}
+};

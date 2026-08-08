@@ -19,52 +19,52 @@ const cfg = (): DashboardSidebarConfig => ({
 });
 
 /** Mounts the editor with a config and waits for its first render. */
-async function mount(config: DashboardSidebarConfig): Promise<DashboardSidebarEditor> {
+const mount = async (config: DashboardSidebarConfig): Promise<DashboardSidebarEditor> => {
   const el = await fixture<DashboardSidebarEditor>(
     html`<dashboard-sidebar-editor></dashboard-sidebar-editor>`,
   );
   el.config = config;
   await el.updateComplete;
   return el;
-}
+};
 
 /** Returns the editor's shadow root. */
-function root(el: DashboardSidebarEditor): ShadowRoot {
+const root = (el: DashboardSidebarEditor): ShadowRoot => {
   return el.shadowRoot as ShadowRoot;
-}
+};
 
 /** The live preview sidebar element in the current tab, or null. */
-function preview(el: DashboardSidebarEditor): DashboardSidebar | null {
+const preview = (el: DashboardSidebarEditor): DashboardSidebar | null => {
   return root(el).querySelector('.pv-frame dashboard-sidebar');
-}
+};
 
 /** Waits for both the editor and its preview sidebar to finish rendering. */
-async function settle(el: DashboardSidebarEditor): Promise<void> {
+const settle = async (el: DashboardSidebarEditor): Promise<void> => {
   await el.updateComplete;
   await preview(el)?.updateComplete;
   await el.updateComplete;
-}
+};
 
 /** Clicks the tab with the given label and settles the render. */
-async function tab(el: DashboardSidebarEditor, label: string): Promise<void> {
+const tab = async (el: DashboardSidebarEditor, label: string): Promise<void> => {
   const btn = [...root(el).querySelectorAll('.tab')].find(
     (b) => b.textContent?.trim() === label,
   ) as HTMLButtonElement;
   btn.click();
   await settle(el);
-}
+};
 
 /** Clicks the preview element with the given data-loc, then settles. */
-async function clickLoc(el: DashboardSidebarEditor, loc: string): Promise<void> {
+const clickLoc = async (el: DashboardSidebarEditor, loc: string): Promise<void> => {
   const node = preview(el)?.shadowRoot?.querySelector(`[data-loc="${loc}"]`) as HTMLElement;
   node.click();
   await settle(el);
-}
+};
 
 /** Count of a preview region's top-level rows. */
-function regionCount(el: DashboardSidebarEditor, region: string): number {
+const regionCount = (el: DashboardSidebarEditor, region: string): number => {
   return preview(el)?.shadowRoot?.querySelector(`.region-${region}`)?.children.length ?? 0;
-}
+};
 
 describe('<dashboard-sidebar-editor>', () => {
   it('renders the four tabs', async () => {

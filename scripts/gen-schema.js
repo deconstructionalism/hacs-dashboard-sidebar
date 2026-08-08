@@ -48,17 +48,17 @@ source.forEachChild((node) => {
 });
 
 /** The interface this one extends, if any. */
-function extendsName(node) {
+const extendsName = (node) => {
   for (const clause of node.heritageClauses || []) {
     if (clause.token === ts.SyntaxKind.ExtendsKeyword) {
       return clause.types[0]?.expression.getText(source);
     }
   }
   return undefined;
-}
+};
 
 /** Flattened property names of an interface, own first then inherited, unique. */
-function fieldsOf(name, seen = new Set()) {
+const fieldsOf = (name, seen = new Set()) => {
   const node = interfaces.get(name);
   if (!node || seen.has(name)) return [];
   seen.add(name);
@@ -68,10 +68,10 @@ function fieldsOf(name, seen = new Set()) {
   const parent = extendsName(node);
   const inherited = parent ? fieldsOf(parent, seen) : [];
   return [...new Set([...own, ...inherited])];
-}
+};
 
 /** The string-literal `type` discriminator of a block interface. */
-function discriminator(node) {
+const discriminator = (node) => {
   for (const m of node.members) {
     if (ts.isPropertySignature(m) && m.name && m.name.getText(source) === 'type' && m.type) {
       const lit = m.type.getText(source).match(/'([^']+)'/);
@@ -79,10 +79,10 @@ function discriminator(node) {
     }
   }
   return undefined;
-}
+};
 
 /** String-literal members of a union type alias, in source order. */
-function enumOf(name) {
+const enumOf = (name) => {
   const node = aliases.get(name);
   if (!node) return [];
   const lits = [];
@@ -92,7 +92,7 @@ function enumOf(name) {
   };
   collect(node.type);
   return lits;
-}
+};
 
 const blockFields = {};
 for (const iface of BLOCK_INTERFACES) {

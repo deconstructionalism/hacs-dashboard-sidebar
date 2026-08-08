@@ -23,19 +23,19 @@ const NO_ACTION = { action: 'none' } as unknown as ActionConfig;
  * Whether a block may live in the given region. A title block is confined to
  * the header, so it can never be placed in the body.
  */
-export function canPlace(block: SidebarBlock, region: Region): boolean {
+export const canPlace = (block: SidebarBlock, region: Region): boolean => {
   return !(block.type === 'title' && region === 'body');
-}
+};
 
 /**
  * Moves a block between regions/indices within one sidebar, returning a new
  * config. A move the title-in-header rule forbids returns the input unchanged.
  */
-export function moveBlock(
+export const moveBlock = (
   config: DashboardSidebarConfig,
   from: BlockLocation,
   to: BlockLocation,
-): DashboardSidebarConfig {
+): DashboardSidebarConfig => {
   const header = [...(config.header ?? [])];
   const body = [...(config.body ?? [])];
   const src = from.region === 'header' ? header : body;
@@ -48,12 +48,12 @@ export function moveBlock(
   const index = Math.max(0, Math.min(to.index, dst.length));
   dst.splice(index, 0, block);
   return { ...config, header, body };
-}
+};
 
 /**
  * Creates a new block of the given type with sensible defaults.
  */
-export function defaultBlock(type: BlockType): SidebarBlock {
+export const defaultBlock = (type: BlockType): SidebarBlock => {
   switch (type) {
     case 'title':
       return { type: 'title', text: 'Title' };
@@ -77,18 +77,18 @@ export function defaultBlock(type: BlockType): SidebarBlock {
     default:
       return { type: 'card', card: { type: 'markdown', content: 'Card content' } };
   }
-}
+};
 
 /**
  * Creates a new footer button with sensible defaults.
  */
-export function defaultFooterButton(): FooterButtonConfig {
+export const defaultFooterButton = (): FooterButtonConfig => {
   return { icon: 'mdi:star', tap_action: NO_ACTION };
-}
+};
 
 /**
  * Creates a starter sidebar config for a newly added side.
  */
-export function starterSidebar(): DashboardSidebarConfig {
+export const starterSidebar = (): DashboardSidebarConfig => {
   return { body: [{ type: 'item', title: 'Item', tap_action: NO_ACTION }] };
-}
+};

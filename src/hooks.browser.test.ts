@@ -5,18 +5,18 @@ import type { DashboardSidebarConfig } from './lib/types';
 import './dashboard-sidebar';
 
 /** Mounts a fresh element with the given config and waits for its render. */
-async function mount(config: DashboardSidebarConfig): Promise<DashboardSidebar> {
+const mount = async (config: DashboardSidebarConfig): Promise<DashboardSidebar> => {
   const el = await fixture<DashboardSidebar>(html`<dashboard-sidebar></dashboard-sidebar>`);
   el.setConfig(config);
   await el.updateComplete;
   return el;
-}
+};
 
 /** Returns the element's shadow root, asserting it exists. */
-function root(el: DashboardSidebar): ShadowRoot {
+const root = (el: DashboardSidebar): ShadowRoot => {
   expect(el.shadowRoot).to.exist;
   return el.shadowRoot as ShadowRoot;
-}
+};
 
 /** A tap action reused across the fixtures. */
 const TAP = { action: 'toggle' } as const;

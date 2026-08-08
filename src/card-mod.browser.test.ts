@@ -17,14 +17,14 @@ class StubCardMod extends HTMLElement {
 /**
  * Mounts a fresh element with the given config and waits for its first render.
  */
-async function mount(
+const mount = async (
   config: Parameters<DashboardSidebar['setConfig']>[0],
-): Promise<DashboardSidebar> {
+): Promise<DashboardSidebar> => {
   const el = await fixture<DashboardSidebar>(html`<dashboard-sidebar></dashboard-sidebar>`);
   el.setConfig(config);
   await el.updateComplete;
   return el;
-}
+};
 
 describe('<dashboard-sidebar> card-mod delegation', () => {
   before(() => {

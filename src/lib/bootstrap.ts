@@ -27,7 +27,7 @@ const ADD_BUTTON_ID = 'dashboard-sidebar-add';
  * dashboard view (using each view's icon) in the body, and a few of the
  * instance's lights as footer toggle buttons (colored by state).
  */
-export function starterConfig(hass: any, lovelace: any): DashboardSidebarConfig {
+export const starterConfig = (hass: any, lovelace: any): DashboardSidebarConfig => {
   // Greet by name. Home Assistant's server-side templates do not reliably
   // expose the current user, so bake the name in from hass at seed time.
   const name = typeof hass?.user?.name === 'string' ? hass.user.name.trim() : '';
@@ -72,7 +72,7 @@ export function starterConfig(hass: any, lovelace: any): DashboardSidebarConfig 
     config.footer = { buttons: buttons as never };
   }
   return config;
-}
+};
 
 /** An element that may expose a shadow root, or null. */
 type AnyEl = (Element & { shadowRoot?: ShadowRoot | null }) | null;
@@ -81,17 +81,17 @@ type AnyEl = (Element & { shadowRoot?: ShadowRoot | null }) | null;
  * Descends one level into an element's shadow root (or the element itself when
  * it already is a shadow root) and returns the first matching child.
  */
-function descend(root: AnyEl, selector: string): AnyEl {
+const descend = (root: AnyEl, selector: string): AnyEl => {
   return (
     (root?.shadowRoot ?? (root as unknown as ShadowRoot | null))?.querySelector(selector) ?? null
   );
-}
+};
 
 /**
  * Walks the frontend shadow tree down to the `hui-root` element that owns the
  * current Lovelace view, or null if the frontend is not ready.
  */
-function getHuiRoot(): (Element & { shadowRoot: ShadowRoot; lovelace?: any }) | null {
+const getHuiRoot = (): (Element & { shadowRoot: ShadowRoot; lovelace?: any }) | null => {
   let el: AnyEl = document.querySelector('home-assistant');
   el = descend(el, 'home-assistant-main');
   const panel =
@@ -101,68 +101,68 @@ function getHuiRoot(): (Element & { shadowRoot: ShadowRoot; lovelace?: any }) | 
   el = descend(panel, 'ha-panel-lovelace') ?? panel;
   el = descend(el, 'hui-root');
   return el && el.shadowRoot ? (el as any) : null;
-}
+};
 
 /**
  * Returns the global Home Assistant object from the root element.
  */
-function getHass(): any {
+const getHass = (): any => {
   return (document.querySelector('home-assistant') as any)?.hass;
-}
+};
 
 /**
  * Whether the dashboard is currently in edit mode.
  */
-function isEditMode(huiRoot: { lovelace?: any }): boolean {
+const isEditMode = (huiRoot: { lovelace?: any }): boolean => {
   return Boolean(huiRoot.lovelace?.editMode);
-}
+};
 
 /**
  * Measures the height of the dashboard header so the sidebar can start below
  * it rather than under a floating toolbar.
  */
-function getHeaderHeight(shadow: ShadowRoot): number {
+const getHeaderHeight = (shadow: ShadowRoot): number => {
   const header =
     shadow.querySelector('ch-header') ??
     shadow.querySelector('app-header') ??
     shadow.querySelector('.header') ??
     shadow.querySelector('.toolbar');
   return header ? (header as HTMLElement).offsetHeight : 0;
-}
+};
 
 /**
  * Records the current header height as a CSS variable so the host can sit
  * entirely below the header (via margin, not padding), keeping its box — which
  * is stacked above the view — from overlapping the header's controls.
  */
-function applyHeaderOffset(shadow: ShadowRoot, host: HTMLElement): void {
+const applyHeaderOffset = (shadow: ShadowRoot, host: HTMLElement): void => {
   host.style.setProperty('--dsb-header', `${getHeaderHeight(shadow)}px`);
-}
+};
 
 /**
  * Reads the sidebar config from the Lovelace config, or null when absent.
  */
-function readConfig(huiRoot: { lovelace?: any }): DashboardSidebarConfig | null {
+const readConfig = (huiRoot: { lovelace?: any }): DashboardSidebarConfig | null => {
   const config = huiRoot.lovelace?.config?.[CONFIG_KEY];
   return config ?? null;
-}
+};
 
 /**
  * Writes an edited config back to the Lovelace config.
  */
-function saveConfig(huiRoot: { lovelace?: any }, config: DashboardSidebarConfig): void {
+const saveConfig = (huiRoot: { lovelace?: any }, config: DashboardSidebarConfig): void => {
   const lovelace = huiRoot.lovelace;
   if (!lovelace?.saveConfig) {
     return;
   }
   void lovelace.saveConfig({ ...(lovelace.config ?? {}), [CONFIG_KEY]: config });
-}
+};
 
 /**
  * Removes the sidebar from the Lovelace config. The reconcile loop then tears
  * down the rendered sidebar on its next pass (config is gone).
  */
-function deleteConfig(huiRoot: { lovelace?: any }): void {
+const deleteConfig = (huiRoot: { lovelace?: any }): void => {
   const lovelace = huiRoot.lovelace;
   if (!lovelace?.saveConfig) {
     return;
@@ -170,21 +170,21 @@ function deleteConfig(huiRoot: { lovelace?: any }): void {
   const next = { ...(lovelace.config ?? {}) };
   delete next[CONFIG_KEY];
   void lovelace.saveConfig(next);
-}
+};
 
 /**
  * A key that changes only when the host layout (side or width) must be rebuilt,
  * so pure content edits can update the element in place instead.
  */
-function structureKey(config: DashboardSidebarConfig): string {
+const structureKey = (config: DashboardSidebarConfig): string => {
   return `${config.position ?? 'left'}:${config.width ?? DEFAULT_WIDTH}:${config.hide_on_mobile ? 1 : 0}`;
-}
+};
 
 /**
  * Builds the wrapper/host layout CSS, including the collapsed width and the
  * optional hide-on-mobile media query.
  */
-function wrapperCss(config: DashboardSidebarConfig): string {
+const wrapperCss = (config: DashboardSidebarConfig): string => {
   const expanded = config.width ?? DEFAULT_WIDTH;
   const collapsed = DEFAULT_COLLAPSED_WIDTH;
   return `
@@ -224,14 +224,14 @@ function wrapperCss(config: DashboardSidebarConfig): string {
         : ''
     }
   `;
-}
+};
 
 /**
  * Creates the wrapper, host, and sidebar element and inserts them around the
  * current view, once per view. No-ops when the config, view, or a prior wrapper
  * says there is nothing to do.
  */
-function buildSidebar(): void {
+const buildSidebar = (): void => {
   const huiRoot = getHuiRoot();
   if (!huiRoot) {
     return;
@@ -285,12 +285,12 @@ function buildSidebar(): void {
     const collapsed = Boolean((ev as CustomEvent).detail?.collapsed);
     wrapper.classList.toggle('collapsed', collapsed);
   });
-}
+};
 
 /**
  * Unwraps the view and removes the wrapper, so the next build re-reads config.
  */
-function teardown(shadow: ShadowRoot): void {
+const teardown = (shadow: ShadowRoot): void => {
   const wrapper = shadow.getElementById(WRAPPER_ID);
   if (!wrapper) {
     return;
@@ -300,14 +300,14 @@ function teardown(shadow: ShadowRoot): void {
     wrapper.parentNode.insertBefore(view, wrapper);
   }
   wrapper.remove();
-}
+};
 
 /**
  * Shows a floating "add sidebar" button while editing a sidebar-less dashboard.
  * A plain pill in the bottom-left, offset past the HA sidebar so it never sits
  * over the nav rail.
  */
-function ensureAddButton(huiRoot: { shadowRoot: ShadowRoot; lovelace?: any }): void {
+const ensureAddButton = (huiRoot: { shadowRoot: ShadowRoot; lovelace?: any }): void => {
   const shadow = huiRoot.shadowRoot;
   let btn = shadow.getElementById(ADD_BUTTON_ID) as HTMLButtonElement | null;
   if (!btn) {
@@ -327,19 +327,19 @@ function ensureAddButton(huiRoot: { shadowRoot: ShadowRoot; lovelace?: any }): v
   // button to that left edge (updated live as the sidebar collapses/expands).
   const contentLeft = (huiRoot as unknown as HTMLElement).getBoundingClientRect?.().left ?? 0;
   btn.style.left = `${Math.round(contentLeft) + 16}px`;
-}
+};
 
 /**
  * Removes the floating add button if present.
  */
-function removeAddButton(shadow: ShadowRoot): void {
+const removeAddButton = (shadow: ShadowRoot): void => {
   shadow.getElementById(ADD_BUTTON_ID)?.remove();
-}
+};
 
 /**
  * Opens the editor modal for the current config, unless it is already open.
  */
-function openEditor(huiRoot: { shadowRoot: ShadowRoot; lovelace?: any }): void {
+const openEditor = (huiRoot: { shadowRoot: ShadowRoot; lovelace?: any }): void => {
   const shadow = huiRoot.shadowRoot;
   if (shadow.querySelector('dashboard-sidebar-editor')) {
     return;
@@ -351,14 +351,14 @@ function openEditor(huiRoot: { shadowRoot: ShadowRoot; lovelace?: any }): void {
   editor.onClose = () => editor.remove();
   editor.onDelete = () => deleteConfig(huiRoot);
   shadow.appendChild(editor);
-}
+};
 
 /**
  * Rebuilds the sidebar after the frontend swaps the view or the config changes,
  * keeps hass and edit mode fresh, and manages the add-sidebar affordance.
  * A content-only change updates the element in place to avoid flicker.
  */
-function ensureSidebar(): void {
+const ensureSidebar = (): void => {
   try {
     const huiRoot = getHuiRoot();
     if (!huiRoot) {
@@ -412,13 +412,13 @@ function ensureSidebar(): void {
   } catch {
     // frontend not ready yet; the next tick retries
   }
-}
+};
 
 /**
  * Starts the sidebar: builds now, on every navigation, on a slow poll, and
  * persists in-place edits the element reports.
  */
-export function startSidebar(): void {
+export const startSidebar = (): void => {
   window.addEventListener('location-changed', () => ensureSidebar());
   window.addEventListener(EDIT_EVENT, () => {
     const huiRoot = getHuiRoot();
@@ -428,4 +428,4 @@ export function startSidebar(): void {
   });
   window.setInterval(ensureSidebar, 1000);
   ensureSidebar();
-}
+};

@@ -620,3 +620,276 @@ describe('<dashboard-sidebar> config species', () => {
     });
   });
 });
+
+// --- merged from abbr-tooltip.browser.test.ts ---
+describe('collapsed abbr and tooltip', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('uses the abbr override for the collapsed glyph', async () => {
+    const el = await mount({
+      start_collapsed: true,
+      body: [{ type: 'item', title: 'Loft Room', abbr: 'Lo', tap_action: TAP }],
+    });
+    expect(root(el).querySelector('.dashboard-sidebar-initials')?.textContent?.trim()).to.equal(
+      'Lo',
+    );
+  });
+
+  it('preserves title casing in derived initials', async () => {
+    const el = await mount({
+      start_collapsed: true,
+      body: [{ type: 'item', title: 'iPhone Hub', tap_action: TAP }],
+    });
+    expect(root(el).querySelector('.dashboard-sidebar-initials')?.textContent?.trim()).to.equal(
+      'iH',
+    );
+  });
+
+  it('shows a tooltip on hover over a collapsed item', async () => {
+    const el = await mount({
+      start_collapsed: true,
+      body: [{ type: 'item', title: 'Kitchen', tap_action: TAP }],
+    });
+    const btn = root(el).querySelector('.dashboard-sidebar-item') as HTMLElement;
+    btn.dispatchEvent(new MouseEvent('mouseenter'));
+    await el.updateComplete;
+    const tip = root(el).querySelector('.dashboard-sidebar-tooltip');
+    expect(tip).to.exist;
+    expect(tip?.textContent?.trim()).to.equal('Kitchen');
+
+    btn.dispatchEvent(new MouseEvent('mouseleave'));
+    await el.updateComplete;
+    expect(root(el).querySelector('.dashboard-sidebar-tooltip')).to.not.exist;
+  });
+
+  it('shows no tooltip when hovering a labelled expanded item', async () => {
+    const el = await mount({ body: [{ type: 'item', title: 'Kitchen', tap_action: TAP }] });
+    const btn = root(el).querySelector('.dashboard-sidebar-item') as HTMLElement;
+    btn.dispatchEvent(new MouseEvent('mouseenter'));
+    await el.updateComplete;
+    expect(root(el).querySelector('.dashboard-sidebar-tooltip')).to.not.exist;
+  });
+
+  it('shows a tooltip on a footer button in the expanded state', async () => {
+    const el = await mount({
+      body: [{ type: 'item', title: 'A', tap_action: TAP }],
+      footer: { buttons: [{ icon: 'mdi:cog', title: 'Settings', tap_action: TAP }] },
+    });
+    const btn = root(el).querySelector('.dashboard-sidebar-footer-btn') as HTMLElement;
+    btn.dispatchEvent(new MouseEvent('mouseenter'));
+    await el.updateComplete;
+    expect(root(el).querySelector('.dashboard-sidebar-tooltip')?.textContent?.trim()).to.equal(
+      'Settings',
+    );
+  });
+
+  it('shows a tooltip on the footer ellipsis in the collapsed state', async () => {
+    const el = await mount({
+      start_collapsed: true,
+      body: [{ type: 'item', title: 'A', tap_action: TAP }],
+      footer: { buttons: [{ icon: 'mdi:cog', tap_action: TAP }] },
+    });
+    const dots = root(el).querySelector('.dashboard-sidebar-footer-more') as HTMLElement;
+    dots.dispatchEvent(new MouseEvent('mouseenter'));
+    await el.updateComplete;
+    expect(root(el).querySelector('.dashboard-sidebar-tooltip')?.textContent?.trim()).to.equal(
+      'More',
+    );
+  });
+
+  it('suppresses the tooltip while the footer popover is open', async () => {
+    const el = await mount({
+      start_collapsed: true,
+      body: [{ type: 'item', title: 'A', tap_action: TAP }],
+      footer: { buttons: [{ icon: 'mdi:cog', tap_action: TAP }] },
+    });
+    const dots = root(el).querySelector('.dashboard-sidebar-footer-more') as HTMLElement;
+    dots.click();
+    await el.updateComplete;
+    dots.dispatchEvent(new MouseEvent('mouseenter'));
+    await el.updateComplete;
+    expect(root(el).querySelector('.dashboard-sidebar-footer-popover')).to.exist;
+    expect(root(el).querySelector('.dashboard-sidebar-tooltip')).to.not.exist;
+  });
+
+  it('shows tooltips for buttons inside the open footer popover', async () => {
+    const el = await mount({
+      start_collapsed: true,
+      body: [{ type: 'item', title: 'A', tap_action: TAP }],
+      footer: { buttons: [{ icon: 'mdi:cog', title: 'Settings', tap_action: TAP }] },
+    });
+    const dots = root(el).querySelector('.dashboard-sidebar-footer-more') as HTMLElement;
+    dots.click();
+    await el.updateComplete;
+    const popBtn = root(el).querySelector(
+      '.dashboard-sidebar-footer-popover .dashboard-sidebar-footer-btn',
+    ) as HTMLElement;
+    popBtn.dispatchEvent(new MouseEvent('mouseenter'));
+    await el.updateComplete;
+    expect(root(el).querySelector('.dashboard-sidebar-tooltip')?.textContent?.trim()).to.equal(
+      'Settings',
+    );
+  });
+});
+
+// --- merged from card-mod.browser.test.ts ---
+/** Stubs card-mod's element, recording every applyToElement invocation. */
+class StubCardMod extends HTMLElement {
+  /** The recorded calls, inspected by the tests. */
+  static calls: Array<{ element: HTMLElement; type: string; config: unknown }> = [];
+
+  /** Mimics card-mod's static apply surface by recording the arguments. */
+  static applyToElement(element: HTMLElement, type: string, config: unknown): void {
+    StubCardMod.calls.push({ element, type, config });
+  }
+}
+
+describe('<dashboard-sidebar> card-mod delegation', () => {
+  before(() => {
+    if (!customElements.get('card-mod')) {
+      customElements.define('card-mod', StubCardMod);
+    }
+  });
+
+  beforeEach(() => {
+    StubCardMod.calls = [];
+    window.localStorage.clear();
+  });
+
+  it('forwards the card_mod config to card-mod applyToElement', async () => {
+    const cardMod = { style: '.dashboard-sidebar-title { color: red; }' };
+    const el = await mount({
+      header: [{ type: 'title', text: 'Home' }],
+      card_mod: cardMod,
+      body: [{ type: 'item', title: 'A', tap_action: { action: 'toggle' } }],
+    });
+
+    expect(StubCardMod.calls.length).to.be.greaterThan(0);
+    const call = StubCardMod.calls[0];
+    expect(call.element).to.equal(el);
+    expect(call.type).to.equal('dashboard-sidebar');
+    expect(call.config).to.deep.equal(cardMod);
+  });
+
+  it('does not call card-mod when no card_mod config is present', async () => {
+    await mount({ body: [{ type: 'item', title: 'A', tap_action: { action: 'toggle' } }] });
+    expect(StubCardMod.calls.length).to.equal(0);
+  });
+
+  it('does not call card-mod for an invalid config', async () => {
+    await mount({ card_mod: { style: 'x' }, body: 'nope' } as unknown as Parameters<
+      DashboardSidebar['setConfig']
+    >[0]);
+    expect(StubCardMod.calls.length).to.equal(0);
+  });
+
+  it('applies card-mod only once across re-renders', async () => {
+    const el = await mount({
+      card_mod: { style: 'x' },
+      body: [{ type: 'item', title: 'A', tap_action: { action: 'toggle' } }],
+    });
+    const rerender = el as unknown as { requestUpdate: () => void };
+    rerender.requestUpdate();
+    await el.updateComplete;
+    rerender.requestUpdate();
+    await el.updateComplete;
+    expect(StubCardMod.calls.length).to.equal(1);
+  });
+
+  it('scopes a per-element card_mod to that element by data-loc', async () => {
+    await mount({
+      header: [
+        {
+          type: 'title',
+          text: 'One',
+          card_mod: { style: '.dashboard-sidebar-title { color: red; }' },
+        },
+        { type: 'title', text: 'Two' },
+      ],
+    });
+    const call = StubCardMod.calls.find((c) => c.type.startsWith('dashboard-sidebar:'));
+    expect(call, 'element-level card-mod call').to.exist;
+    expect(call!.type).to.equal('dashboard-sidebar:header:0');
+    expect((call!.element as HTMLElement).getAttribute('data-loc')).to.equal('header:0');
+    const style = (call!.config as { style: string }).style;
+    // Self (compound) branch matches the title, which carries the class itself.
+    expect(style).to.contain('[data-loc="header:0"]:is(.dashboard-sidebar-title)');
+    // Descendant branch for nested targets.
+    expect(style).to.contain('[data-loc="header:0"] :is(.dashboard-sidebar-title)');
+  });
+
+  it('the scoped style really isolates one element from its siblings', async () => {
+    // Prove the rewritten CSS colors only the matching data-loc element.
+    const { scopeCss } = await import('./lib/card-mod');
+    const scoped = scopeCss(
+      '.dashboard-sidebar-title { color: rgb(255, 0, 0); }',
+      '[data-loc="header:0"]',
+    );
+    expect(scoped, 'scopeCss output').to.be.a('string');
+    const host = document.createElement('div');
+    const sr = host.attachShadow({ mode: 'open' });
+    sr.innerHTML = `<style>${scoped}</style>
+      <div data-loc="header:0" class="dashboard-sidebar-title">One</div>
+      <div data-loc="header:1" class="dashboard-sidebar-title">Two</div>`;
+    document.body.appendChild(host);
+    const one = sr.querySelector('[data-loc="header:0"]') as HTMLElement;
+    const two = sr.querySelector('[data-loc="header:1"]') as HTMLElement;
+    expect(getComputedStyle(one).color).to.equal('rgb(255, 0, 0)');
+    expect(getComputedStyle(two).color).to.not.equal('rgb(255, 0, 0)');
+    host.remove();
+  });
+
+  it('leaves a non-string (object-form) element style unwrapped', async () => {
+    await mount({
+      header: [
+        {
+          type: 'title',
+          text: 'One',
+          card_mod: { style: { '.dashboard-sidebar-title': 'color: red;' } },
+        },
+      ],
+    });
+    const call = StubCardMod.calls.find((c) => c.type.startsWith('dashboard-sidebar:'));
+    expect(call, 'element-level card-mod call').to.exist;
+    expect((call!.config as { style: unknown }).style).to.deep.equal({
+      '.dashboard-sidebar-title': 'color: red;',
+    });
+  });
+});
+
+// --- merged from hooks.browser.test.ts ---
+describe('per-block class and id hooks', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('applies class and id alongside the built-in classes', async () => {
+    const el = await mount({
+      header: [{ type: 'title', text: 'Home', class: 'my-title', id: 't1' }],
+      body: [{ type: 'item', title: 'A', class: 'special row-x', id: 'home', tap_action: TAP }],
+    });
+    const title = root(el).querySelector('#t1');
+    expect(title, 'title by id').to.exist;
+    expect(title?.classList.contains('dashboard-sidebar-title')).to.equal(true);
+    expect(title?.classList.contains('my-title')).to.equal(true);
+
+    const item = root(el).querySelector('#home');
+    expect(item, 'item by id').to.exist;
+    expect(item?.classList.contains('dashboard-sidebar-item')).to.equal(true);
+    expect(item?.classList.contains('special')).to.equal(true);
+    expect(item?.classList.contains('row-x')).to.equal(true);
+  });
+
+  it('applies class and id to footer buttons', async () => {
+    const el = await mount({
+      body: [{ type: 'item', title: 'A', tap_action: TAP }],
+      footer: { buttons: [{ icon: 'mdi:cog', id: 'cog', class: 'cog-btn', tap_action: TAP }] },
+    });
+    const btn = root(el).querySelector('#cog');
+    expect(btn, 'footer button by id').to.exist;
+    expect(btn?.classList.contains('dashboard-sidebar-footer-btn')).to.equal(true);
+    expect(btn?.classList.contains('cog-btn')).to.equal(true);
+  });
+});

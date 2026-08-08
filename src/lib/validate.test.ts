@@ -191,3 +191,155 @@ describe('validateConfig', () => {
     ).toContain('footer.buttons[0]: needs an icon');
   });
 });
+
+/** A tap action reused across the merged fixtures. */
+const TAP = { action: 'toggle' } as const;
+
+// --- merged from abbr.test.ts ---
+describe('validateConfig — abbr', () => {
+  it('accepts an abbr on an icon-less item', () => {
+    expect(
+      validateConfig({
+        body: [{ type: 'item', title: 'Loft Room', abbr: 'Lo', tap_action: TAP }],
+      }),
+    ).toHaveLength(0);
+  });
+
+  it('rejects a non-string abbr', () => {
+    expect(
+      validateConfig({
+        body: [{ type: 'item', title: 'A', abbr: 5, tap_action: TAP }],
+      } as unknown as DashboardSidebarConfig),
+    ).toContain('body[0].abbr: must be a string');
+  });
+
+  it('rejects abbr together with an icon on an item', () => {
+    expect(
+      validateConfig({
+        body: [{ type: 'item', title: 'A', icon: 'mdi:home', abbr: 'A', tap_action: TAP }],
+      }),
+    ).toContain('body[0]: abbr is only allowed when icon is not set');
+  });
+
+  it('applies the same rules to categories', () => {
+    expect(
+      validateConfig({
+        body: [
+          { type: 'category', title: 'Utah', abbr: 'Ut', items: [{ title: 'x', tap_action: TAP }] },
+        ],
+      }),
+    ).toHaveLength(0);
+    expect(
+      validateConfig({
+        body: [
+          {
+            type: 'category',
+            title: 'Utah',
+            icon: 'mdi:map',
+            abbr: 'Ut',
+            items: [{ title: 'x', tap_action: TAP }],
+          },
+        ],
+      }),
+    ).toContain('body[0]: abbr is only allowed when icon is not set');
+  });
+});
+
+// --- merged from config-species.test.ts ---
+describe('validateConfig — every block and option together', () => {
+  it('accepts a config exercising every block type and option', () => {
+    const config: DashboardSidebarConfig = {
+      width: 300,
+      start_collapsed: false,
+      hide_on_mobile: true,
+      background: '#111',
+      header: [
+        {
+          type: 'title',
+          text: '{{ states("sun.sun") }}',
+          align: 'left',
+          tap_action: { action: 'navigate', navigation_path: '/' },
+        },
+        {
+          type: 'clock',
+          format: '%-I:%M:%S %p',
+          timezone: 'America/New_York',
+          align: 'left',
+          tap_action: { action: 'more-info', entity: 'sun.sun' },
+          hold_action: { action: 'navigate', navigation_path: '/config' },
+          double_tap_action: { action: 'toggle' },
+        },
+        { type: 'date', format: '%Y-%m-%d', align: 'left', tap_action: { action: 'none' } },
+        { type: 'divider' },
+        { type: 'markdown', content: '**hi**', align: 'center' },
+        {
+          type: 'card',
+          card: { type: 'entities', entities: ['light.a'] },
+          align: 'center',
+          background: 'rgba(0,0,0,0.1)',
+        },
+      ],
+      body: [
+        {
+          type: 'item',
+          title: 'Home',
+          icon: 'mdi:home',
+          tap_action: { action: 'navigate', navigation_path: '/' },
+        },
+        { type: 'divider' },
+        {
+          type: 'category',
+          title: 'Rooms',
+          icon: 'mdi:floor-plan',
+          start_collapsed: true,
+          guide_line: false,
+          items: [{ title: 'Kitchen', entity: 'light.k', tap_action: { action: 'toggle' } }],
+        },
+        { type: 'card', card: { type: 'entities', entities: ['light.k'] } },
+      ],
+      footer: {
+        divider: false,
+        buttons: [
+          {
+            icon: 'mdi:cog',
+            title: 'Settings',
+            tap_action: { action: 'navigate', navigation_path: '/config' },
+          },
+        ],
+      },
+      card_mod: { style: '.x {}' },
+    };
+    expect(validateConfig(config)).toHaveLength(0);
+  });
+
+  it('accepts a footer card in place of buttons', () => {
+    const config: DashboardSidebarConfig = {
+      body: [{ type: 'item', title: 'A', tap_action: { action: 'toggle' } }],
+      footer: { card: { type: 'gauge', entity: 'sensor.x' } },
+    };
+    expect(validateConfig(config)).toHaveLength(0);
+  });
+});
+
+// --- merged from hooks.test.ts ---
+describe('validateConfig — class/id hooks', () => {
+  it('accepts class and id on blocks and footer buttons', () => {
+    const config: DashboardSidebarConfig = {
+      header: [{ type: 'title', text: 'Home', class: 'my-title', id: 'title-1' }],
+      body: [{ type: 'item', title: 'A', class: 'a b', id: 'home', tap_action: TAP }],
+      footer: { buttons: [{ icon: 'mdi:cog', class: 'cog', id: 'cog', tap_action: TAP }] },
+    };
+    expect(validateConfig(config)).toHaveLength(0);
+  });
+
+  it('rejects a non-string class or id', () => {
+    expect(
+      validateConfig({
+        body: [{ type: 'item', title: 'A', class: 5, tap_action: TAP }],
+      } as unknown as DashboardSidebarConfig),
+    ).toContain('body[0].class: must be a string');
+    expect(
+      validateConfig({ header: [{ type: 'divider', id: 5 }] } as unknown as DashboardSidebarConfig),
+    ).toContain('header[0].id: must be a string');
+  });
+});

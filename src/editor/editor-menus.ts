@@ -1,4 +1,9 @@
-import { html, type TemplateResult } from 'lit';
+import {
+  html,
+  type ReactiveController,
+  type ReactiveControllerHost,
+  type TemplateResult,
+} from 'lit';
 
 /** One selectable row in a popup menu. */
 export interface MenuItem {
@@ -55,3 +60,76 @@ export const popupMenu = (
     )}
   </div>
 `;
+
+/**
+ * Owns the editor's popup-menu state: the add-element menu, the selected
+ * element's overflow ("...") menu, and the current tab's options menu with its
+ * "Change to" submenu. Each *Open flag is an accessor that requests a host
+ * re-render when set (so the component stays reactive without @state); the
+ * anchor rects and item list are plain fields, set alongside their flag.
+ */
+export class MenusController implements ReactiveController {
+  private host: ReactiveControllerHost;
+
+  private _addOpen = false;
+  private _elementOpen = false;
+  private _tabOpen = false;
+  private _tabSubmenuOpen = false;
+
+  /** Anchor rect and choices for the open add menu. */
+  addRect: DOMRect | null = null;
+  addItems: MenuItem[] = [];
+  /** Anchor rect of the selected element's overflow menu trigger. */
+  elementRect: DOMRect | null = null;
+  /** Anchor rect of the tab options menu trigger. */
+  tabRect: DOMRect | null = null;
+
+  /** Registers this controller with its host component. */
+  constructor(host: ReactiveControllerHost) {
+    this.host = host;
+    host.addController(this);
+  }
+
+  /** No connect-time work; the menu state lives in memory. */
+  hostConnected(): void {}
+
+  /** Whether the add-element menu is open. */
+  get addOpen(): boolean {
+    return this._addOpen;
+  }
+  /** Opens or closes the add-element menu, re-rendering the host. */
+  set addOpen(v: boolean) {
+    this._addOpen = v;
+    this.host.requestUpdate();
+  }
+
+  /** Whether the selected element's overflow menu is open. */
+  get elementOpen(): boolean {
+    return this._elementOpen;
+  }
+  /** Opens or closes the element overflow menu, re-rendering the host. */
+  set elementOpen(v: boolean) {
+    this._elementOpen = v;
+    this.host.requestUpdate();
+  }
+
+  /** Whether the current tab's options menu is open. */
+  get tabOpen(): boolean {
+    return this._tabOpen;
+  }
+  /** Opens or closes the tab options menu, re-rendering the host. */
+  set tabOpen(v: boolean) {
+    this._tabOpen = v;
+    this.host.requestUpdate();
+  }
+
+  /** Whether the footer menu's "Change to" submenu is expanded. */
+  get tabSubmenuOpen(): boolean {
+    return this._tabSubmenuOpen;
+  }
+  /** Expands or collapses the "Change to" submenu, re-rendering the host. */
+  set tabSubmenuOpen(v: boolean) {
+    this._tabSubmenuOpen = v;
+    this.host.requestUpdate();
+  }
+}

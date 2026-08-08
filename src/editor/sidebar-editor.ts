@@ -16,7 +16,7 @@ import type {
 import type { DashboardSidebar } from '../dashboard-sidebar';
 import '../dashboard-sidebar';
 import { confirmDialog } from './editor-dialogs';
-import { menuStyle, popupMenu } from './editor-menus';
+import { MenusController, menuStyle, popupMenu } from './editor-menus';
 import { renderEmptyState, renderGhost } from './editor-preview';
 import { editorStyles } from './editor-styles';
 import {
@@ -180,15 +180,8 @@ export class DashboardSidebarEditor extends LitElement {
   /** Ids of categories shown collapsed in the preview (toggled via their menu). */
   @state() private _previewCollapsedCats = new Set<string>();
 
-  /** Whether the add-element menu is open. */
-  @state() private _addMenuOpen = false;
-
-  /** Anchor rect and choices for the open add menu. */
-  private _addMenuRect: DOMRect | null = null;
-  private _addMenuItems: Array<{ label: string; run: () => void }> = [];
-
-  /** Whether the selected element's overflow ("...") menu is open. */
-  @state() private _elementMenuOpen = false;
+  /** Popup-menu open/close state: add, element overflow, and tab options. */
+  private _menus = new MenusController(this);
 
   /** Id of the element being edited as YAML, or null when editing with the UI. */
   @state() private _yamlEditId: string | null = null;
@@ -211,20 +204,8 @@ export class DashboardSidebarEditor extends LitElement {
   /** JSON of the last-validated manual card, to skip redundant re-validation. */
   private _lastCardSig = '';
 
-  /** Anchor rect of the overflow menu's trigger. */
-  private _elementMenuRect: DOMRect | null = null;
-
-  /** Whether the current tab's options ("...") menu is open. */
-  @state() private _tabMenuOpen = false;
-
-  /** Whether the footer menu's "Change to" submenu is expanded. */
-  @state() private _tabSubmenuOpen = false;
-
   /** Whether the footer content is being edited as raw YAML. */
   @state() private _footerYaml = false;
-
-  /** Anchor rect of the tab options menu's trigger. */
-  private _tabMenuRect: DOMRect | null = null;
 
   /** Validation errors from the last save attempt. */
   @state() private _errors: string[] = [];
@@ -266,9 +247,9 @@ export class DashboardSidebarEditor extends LitElement {
       this._confirmingClose = false;
       this._collapsedTabs = new Set();
       this._previewCollapsedCats = new Set();
-      this._addMenuOpen = false;
-      this._elementMenuOpen = false;
-      this._tabMenuOpen = false;
+      this._menus.addOpen = false;
+      this._menus.elementOpen = false;
+      this._menus.tabOpen = false;
     }
   }
 
@@ -960,8 +941,8 @@ export class DashboardSidebarEditor extends LitElement {
    */
   private _openElementMenu(ev: Event): void {
     ev.stopPropagation();
-    this._elementMenuRect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
-    this._elementMenuOpen = true;
+    this._menus.elementRect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+    this._menus.elementOpen = true;
   }
 
   /**
@@ -1208,10 +1189,10 @@ export class DashboardSidebarEditor extends LitElement {
         ? (this._tabSelection[tab] ?? null)
         : null;
     this._fieldErrors = {};
-    this._addMenuOpen = false;
-    this._elementMenuOpen = false;
-    this._tabMenuOpen = false;
-    this._tabSubmenuOpen = false;
+    this._menus.addOpen = false;
+    this._menus.elementOpen = false;
+    this._menus.tabOpen = false;
+    this._menus.tabSubmenuOpen = false;
     this._footerYaml = false;
   }
 
@@ -1532,8 +1513,8 @@ export class DashboardSidebarEditor extends LitElement {
         aria-label="Footer options"
         @click=${(e: Event) => {
           e.stopPropagation();
-          this._tabMenuRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          this._tabMenuOpen = true;
+          this._menus.tabRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          this._menus.tabOpen = true;
         }}
       >
         <ha-icon icon="mdi:dots-vertical"></ha-icon>
@@ -1547,8 +1528,8 @@ export class DashboardSidebarEditor extends LitElement {
    * YAML/UI edit toggle.
    */
   private _renderTabMenu(): TemplateResult | typeof nothing {
-    const rect = this._tabMenuRect;
-    if (!this._tabMenuOpen || !rect || this._tab !== 'footer') {
+    const rect = this._menus.tabRect;
+    if (!this._menus.tabOpen || !rect || this._tab !== 'footer') {
       return nothing;
     }
     const mode = this._footerMode();
@@ -1561,8 +1542,8 @@ export class DashboardSidebarEditor extends LitElement {
       ] as const
     ).filter(([m]) => m !== mode);
     const close = (): void => {
-      this._tabMenuOpen = false;
-      this._tabSubmenuOpen = false;
+      this._menus.tabOpen = false;
+      this._menus.tabSubmenuOpen = false;
     };
     return html`
       <div class="menu-scrim" @click=${close}></div>
@@ -1579,13 +1560,13 @@ export class DashboardSidebarEditor extends LitElement {
         <button
           class="add-menu-item"
           @click=${() => {
-            this._tabSubmenuOpen = !this._tabSubmenuOpen;
+            this._menus.tabSubmenuOpen = !this._menus.tabSubmenuOpen;
           }}
         >
-          Change to ${this._tabSubmenuOpen ? '▾' : '▸'}
+          Change to ${this._menus.tabSubmenuOpen ? '▾' : '▸'}
         </button>
         ${
-          this._tabSubmenuOpen
+          this._menus.tabSubmenuOpen
             ? others.map(
                 ([m, label]) => html`
                   <button
@@ -1681,8 +1662,8 @@ export class DashboardSidebarEditor extends LitElement {
                 next.delete(this._tab);
               }
               this._collapsedTabs = next;
-              this._addMenuOpen = false;
-              this._elementMenuOpen = false;
+              this._menus.addOpen = false;
+              this._menus.elementOpen = false;
               if (collapsing) {
                 this._reselectForCollapse();
               }
@@ -1934,8 +1915,8 @@ export class DashboardSidebarEditor extends LitElement {
    * trigger: the YAML/UI edit toggle, plus expand/collapse for a category.
    */
   private _renderElementMenu(): TemplateResult | typeof nothing {
-    const rect = this._elementMenuRect;
-    if (!this._elementMenuOpen || !rect) {
+    const rect = this._menus.elementRect;
+    if (!this._menus.elementOpen || !rect) {
       return nothing;
     }
     let items: TemplateResult;
@@ -1950,7 +1931,7 @@ export class DashboardSidebarEditor extends LitElement {
       <div
         class="menu-scrim"
         @click=${() => {
-          this._elementMenuOpen = false;
+          this._menus.elementOpen = false;
         }}
       ></div>
       <div class="add-menu" style=${menuStyle(rect, 'right')}>${items}</div>
@@ -1997,7 +1978,7 @@ export class DashboardSidebarEditor extends LitElement {
     // Entering YAML surfaces any existing schema errors of the element up front;
     // leaving clears the editor error (the UI banner re-derives it live).
     this._yamlError = toYaml ? this._selectedSchemaErrors().join(' • ') || null : null;
-    this._elementMenuOpen = false;
+    this._menus.elementOpen = false;
   }
 
   /**
@@ -2041,7 +2022,7 @@ export class DashboardSidebarEditor extends LitElement {
   private _toggleSettingsYaml(): void {
     this._settingsYaml = !this._settingsYaml;
     this._yamlError = this._settingsYaml ? validateConfig(this._working).join(' • ') || null : null;
-    this._elementMenuOpen = false;
+    this._menus.elementOpen = false;
   }
 
   /**
@@ -2060,7 +2041,7 @@ export class DashboardSidebarEditor extends LitElement {
       next.add(id);
     }
     this._previewCollapsedCats = next;
-    this._elementMenuOpen = false;
+    this._menus.elementOpen = false;
   }
 
   /**
@@ -2415,9 +2396,9 @@ export class DashboardSidebarEditor extends LitElement {
         aria-label="Add element"
         @click=${(e: Event) => {
           e.stopPropagation();
-          this._addMenuRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          this._addMenuItems = items;
-          this._addMenuOpen = true;
+          this._menus.addRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          this._menus.addItems = items;
+          this._menus.addOpen = true;
         }}
       >
         ${label ?? (this._tabCollapsed ? '＋' : '＋ Add Element')}
@@ -2438,12 +2419,12 @@ export class DashboardSidebarEditor extends LitElement {
    * modal's clipping.
    */
   private _renderAddMenuPopup(): TemplateResult | typeof nothing {
-    const rect = this._addMenuRect;
-    if (!this._addMenuOpen || !rect) {
+    const rect = this._menus.addRect;
+    if (!this._menus.addOpen || !rect) {
       return nothing;
     }
-    return popupMenu(rect, this._addMenuItems, () => {
-      this._addMenuOpen = false;
+    return popupMenu(rect, this._menus.addItems, () => {
+      this._menus.addOpen = false;
     });
   }
 
